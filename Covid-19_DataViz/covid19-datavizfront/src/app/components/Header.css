@@ -1,0 +1,38 @@
+.flex-grow {
+  flex: 1;
+}
+
+
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  margin-top: 10px;
+  width: 200px;
+  background-color: #222222;
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  animation: fadeIn 0.3s;
+}
+
+
+.dropdown-item {
+  display: block;
+  padding: 10px 15px;
+  color: lightgray;
+  text-decoration: none;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.dropdown-item:hover {
+  background-color: #122b61;
+  color: #f3f4f7;
+}
+
+
+body {
+  background-color: #000000;
+  margin: 0;
+  padding: 0;
+}
