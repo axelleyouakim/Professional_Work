@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import WorldMap from 'react-world-map';
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import {
   LineChart,
   Line,
@@ -9,9 +7,10 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ResponsiveContainer
 } from 'recharts';
+import * as d3 from 'd3';
+import * as topojson from "topojson-client";
 
 const geoUrl = 'https://raw.githubusercontent.com/deldersveld/topojson/master/world-countries.json';
 
@@ -21,7 +20,7 @@ import {
   get28DayCases, 
   get28DayDeaths, 
   getTotalVaccineDoses,
-  getTotalVaccineDosesPerCountry, 
+  // getTotalVaccineDosesPerCountry, 
   get28DayVaccineDoses,
   get28DayVaccineDosesPerCountry,
   getTotalCasesPerCountry,
@@ -94,29 +93,6 @@ const Dashboard = ({ style }) => {
 
   const [selectedCountry, setSelectedCountry] = useState(null);
   
-  const data1 = [
-    { week: '2022', cases: 6000000 },
-  ];
-
-  const formatYAxis = (tick) => {
-    if (tick >= 1000000) {
-      return `${tick / 1000000}M`;
-    }
-    return tick;
-  };
-
-  const data2 = [
-    { week: 'Week 1', deaths: 30 },
-    { week: 'Week 2', deaths: 50 },
-    { week: 'Week 3', deaths: 45 },
-  ];
-
-  const data3 = [
-    { week: 'Week 1', recovered: 800 },
-    { week: 'Week 2', recovered: 1200 },
-    { week: 'Week 3', recovered: 1000 },
-  ];
-
     // HARDCODED: Replace this entire array with data from your API/database
   // This should come from an API call like: fetch('/api/chart-data')
   const chartData = [
@@ -134,68 +110,70 @@ const Dashboard = ({ style }) => {
     setSelectedCountry(countryName);
   };
 
-  const handleZoomIn = () => {
-    setZoom((prev) => Math.min(prev + 1, 6))
-  }
+  // const handleZoomIn = () => {
+  //   setZoom((prev) => Math.min(prev + 1, 6))
+  // }
 
-  const handleZoomOut = () => {
-    setZoom((prev) => Math.max(prev - 1, 1))
-  }
+  // const handleZoomOut = () => {
+  //   setZoom((prev) => Math.max(prev - 1, 1))
+  // }
 
   const canvasRef = useRef(null)
-  const [zoom, setZoom] = useState(2)
-  const [center, setCenter] = useState({ x: 0, y: 20 })
+  // const [zoom, setZoom] = useState(2)
+  // const [center, setCenter] = useState({ x: 0, y: 20 })
+  const [worldData, setWorldData] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
 
-    useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+  //   useEffect(() => {
+  //   const canvas = canvasRef.current
+  //   if (!canvas) return
 
-    const ctx = canvas.getContext("2d")
-    const tileSize = 256
+  //   const ctx = canvas.getContext("2d")
+  //   const tileSize = 256
 
-    // Set canvas size
-    canvas.width = canvas.offsetWidth
-    canvas.height = canvas.offsetHeight
+  //   // Set canvas size
+  //   canvas.width = canvas.offsetWidth
+  //   canvas.height = canvas.offsetHeight
 
-    // Calculate which tiles to load based on zoom and center
-    const numTiles = Math.pow(2, zoom)
-    const centerTileX = Math.floor(((center.x + 180) / 360) * numTiles)
-    const centerTileY = Math.floor(
-      ((1 - Math.log(Math.tan((center.y * Math.PI) / 180) + 1 / Math.cos((center.y * Math.PI) / 180)) / Math.PI) / 2) *
-        numTiles,
-    )
+  //   // Calculate which tiles to load based on zoom and center
+  //   const numTiles = Math.pow(2, zoom)
+  //   const centerTileX = Math.floor(((center.x + 180) / 360) * numTiles)
+  //   const centerTileY = Math.floor(
+  //     ((1 - Math.log(Math.tan((center.y * Math.PI) / 180) + 1 / Math.cos((center.y * Math.PI) / 180)) / Math.PI) / 2) *
+  //       numTiles,
+  //   )
 
-    // Clear canvas
-    ctx.fillStyle = "#0a1929"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+  //   // Clear canvas
+  //   ctx.fillStyle = "#0a1929"
+  //   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Calculate how many tiles we need to cover the canvas
-    const tilesX = Math.ceil(canvas.width / tileSize) + 2
-    const tilesY = Math.ceil(canvas.height / tileSize) + 2
+  //   // Calculate how many tiles we need to cover the canvas
+  //   const tilesX = Math.ceil(canvas.width / tileSize) + 2
+  //   const tilesY = Math.ceil(canvas.height / tileSize) + 2
 
-    const startTileX = centerTileX - Math.floor(tilesX / 2)
-    const startTileY = centerTileY - Math.floor(tilesY / 2)
+  //   const startTileX = centerTileX - Math.floor(tilesX / 2)
+  //   const startTileY = centerTileY - Math.floor(tilesY / 2)
 
-    // Load and draw tiles
-    for (let x = 0; x < tilesX; x++) {
-      for (let y = 0; y < tilesY; y++) {
-        const tileX = (startTileX + x + numTiles) % numTiles
-        const tileY = startTileY + y
+  //   // Load and draw tiles
+  //   for (let x = 0; x < tilesX; x++) {
+  //     for (let y = 0; y < tilesY; y++) {
+  //       const tileX = (startTileX + x + numTiles) % numTiles
+  //       const tileY = startTileY + y
 
-        if (tileY >= 0 && tileY < numTiles) {
-          const img = new Image()
-          img.crossOrigin = "anonymous"
-          img.src = `https://a.basemaps.cartocdn.com/dark_all/${zoom}/${tileX}/${tileY}.png`
+  //       if (tileY >= 0 && tileY < numTiles) {
+  //         const img = new Image()
+  //         img.crossOrigin = "anonymous"
+  //         img.src = `https://a.basemaps.cartocdn.com/dark_all/${zoom}/${tileX}/${tileY}.png`
 
-          img.onload = () => {
-            const drawX = x * tileSize - (canvas.width / 2 - (tilesX * tileSize) / 2)
-            const drawY = y * tileSize - (canvas.height / 2 - (tilesY * tileSize) / 2)
-            ctx.drawImage(img, drawX, drawY, tileSize, tileSize)
-          }
-        }
-      }
-    }
-  }, [zoom, center])
+  //         img.onload = () => {
+  //           const drawX = x * tileSize - (canvas.width / 2 - (tilesX * tileSize) / 2)
+  //           const drawY = y * tileSize - (canvas.height / 2 - (tilesY * tileSize) / 2)
+  //           ctx.drawImage(img, drawX, drawY, tileSize, tileSize)
+  //         }
+  //       }
+  //     }
+  //   }
+  // }, [zoom, center])
 
   useEffect(() => {
     const fetchTotalCases = async () => {
@@ -306,17 +284,17 @@ const Dashboard = ({ style }) => {
   }, []);
 
   useEffect(() => {
-    const fetchTotalVaccineDosesPerCountry = async () => {
-      try {
-        const data = await getTotalVaccineDosesPerCountry();
-        setTotalVaccineDosesPerCountry(data?.data || []);
-      } catch (error) {
-        console.error('Error fetching vaccine doses per country:', error);
-        setVaccineDosesPerCountryError('Failed to fetch vaccine doses per country.');
-      } finally {
-        setVaccineDosesPerCountryLoading(false);
-      }
-    };
+    // const fetchTotalVaccineDosesPerCountry = async () => {
+    //   try {
+    //     const data = await getTotalVaccineDosesPerCountry();
+    //     setTotalVaccineDosesPerCountry(data?.data || []);
+    //   } catch (error) {
+    //     console.error('Error fetching vaccine doses per country:', error);
+    //     setVaccineDosesPerCountryError('Failed to fetch vaccine doses per country.');
+    //   } finally {
+    //     setVaccineDosesPerCountryLoading(false);
+    //   }
+    // };
     
     fetchTotalVaccineDosesPerCountry();
   }, []);
@@ -399,6 +377,216 @@ const Dashboard = ({ style }) => {
 
   fetchRecovered();
 }, []);
+
+ useEffect(() => {
+    // Load world map data with country names
+    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
+      .then(response => response.json())
+      .then(topology => {
+        // Convert TopoJSON to GeoJSON
+        const countries = topojson.feature(topology, topology.objects.countries);
+        
+        // Load country names separately
+        fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
+          .then(res => res.json())
+          .then(data => {
+            // Add centroids for labels
+            countries.features.forEach(feature => {
+              const centroid = d3.geoCentroid(feature);
+              feature.properties.centroid = centroid;
+            });
+            setWorldData(countries);
+          });
+      })
+      .catch(err => console.error('Error loading map:', err));
+  }, []);
+
+  useEffect(() => {
+    if (!worldData) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const context = canvas.getContext('2d');
+    const width = canvas.width = canvas.offsetWidth;
+    const height = canvas.height = canvas.offsetHeight;
+
+    // Set up projection
+    const projection = d3.geoMercator()
+      .scale(width / (2 * Math.PI))
+      .translate([width / 2, height / 2]);
+
+    const path = d3.geoPath(projection, context);
+
+    let currentTransform = d3.zoomIdentity;
+
+    // Only hardcode ocean/continent labels (these don't change)
+    const oceanLabels = [
+      { name: "PACIFIC OCEAN", coords: [-160, 0] },
+      { name: "ATLANTIC OCEAN", coords: [-30, 15] },
+      { name: "INDIAN OCEAN", coords: [75, -15] },
+      { name: "ARCTIC OCEAN", coords: [0, 75] }
+    ];
+
+    const continentLabels = [
+      { name: "NORTH AMERICA", coords: [-100, 45] },
+      { name: "SOUTH AMERICA", coords: [-60, -15] },
+      { name: "EUROPE", coords: [15, 52] },
+      { name: "AFRICA", coords: [20, 5] },
+      { name: "ASIA", coords: [90, 45] },
+      { name: "AUSTRALIA", coords: [135, -25] }
+    ];
+
+    // Draw function
+    const draw = () => {
+      context.clearRect(0, 0, width, height);
+      context.save();
+      
+      context.translate(currentTransform.x, currentTransform.y);
+      context.scale(currentTransform.k, currentTransform.k);
+
+      // Ocean background
+      context.fillStyle = '#0a1929';
+      context.fillRect(-width * 2, -height * 2, width * 5, height * 5);
+
+      // Draw countries
+      context.fillStyle = '#1a2f3f';
+      context.strokeStyle = '#2a4a5f';
+      context.lineWidth = 0.5 / currentTransform.k;
+
+      worldData.features.forEach(feature => {
+        context.beginPath();
+        path(feature);
+        context.fill();
+        context.stroke();
+      });
+
+      // Draw labels based on zoom level
+      const k = currentTransform.k;
+      
+      if (k < 2) {
+        // Zoomed out: show oceans and continents
+        drawLabels(context, oceanLabels, projection, k, '#3a5a7a', 14, 0.7, 'italic');
+        drawLabels(context, continentLabels, projection, k, '#e0e0e0', 13, 0.9, 'bold');
+      } else {
+        // Zoomed in: show country names from the data
+        drawCountryLabels(context, projection, k);
+      }
+
+      context.restore();
+    };
+
+    // Draw country labels from geodata
+    const drawCountryLabels = (ctx, proj, zoom) => {
+      const minArea = 1000 / (zoom * zoom); // Show smaller countries as we zoom in
+      
+      ctx.font = `${10 / zoom}px Arial`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.globalAlpha = Math.min(1, (zoom - 1.5) / 1);
+
+      worldData.features.forEach(feature => {
+        // Calculate area to filter small countries at low zoom
+        const area = d3.geoArea(feature) * 1000000;
+        
+        if (area > minArea && feature.properties.centroid) {
+          const coords = proj(feature.properties.centroid);
+          
+          if (coords && coords[0] >= 0 && coords[0] <= width && 
+              coords[1] >= 0 && coords[1] <= height) {
+            
+            // Get country name - try different property names
+            const name = feature.properties.name || 
+                        feature.properties.NAME || 
+                        feature.properties.admin ||
+                        feature.properties.ADMIN ||
+                        '';
+            
+            if (name) {
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+              ctx.shadowBlur = 3 / zoom;
+              ctx.fillText(name, coords[0], coords[1]);
+              ctx.shadowBlur = 0;
+            }
+          }
+        }
+      });
+
+      ctx.globalAlpha = 1;
+    };
+
+    // Draw static labels helper
+    const drawLabels = (ctx, labels, proj, zoom, color, fontSize, minZoom, fontWeight = 'normal') => {
+      if (zoom < minZoom) return;
+
+      ctx.font = `${fontWeight} ${fontSize / zoom}px Arial`;
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.globalAlpha = Math.min(1, (zoom - minZoom + 0.5) / 0.7);
+
+      labels.forEach(label => {
+        const coords = proj(label.coords);
+        if (coords) {
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+          ctx.shadowBlur = 3 / zoom;
+          ctx.fillText(label.name, coords[0], coords[1]);
+          ctx.shadowBlur = 0;
+        }
+      });
+
+      ctx.globalAlpha = 1;
+    };
+
+    // Zoom behavior
+    const zoom = d3.zoom()
+      .scaleExtent([1, 8])
+      .on('zoom', (event) => {
+        currentTransform = event.transform;
+        setZoomLevel(event.transform.k);
+        draw();
+      });
+
+    d3.select(canvas).call(zoom);
+
+    // Initial draw
+    draw();
+
+    // Handle resize
+    const handleResize = () => {
+      const newWidth = canvas.offsetWidth;
+      const newHeight = canvas.offsetHeight;
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      projection
+        .scale(newWidth / (2 * Math.PI))
+        .translate([newWidth / 2, newHeight / 2]);
+      draw();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [worldData]);
+
+  const handleZoomIn = () => {
+    const canvas = canvasRef.current;
+    d3.select(canvas)
+      .transition()
+      .duration(300)
+      .call(d3.zoom().scaleBy, 1.3);
+  };
+
+  const handleZoomOut = () => {
+    const canvas = canvasRef.current;
+    d3.select(canvas)
+      .transition()
+      .duration(300)
+      .call(d3.zoom().scaleBy, 0.77);
+  };
 
 return (
   <>
