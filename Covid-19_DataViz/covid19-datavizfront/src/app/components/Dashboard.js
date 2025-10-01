@@ -300,11 +300,9 @@ const Dashboard = ({ style }) => {
         setChartLoading(true);
         const data = await getCasesTimeSeries();
         
-        // Format the data for the chart - take every 7th day to avoid overcrowding
         const formattedData = data.data
           .filter((_, index) => index % 7 === 0)
           .map(item => {
-            // Parse date in M/D/YY format (e.g., "1/22/20")
             const parts = item.date.split('/');
             if (parts.length === 3) {
               const month = parseInt(parts[0], 10);
@@ -340,15 +338,11 @@ const Dashboard = ({ style }) => {
       .then(topology => {
         const countries = topojson.feature(topology, topology.objects.countries);
         
-        fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
-          .then(res => res.json())
-          .then(data => {
-            countries.features.forEach(feature => {
-              const centroid = d3.geoCentroid(feature);
-              feature.properties.centroid = centroid;
-            });
-            setWorldData(countries);
-          });
+        countries.features.forEach(feature => {
+          const centroid = d3.geoCentroid(feature);
+          feature.properties.centroid = centroid;
+        });
+        setWorldData(countries);
       })
       .catch(err => console.error('Error loading map:', err));
   }, []);
@@ -408,6 +402,8 @@ const Dashboard = ({ style }) => {
         context.stroke();
       });
 
+      drawCasesCircles(context, projection, currentTransform.k);
+
       const k = currentTransform.k;
       
       if (k < 2) {
@@ -418,6 +414,44 @@ const Dashboard = ({ style }) => {
       }
 
       context.restore();
+    };
+
+    const drawCasesCircles = (ctx, proj, zoom) => {
+      if (!totalCasesPerCountry || totalCasesPerCountry.length === 0) return;
+
+      const maxCases = Math.max(...totalCasesPerCountry.map(c => c.total_cases || 0));
+
+      totalCasesPerCountry.forEach(countryData => {
+        if (!countryData.total_cases || countryData.total_cases === 0) return;
+
+        const feature = worldData.features.find(f => {
+          const name = f.properties.name || f.properties.NAME || f.properties.admin || f.properties.ADMIN || '';
+          return name.toLowerCase() === countryData.country.toLowerCase();
+        });
+
+        if (feature && feature.properties.centroid) {
+          const coords = proj(feature.properties.centroid);
+          
+          if (coords && coords[0] >= -width && coords[0] <= width * 2 && 
+              coords[1] >= -height && coords[1] <= height * 2) {
+            
+            const baseRadius = Math.sqrt(countryData.total_cases / maxCases) * 40;
+            const radius = Math.max(3, baseRadius / zoom);
+
+            ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
+            ctx.shadowBlur = 10 / zoom;
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.6)';
+            ctx.beginPath();
+            ctx.arc(coords[0], coords[1], radius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
+            ctx.lineWidth = 1 / zoom;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
+        }
+      });
     };
 
     const drawCountryLabels = (ctx, proj, zoom) => {
@@ -507,7 +541,7 @@ const Dashboard = ({ style }) => {
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [worldData]);
+  }, [worldData, totalCasesPerCountry]);
 
   const handleZoomIn = () => {
     const canvas = canvasRef.current;
