@@ -298,6 +298,92 @@
   text-decoration: underline;
 }
 
+.right-panels-container-narrow {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.right-stats-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.right-stat-panel {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.right-stat-panel .stat-value {
+  font-size: 28px;
+}
+
+.right-stat-panel .country-item {
+  font-size: 10px;
+  padding: 3px 6px;
+}
+
+.white-text {
+  color: #ffffff;
+}
+
+.country-name-small {
+  color: #999;
+  font-size: 10px;
+}
+
+.green-text {
+  color: #00ff00;
+}
+
+.chart-panel {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  height: 280px;
+  overflow: hidden;
+}
+
+.chart-container {
+  padding: 8px;
+}
+
+.chart-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+.chart-tab {
+  background: #2a2a2a;
+  border: 1px solid #333;
+  color: #999;
+  padding: 4px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-tab:hover {
+  background: #333;
+  color: #fff;
+}
+
+.chart-tab.active {
+  background: #333;
+  color: #fff;
+  border-color: #555;
+}
+
 .dashboard-container,
 .total-cases-container,
 .cases-28-day-container,
@@ -317,18 +403,6 @@
 
 .small-text {
     font-size: 1rem;
-}
-
-.red-text {
-    color: red !important;
-}
-
-.white-text {
-    color: white;
-}
-
-.green-text {
-    color: #00FF00 !important;
 }
 
 .cases-deaths-container {

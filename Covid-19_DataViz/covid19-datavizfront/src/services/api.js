@@ -66,6 +66,29 @@ export const getTotalDeathsPerCountry = async () => {
     }
 };
 
+export const getTotalRecoveredPerCountry = async (country) => {
+    try {
+        const response = await axios.get(`${API_URL}/get_total_recovered_per_country`, {
+            params: { country },
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching total recovered by country:', error);
+        throw error;
+    }
+};
+
+export const getGlobalTotalRecovered = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/get_total_recovered`);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching global total recovered:', error);
+        throw error;
+    }
+};
+
+
 export const get28DayCases = async () => {
     try {
         const response = await axios.get(`${API_URL}/get_28_day_cases`);

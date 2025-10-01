@@ -267,6 +267,69 @@ app.get('/get_total_deaths_per_country', async (req, res) => {
   }
 });
 
+app.get('/get_total_recovered', async (req, res) => {
+  try {
+    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
+    const response = await fetch(url);
+    const data = await response.text();
+
+    const rows = data.split('\n');
+    const header = rows[0].split(',');
+    const latestDate = header[header.length - 1];
+
+    let globalTotalRecovered = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+      const columns = rows[i].split(',');
+      const countryRecovered = parseInt(columns[columns.length - 1], 10);
+      if (!isNaN(countryRecovered)) {
+        globalTotalRecovered += countryRecovered;
+      }
+    }
+
+    res.json({ total_recovered: globalTotalRecovered, latest_date: latestDate });
+  } catch (error) {
+    console.error('Error fetching global total recovered:', error);
+    res.status(500).json({ error: 'Failed to fetch global total recovered' });
+  }
+});
+
+app.get('/get_total_recovered_per_country', async (req, res) => {
+  try {
+    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
+    const response = await fetch(url);
+    const data = await response.text();
+
+    const rows = data.split('\n');
+    const header = rows[0].split(',');
+    const latestDate = header[header.length - 1];
+
+    const countryTotalRecovered = {};
+
+    for (let i = 1; i < rows.length; i++) {
+      const columns = rows[i].split(',');
+      const country = columns[1];
+      const countryRecovered = parseInt(columns[columns.length - 1], 10);
+
+      if (!isNaN(countryRecovered)) {
+        if (!countryTotalRecovered[country]) countryTotalRecovered[country] = 0;
+        countryTotalRecovered[country] += countryRecovered;
+      }
+    }
+
+    const formattedResult = Object.keys(countryTotalRecovered).map(country => ({
+      country,
+      total_recovered: countryTotalRecovered[country],
+    }));
+
+    res.json({ data: formattedResult, latest_date: latestDate });
+  } catch (error) {
+    console.error('Error fetching total recovered per country:', error);
+    res.status(500).json({ message: 'Failed to fetch total recovered per country', error: error.message });
+  }
+});
+
+
 app.get('/get_28_day_cases', async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';

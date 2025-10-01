@@ -27,7 +27,9 @@ import {
   getTotalCasesPerCountry,
   getTotalDeathsPerCountry,
   get28DayCasesPerCountry,
-  get28DayDeathsPerCountry
+  get28DayDeathsPerCountry,
+  getTotalRecoveredPerCountry,
+  getGlobalTotalRecovered
 } from '../../services/api';
 import './Dashboard.css';
 
@@ -83,6 +85,11 @@ const Dashboard = ({ style }) => {
   const [deaths28DayPerCountryLoading, setDeaths28DayPerCountryLoading] = useState(true);
   const [deaths28DayPerCountryError, setDeaths28DayPerCountryError] = useState('');
 
+  const [totalRecovered, setTotalRecovered] = useState(null);
+  const [totalRecoveredPerCountry, setTotalRecoveredPerCountry] = useState([]);
+  const [recoveredLoading, setRecoveredLoading] = useState(true);
+  const [recoveredError, setRecoveredError] = useState('');
+
   const [searchTerm, setSearchTerm] = useState("");
 
   const [selectedCountry, setSelectedCountry] = useState(null);
@@ -109,6 +116,15 @@ const Dashboard = ({ style }) => {
     { week: 'Week 2', recovered: 1200 },
     { week: 'Week 3', recovered: 1000 },
   ];
+
+    // HARDCODED: Replace this entire array with data from your API/database
+  // This should come from an API call like: fetch('/api/chart-data')
+  const chartData = [
+    { date: "Jan", cases: 100000 },
+    { date: "Feb", cases: 300000 },
+    { date: "Mar", cases: 600000 },
+    { date: "Apr", cases: 938373 },
+  ]
 
   const filteredCountries = totalCasesPerCountry.filter((country) =>
     country.country.toLowerCase().includes(searchTerm.toLowerCase())
@@ -365,6 +381,25 @@ const Dashboard = ({ style }) => {
     fetchTotalDeathsPerCountry();
   }, []);
 
+  useEffect(() => {
+  const fetchRecovered = async () => {
+    try {
+      setRecoveredLoading(true);
+      const global = await getGlobalTotalRecovered();
+      setTotalRecovered(global.total_recovered);
+
+      const perCountry = await getTotalRecoveredPerCountry();
+      setTotalRecoveredPerCountry(perCountry.data);
+    } catch (error) {
+      setRecoveredError('Failed to fetch recovered data');
+    } finally {
+      setRecoveredLoading(false);
+    }
+  };
+
+  fetchRecovered();
+}, []);
+
 return (
   <>
     {/* Main Dashboard Grid */}
@@ -450,6 +485,123 @@ return (
           </div>
         </div>
       </div>
+
+      <div className="right-panels-container-narrow">
+        {/* Top section with Deaths and Recovered stacked */}
+        <div className="right-stats-column">
+          {/* Total Deaths */}
+          <div className="right-stat-panel">
+            <div className="stat-box">
+              <h3 className="stat-label">Total Deaths</h3>
+                <p className="stat-value white-text">
+    {deathsLoading
+      ? 'Loading...'
+      : deathsError
+      ? deathsError
+      : selectedCountry
+      ? totalDeathsPerCountry?.find((data) => data.country === selectedCountry)?.total_deaths?.toLocaleString() || 'No data available'
+      : totalDeaths !== null && totalDeaths !== undefined
+      ? totalDeaths.toLocaleString()
+      : 'No data available'}
+  </p>
+
+            </div>
+
+            <div className="country-list-container">
+              <div className="country-list">
+                {totalDeathsPerCountry.map((countryData) => (
+                  <div key={countryData.country} className="country-item">
+                    <span className="country-deaths white-text">{totalDeathsPerCountryLoading
+  ? "Loading..."
+  : totalDeathsPerCountryError
+  ? totalDeathsPerCountryError
+  : totalDeathsPerCountry.length > 0
+  ? totalDeathsPerCountry.map((countryData) => (
+      <div key={countryData.country} className="country-item">
+        <span className="country-deaths white-text">
+          {countryData.total_deaths?.toLocaleString() || "N/A"}
+        </span>{" "}
+        <span className="country-name-small">{countryData.country}</span>
+      </div>
+    ))
+  : "No data available"}</span>{" "}
+                    <span className="country-name-small">deaths</span>
+                    <br />
+                    <span className="country-name">{countryData.country}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Total Recovered */}
+          <div className="right-stat-panel">
+            <div className="stat-box">
+              <h3 className="stat-label">Total Recovered</h3>
+                  <p className="stat-value green-text">
+      {recoveredLoading
+        ? 'Loading...'
+        : recoveredError
+        ? recoveredError
+        : totalRecovered !== null && totalRecovered !== undefined
+        ? totalRecovered.toLocaleString()
+        : 'No data available'}
+    </p>
+            </div>
+
+            <div className="country-list-container">
+              <div className="country-list">
+                {recoveredLoading
+        ? <p>Loading...</p>
+        : recoveredError
+        ? <p>{recoveredError}</p>
+        : totalRecoveredPerCountry.length > 0
+        ? totalRecoveredPerCountry.map((countryData) => (
+            <div key={countryData.country} className="country-item">
+              <span className="country-recovered green-text">
+                {countryData.total_recovered?.toLocaleString() || 'N/A'}
+              </span>{" "}
+              <span className="country-name-small">recovered</span>
+              <br />
+              <span className="country-name">{countryData.country}</span>
+            </div>
+          ))
+        : <p>No data available</p>
+      }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Chart below both stats */}
+        <div className="chart-panel">
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis dataKey="date" stroke="#999" />
+                <YAxis stroke="#999" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
+                  labelStyle={{ color: "#fff" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="cases"
+                  stroke="#ff9800"
+                  strokeWidth={2}
+                  dot={{ fill: "#ff9800", r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="chart-tabs">
+              <button className="chart-tab active">Confirmed</button>
+              <button className="chart-tab">Logarithmic</button>
+              <button className="chart-tab">Daily Increase</button>
+            </div>
+            </div>
+            </div>
+            </div>
         </div>
   </>
 );
