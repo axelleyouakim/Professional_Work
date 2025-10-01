@@ -192,6 +192,48 @@ app.get('/get_total_cases_per_country', async (req, res) => {
   }
 });
 
+app.get('/get_cases_time_series', async (req, res) => {
+  try {
+    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+    const response = await fetch(url);
+    const data = await response.text();
+
+    const rows = data.split('\n').filter(row => row.trim() !== '');
+    const header = rows[0].split(',');
+    
+    // Date columns start from index 4 (after Province/State, Country/Region, Lat, Long)
+    const dateColumns = header.slice(4);
+    
+    // Initialize totals for each date
+    const timeSeriesData = dateColumns.map(date => ({
+      date: date.trim(),
+      cases: 0
+    }));
+
+    // Sum up cases for all countries/regions for each date
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.trim()) continue;
+      
+      // Split by comma, but be careful with quoted fields
+      const columns = row.split(',');
+      
+      // Start from column 4 (first date column)
+      for (let j = 4; j < columns.length && j - 4 < timeSeriesData.length; j++) {
+        const cases = parseInt(columns[j], 10);
+        if (!isNaN(cases)) {
+          timeSeriesData[j - 4].cases += cases;
+        }
+      }
+    }
+
+    res.json({ data: timeSeriesData });
+  } catch (error) {
+    console.error('Error fetching cases time series:', error);
+    res.status(500).json({ error: 'Failed to fetch cases time series' });
+  }
+});
+
 app.get('/get_total_deaths', async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
@@ -275,19 +317,19 @@ app.get('/get_total_recovered', async (req, res) => {
 
     const rows = data.split('\n');
     const header = rows[0].split(',');
-    const latestDate = header[header.length - 1];
+    const dateColumns = header.slice(4); // all the dates
 
     let globalTotalRecovered = 0;
 
     for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
       const columns = rows[i].split(',');
-      const countryRecovered = parseInt(columns[columns.length - 1], 10);
-      if (!isNaN(countryRecovered)) {
-        globalTotalRecovered += countryRecovered;
-      }
+      const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
+      const maxRecovered = Math.max(...recoveredValues);
+      globalTotalRecovered += maxRecovered;
     }
 
-    res.json({ total_recovered: globalTotalRecovered, latest_date: latestDate });
+    res.json({ total_recovered: globalTotalRecovered });
   } catch (error) {
     console.error('Error fetching global total recovered:', error);
     res.status(500).json({ error: 'Failed to fetch global total recovered' });
@@ -302,33 +344,37 @@ app.get('/get_total_recovered_per_country', async (req, res) => {
 
     const rows = data.split('\n');
     const header = rows[0].split(',');
-    const latestDate = header[header.length - 1];
+    const dateColumns = header.slice(4);
 
     const countryTotalRecovered = {};
 
     for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
       const columns = rows[i].split(',');
       const country = columns[1];
-      const countryRecovered = parseInt(columns[columns.length - 1], 10);
 
-      if (!isNaN(countryRecovered)) {
-        if (!countryTotalRecovered[country]) countryTotalRecovered[country] = 0;
-        countryTotalRecovered[country] += countryRecovered;
+      const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
+      const maxRecovered = Math.max(...recoveredValues);
+
+      if (!countryTotalRecovered[country]) {
+        countryTotalRecovered[country] = 0;
       }
+      countryTotalRecovered[country] += maxRecovered;
     }
 
     const formattedResult = Object.keys(countryTotalRecovered).map(country => ({
-      country,
+      country: country,
       total_recovered: countryTotalRecovered[country],
     }));
 
-    res.json({ data: formattedResult, latest_date: latestDate });
+    res.json({
+      data: formattedResult,
+    });
   } catch (error) {
     console.error('Error fetching total recovered per country:', error);
     res.status(500).json({ message: 'Failed to fetch total recovered per country', error: error.message });
   }
 });
-
 
 app.get('/get_28_day_cases', async (req, res) => {
   try {
