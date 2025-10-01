@@ -20,7 +20,6 @@ import {
   get28DayCases, 
   get28DayDeaths, 
   getTotalVaccineDoses,
-  // getTotalVaccineDosesPerCountry, 
   get28DayVaccineDoses,
   get28DayVaccineDosesPerCountry,
   getTotalCasesPerCountry,
@@ -28,7 +27,8 @@ import {
   get28DayCasesPerCountry,
   get28DayDeathsPerCountry,
   getTotalRecoveredPerCountry,
-  getGlobalTotalRecovered
+  getGlobalTotalRecovered,
+  getCasesTimeSeries
 } from '../../services/api';
 import './Dashboard.css';
 
@@ -90,17 +90,11 @@ const Dashboard = ({ style }) => {
   const [recoveredError, setRecoveredError] = useState('');
 
   const [searchTerm, setSearchTerm] = useState("");
-
   const [selectedCountry, setSelectedCountry] = useState(null);
   
-    // HARDCODED: Replace this entire array with data from your API/database
-  // This should come from an API call like: fetch('/api/chart-data')
-  const chartData = [
-    { date: "Jan", cases: 100000 },
-    { date: "Feb", cases: 300000 },
-    { date: "Mar", cases: 600000 },
-    { date: "Apr", cases: 938373 },
-  ]
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [chartError, setChartError] = useState('');
 
   const filteredCountries = totalCasesPerCountry.filter((country) =>
     country.country.toLowerCase().includes(searchTerm.toLowerCase())
@@ -110,70 +104,9 @@ const Dashboard = ({ style }) => {
     setSelectedCountry(countryName);
   };
 
-  // const handleZoomIn = () => {
-  //   setZoom((prev) => Math.min(prev + 1, 6))
-  // }
-
-  // const handleZoomOut = () => {
-  //   setZoom((prev) => Math.max(prev - 1, 1))
-  // }
-
   const canvasRef = useRef(null)
-  // const [zoom, setZoom] = useState(2)
-  // const [center, setCenter] = useState({ x: 0, y: 20 })
   const [worldData, setWorldData] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1);
-
-  //   useEffect(() => {
-  //   const canvas = canvasRef.current
-  //   if (!canvas) return
-
-  //   const ctx = canvas.getContext("2d")
-  //   const tileSize = 256
-
-  //   // Set canvas size
-  //   canvas.width = canvas.offsetWidth
-  //   canvas.height = canvas.offsetHeight
-
-  //   // Calculate which tiles to load based on zoom and center
-  //   const numTiles = Math.pow(2, zoom)
-  //   const centerTileX = Math.floor(((center.x + 180) / 360) * numTiles)
-  //   const centerTileY = Math.floor(
-  //     ((1 - Math.log(Math.tan((center.y * Math.PI) / 180) + 1 / Math.cos((center.y * Math.PI) / 180)) / Math.PI) / 2) *
-  //       numTiles,
-  //   )
-
-  //   // Clear canvas
-  //   ctx.fillStyle = "#0a1929"
-  //   ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-  //   // Calculate how many tiles we need to cover the canvas
-  //   const tilesX = Math.ceil(canvas.width / tileSize) + 2
-  //   const tilesY = Math.ceil(canvas.height / tileSize) + 2
-
-  //   const startTileX = centerTileX - Math.floor(tilesX / 2)
-  //   const startTileY = centerTileY - Math.floor(tilesY / 2)
-
-  //   // Load and draw tiles
-  //   for (let x = 0; x < tilesX; x++) {
-  //     for (let y = 0; y < tilesY; y++) {
-  //       const tileX = (startTileX + x + numTiles) % numTiles
-  //       const tileY = startTileY + y
-
-  //       if (tileY >= 0 && tileY < numTiles) {
-  //         const img = new Image()
-  //         img.crossOrigin = "anonymous"
-  //         img.src = `https://a.basemaps.cartocdn.com/dark_all/${zoom}/${tileX}/${tileY}.png`
-
-  //         img.onload = () => {
-  //           const drawX = x * tileSize - (canvas.width / 2 - (tilesX * tileSize) / 2)
-  //           const drawY = y * tileSize - (canvas.height / 2 - (tilesY * tileSize) / 2)
-  //           ctx.drawImage(img, drawX, drawY, tileSize, tileSize)
-  //         }
-  //       }
-  //     }
-  //   }
-  // }, [zoom, center])
 
   useEffect(() => {
     const fetchTotalCases = async () => {
@@ -224,7 +157,7 @@ const Dashboard = ({ style }) => {
     const fetch28DayCasesPerCountry = async () => {
       try {
         const data = await get28DayCasesPerCountry();
-        console.log('Fetched 28-Day Cases Per Country:', data); // debugging
+        console.log('Fetched 28-Day Cases Per Country:', data);
         setCases28DayPerCountry(data.total_28_day_cases_per_country);
       } catch (error) {
         console.error('Error fetching 28-day cases per country:', error);
@@ -256,7 +189,6 @@ const Dashboard = ({ style }) => {
     const fetch28DayDeathsPerCountry = async () => {
       try {
         const data = await get28DayDeathsPerCountry();
-        // console.log('Fetched 28-Day Deaths Per Country:', data); // debugging
         setDeaths28DayPerCountry(data.total_28_day_deaths_per_country);
       } catch (error) {
         console.error('Error fetching 28-day deaths per country:', error);
@@ -281,22 +213,6 @@ const Dashboard = ({ style }) => {
       }
     };
     fetchTotalVaccineDoses();
-  }, []);
-
-  useEffect(() => {
-    // const fetchTotalVaccineDosesPerCountry = async () => {
-    //   try {
-    //     const data = await getTotalVaccineDosesPerCountry();
-    //     setTotalVaccineDosesPerCountry(data?.data || []);
-    //   } catch (error) {
-    //     console.error('Error fetching vaccine doses per country:', error);
-    //     setVaccineDosesPerCountryError('Failed to fetch vaccine doses per country.');
-    //   } finally {
-    //     setVaccineDosesPerCountryLoading(false);
-    //   }
-    // };
-    
-    fetchTotalVaccineDosesPerCountry();
   }, []);
 
   useEffect(() => {
@@ -360,37 +276,73 @@ const Dashboard = ({ style }) => {
   }, []);
 
   useEffect(() => {
-  const fetchRecovered = async () => {
-    try {
-      setRecoveredLoading(true);
-      const global = await getGlobalTotalRecovered();
-      setTotalRecovered(global.total_recovered);
+    const fetchRecovered = async () => {
+      try {
+        setRecoveredLoading(true);
+        const global = await getGlobalTotalRecovered();
+        setTotalRecovered(global.total_recovered);
 
-      const perCountry = await getTotalRecoveredPerCountry();
-      setTotalRecoveredPerCountry(perCountry.data);
-    } catch (error) {
-      setRecoveredError('Failed to fetch recovered data');
-    } finally {
-      setRecoveredLoading(false);
-    }
-  };
+        const perCountry = await getTotalRecoveredPerCountry();
+        setTotalRecoveredPerCountry(perCountry.data);
+      } catch (error) {
+        setRecoveredError('Failed to fetch recovered data');
+      } finally {
+        setRecoveredLoading(false);
+      }
+    };
 
-  fetchRecovered();
-}, []);
+    fetchRecovered();
+  }, []);
 
- useEffect(() => {
-    // Load world map data with country names
+  useEffect(() => {
+    const fetchChartData = async () => {
+      try {
+        setChartLoading(true);
+        const data = await getCasesTimeSeries();
+        
+        // Format the data for the chart - take every 7th day to avoid overcrowding
+        const formattedData = data.data
+          .filter((_, index) => index % 7 === 0)
+          .map(item => {
+            // Parse date in M/D/YY format (e.g., "1/22/20")
+            const parts = item.date.split('/');
+            if (parts.length === 3) {
+              const month = parseInt(parts[0], 10);
+              const day = parseInt(parts[1], 10);
+              const year = parseInt(parts[2], 10) + 2000;
+              const date = new Date(year, month - 1, day);
+              return {
+                date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                cases: item.cases
+              };
+            }
+            return {
+              date: item.date,
+              cases: item.cases
+            };
+          });
+        
+        setChartData(formattedData);
+      } catch (error) {
+        console.error('Error fetching chart data:', error);
+        setChartError('Failed to load chart data');
+      } finally {
+        setChartLoading(false);
+      }
+    };
+
+    fetchChartData();
+  }, []);
+
+  useEffect(() => {
     fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
       .then(response => response.json())
       .then(topology => {
-        // Convert TopoJSON to GeoJSON
         const countries = topojson.feature(topology, topology.objects.countries);
         
-        // Load country names separately
         fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
           .then(res => res.json())
           .then(data => {
-            // Add centroids for labels
             countries.features.forEach(feature => {
               const centroid = d3.geoCentroid(feature);
               feature.properties.centroid = centroid;
@@ -411,7 +363,6 @@ const Dashboard = ({ style }) => {
     const width = canvas.width = canvas.offsetWidth;
     const height = canvas.height = canvas.offsetHeight;
 
-    // Set up projection
     const projection = d3.geoMercator()
       .scale(width / (2 * Math.PI))
       .translate([width / 2, height / 2]);
@@ -420,7 +371,6 @@ const Dashboard = ({ style }) => {
 
     let currentTransform = d3.zoomIdentity;
 
-    // Only hardcode ocean/continent labels (these don't change)
     const oceanLabels = [
       { name: "PACIFIC OCEAN", coords: [-160, 0] },
       { name: "ATLANTIC OCEAN", coords: [-30, 15] },
@@ -437,7 +387,6 @@ const Dashboard = ({ style }) => {
       { name: "AUSTRALIA", coords: [135, -25] }
     ];
 
-    // Draw function
     const draw = () => {
       context.clearRect(0, 0, width, height);
       context.save();
@@ -445,11 +394,9 @@ const Dashboard = ({ style }) => {
       context.translate(currentTransform.x, currentTransform.y);
       context.scale(currentTransform.k, currentTransform.k);
 
-      // Ocean background
       context.fillStyle = '#0a1929';
       context.fillRect(-width * 2, -height * 2, width * 5, height * 5);
 
-      // Draw countries
       context.fillStyle = '#1a2f3f';
       context.strokeStyle = '#2a4a5f';
       context.lineWidth = 0.5 / currentTransform.k;
@@ -461,24 +408,20 @@ const Dashboard = ({ style }) => {
         context.stroke();
       });
 
-      // Draw labels based on zoom level
       const k = currentTransform.k;
       
       if (k < 2) {
-        // Zoomed out: show oceans and continents
         drawLabels(context, oceanLabels, projection, k, '#3a5a7a', 14, 0.7, 'italic');
         drawLabels(context, continentLabels, projection, k, '#e0e0e0', 13, 0.9, 'bold');
       } else {
-        // Zoomed in: show country names from the data
         drawCountryLabels(context, projection, k);
       }
 
       context.restore();
     };
 
-    // Draw country labels from geodata
     const drawCountryLabels = (ctx, proj, zoom) => {
-      const minArea = 1000 / (zoom * zoom); // Show smaller countries as we zoom in
+      const minArea = 1000 / (zoom * zoom);
       
       ctx.font = `${10 / zoom}px Arial`;
       ctx.fillStyle = '#ffffff';
@@ -487,7 +430,6 @@ const Dashboard = ({ style }) => {
       ctx.globalAlpha = Math.min(1, (zoom - 1.5) / 1);
 
       worldData.features.forEach(feature => {
-        // Calculate area to filter small countries at low zoom
         const area = d3.geoArea(feature) * 1000000;
         
         if (area > minArea && feature.properties.centroid) {
@@ -496,7 +438,6 @@ const Dashboard = ({ style }) => {
           if (coords && coords[0] >= 0 && coords[0] <= width && 
               coords[1] >= 0 && coords[1] <= height) {
             
-            // Get country name - try different property names
             const name = feature.properties.name || 
                         feature.properties.NAME || 
                         feature.properties.admin ||
@@ -516,7 +457,6 @@ const Dashboard = ({ style }) => {
       ctx.globalAlpha = 1;
     };
 
-    // Draw static labels helper
     const drawLabels = (ctx, labels, proj, zoom, color, fontSize, minZoom, fontWeight = 'normal') => {
       if (zoom < minZoom) return;
 
@@ -539,7 +479,6 @@ const Dashboard = ({ style }) => {
       ctx.globalAlpha = 1;
     };
 
-    // Zoom behavior
     const zoom = d3.zoom()
       .scaleExtent([1, 8])
       .on('zoom', (event) => {
@@ -550,10 +489,8 @@ const Dashboard = ({ style }) => {
 
     d3.select(canvas).call(zoom);
 
-    // Initial draw
     draw();
 
-    // Handle resize
     const handleResize = () => {
       const newWidth = canvas.offsetWidth;
       const newHeight = canvas.offsetHeight;
@@ -590,9 +527,7 @@ const Dashboard = ({ style }) => {
 
 return (
   <>
-    {/* Main Dashboard Grid */}
     <div className="dashboard-grid">
-      {/* Left Panel */}
       <div className="left-panel">
         <div className="stat-box">
           <h3 className="stat-label">Total Confirmed</h3>
@@ -675,44 +610,30 @@ return (
       </div>
 
       <div className="right-panels-container-narrow">
-        {/* Top section with Deaths and Recovered stacked */}
         <div className="right-stats-column">
-          {/* Total Deaths */}
           <div className="right-stat-panel">
             <div className="stat-box">
               <h3 className="stat-label">Total Deaths</h3>
-                <p className="stat-value white-text">
-    {deathsLoading
-      ? 'Loading...'
-      : deathsError
-      ? deathsError
-      : selectedCountry
-      ? totalDeathsPerCountry?.find((data) => data.country === selectedCountry)?.total_deaths?.toLocaleString() || 'No data available'
-      : totalDeaths !== null && totalDeaths !== undefined
-      ? totalDeaths.toLocaleString()
-      : 'No data available'}
-  </p>
-
+              <p className="stat-value white-text">
+                {deathsLoading
+                  ? 'Loading...'
+                  : deathsError
+                  ? deathsError
+                  : selectedCountry
+                  ? totalDeathsPerCountry?.find((data) => data.country === selectedCountry)?.total_deaths?.toLocaleString() || 'No data available'
+                  : totalDeaths !== null && totalDeaths !== undefined
+                  ? totalDeaths.toLocaleString()
+                  : 'No data available'}
+              </p>
             </div>
 
             <div className="country-list-container">
               <div className="country-list">
                 {totalDeathsPerCountry.map((countryData) => (
                   <div key={countryData.country} className="country-item">
-                    <span className="country-deaths white-text">{totalDeathsPerCountryLoading
-  ? "Loading..."
-  : totalDeathsPerCountryError
-  ? totalDeathsPerCountryError
-  : totalDeathsPerCountry.length > 0
-  ? totalDeathsPerCountry.map((countryData) => (
-      <div key={countryData.country} className="country-item">
-        <span className="country-deaths white-text">
-          {countryData.total_deaths?.toLocaleString() || "N/A"}
-        </span>{" "}
-        <span className="country-name-small">{countryData.country}</span>
-      </div>
-    ))
-  : "No data available"}</span>{" "}
+                    <span className="country-deaths white-text">
+                      {countryData.total_deaths?.toLocaleString() || "N/A"}
+                    </span>{" "}
                     <span className="country-name-small">deaths</span>
                     <br />
                     <span className="country-name">{countryData.country}</span>
@@ -722,75 +643,83 @@ return (
             </div>
           </div>
 
-          {/* Total Recovered */}
           <div className="right-stat-panel">
             <div className="stat-box">
               <h3 className="stat-label">Total Recovered</h3>
-                  <p className="stat-value green-text">
-      {recoveredLoading
-        ? 'Loading...'
-        : recoveredError
-        ? recoveredError
-        : totalRecovered !== null && totalRecovered !== undefined
-        ? totalRecovered.toLocaleString()
-        : 'No data available'}
-    </p>
+              <p className="stat-value green-text">
+                {recoveredLoading
+                  ? 'Loading...'
+                  : recoveredError
+                  ? recoveredError
+                  : totalRecovered !== null && totalRecovered !== undefined
+                  ? totalRecovered.toLocaleString()
+                  : 'No data available'}
+              </p>
             </div>
 
             <div className="country-list-container">
               <div className="country-list">
                 {recoveredLoading
-        ? <p>Loading...</p>
-        : recoveredError
-        ? <p>{recoveredError}</p>
-        : totalRecoveredPerCountry.length > 0
-        ? totalRecoveredPerCountry.map((countryData) => (
-            <div key={countryData.country} className="country-item">
-              <span className="country-recovered green-text">
-                {countryData.total_recovered?.toLocaleString() || 'N/A'}
-              </span>{" "}
-              <span className="country-name-small">recovered</span>
-              <br />
-              <span className="country-name">{countryData.country}</span>
-            </div>
-          ))
-        : <p>No data available</p>
-      }
+                  ? <p>Loading...</p>
+                  : recoveredError
+                  ? <p>{recoveredError}</p>
+                  : totalRecoveredPerCountry.length > 0
+                  ? totalRecoveredPerCountry.map((countryData) => (
+                      <div key={countryData.country} className="country-item">
+                        <span className="country-recovered green-text">
+                          {countryData.total_recovered?.toLocaleString() || 'N/A'}
+                        </span>{" "}
+                        <span className="country-name-small">recovered</span>
+                        <br />
+                        <span className="country-name">{countryData.country}</span>
+                      </div>
+                    ))
+                  : <p>No data available</p>
+                }
               </div>
             </div>
           </div>
         </div>
 
-        {/* Chart below both stats */}
         <div className="chart-panel">
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="date" stroke="#999" />
-                <YAxis stroke="#999" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
-                  labelStyle={{ color: "#fff" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="cases"
-                  stroke="#ff9800"
-                  strokeWidth={2}
-                  dot={{ fill: "#ff9800", r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {chartLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+                <p style={{ color: '#999' }}>Loading chart data...</p>
+              </div>
+            ) : chartError ? (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+                <p style={{ color: '#ff6b6b' }}>{chartError}</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis dataKey="date" stroke="#999" />
+                  <YAxis stroke="#999" />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
+                    labelStyle={{ color: "#fff" }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="cases"
+                    stroke="#ff9800"
+                    strokeWidth={2}
+                    dot={{ fill: "#ff9800", r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
             <div className="chart-tabs">
               <button className="chart-tab active">Confirmed</button>
               <button className="chart-tab">Logarithmic</button>
               <button className="chart-tab">Daily Increase</button>
             </div>
-            </div>
-            </div>
-            </div>
+          </div>
         </div>
+      </div>
+    </div>
   </>
 );
 

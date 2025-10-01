@@ -46,6 +46,16 @@ export const getGlobalTotalCases = async () => {
     }
 };
 
+export const getCasesTimeSeries = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/get_cases_time_series`);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching cases time series:', error);
+        throw error;
+    }
+};
+
 export const getGlobalTotalDeaths = async () => {
     try {
         const response = await axios.get(`${API_URL}/get_total_deaths`);
