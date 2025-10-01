@@ -416,7 +416,6 @@ return (
         </div>
       </div>
 
-      {/* Map Panel */}
       <div className="map-panel">
         <div className="view-toggle-buttons">
           <button className="view-toggle-btn" title="Bookmark">…</button>
@@ -436,10 +435,9 @@ return (
           <button className="map-tab">Active Cases</button>
         </div>
 
-        {/* Bottom Info Bar */}
         <div className="info-bar">
           <div className="info-section">
-            <span className="info-label">180</span>
+            <span className="info-label">{totalCasesPerCountry.length}</span>
             <span className="info-sublabel">countries/regions</span>
           </div>
           <div className="info-text">
