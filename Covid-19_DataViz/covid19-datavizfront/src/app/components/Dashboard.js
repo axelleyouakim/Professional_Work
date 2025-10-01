@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import WorldMap from 'react-world-map';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -118,6 +118,69 @@ const Dashboard = ({ style }) => {
     setSelectedCountry(countryName);
   };
 
+  const handleZoomIn = () => {
+    setZoom((prev) => Math.min(prev + 1, 6))
+  }
+
+  const handleZoomOut = () => {
+    setZoom((prev) => Math.max(prev - 1, 1))
+  }
+
+  const canvasRef = useRef(null)
+  const [zoom, setZoom] = useState(2)
+  const [center, setCenter] = useState({ x: 0, y: 20 })
+
+    useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext("2d")
+    const tileSize = 256
+
+    // Set canvas size
+    canvas.width = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+
+    // Calculate which tiles to load based on zoom and center
+    const numTiles = Math.pow(2, zoom)
+    const centerTileX = Math.floor(((center.x + 180) / 360) * numTiles)
+    const centerTileY = Math.floor(
+      ((1 - Math.log(Math.tan((center.y * Math.PI) / 180) + 1 / Math.cos((center.y * Math.PI) / 180)) / Math.PI) / 2) *
+        numTiles,
+    )
+
+    // Clear canvas
+    ctx.fillStyle = "#0a1929"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    // Calculate how many tiles we need to cover the canvas
+    const tilesX = Math.ceil(canvas.width / tileSize) + 2
+    const tilesY = Math.ceil(canvas.height / tileSize) + 2
+
+    const startTileX = centerTileX - Math.floor(tilesX / 2)
+    const startTileY = centerTileY - Math.floor(tilesY / 2)
+
+    // Load and draw tiles
+    for (let x = 0; x < tilesX; x++) {
+      for (let y = 0; y < tilesY; y++) {
+        const tileX = (startTileX + x + numTiles) % numTiles
+        const tileY = startTileY + y
+
+        if (tileY >= 0 && tileY < numTiles) {
+          const img = new Image()
+          img.crossOrigin = "anonymous"
+          img.src = `https://a.basemaps.cartocdn.com/dark_all/${zoom}/${tileX}/${tileY}.png`
+
+          img.onload = () => {
+            const drawX = x * tileSize - (canvas.width / 2 - (tilesX * tileSize) / 2)
+            const drawY = y * tileSize - (canvas.height / 2 - (tilesY * tileSize) / 2)
+            ctx.drawImage(img, drawX, drawY, tileSize, tileSize)
+          }
+        }
+      }
+    }
+  }, [zoom, center])
+
   useEffect(() => {
     const fetchTotalCases = async () => {
       try {
@@ -199,7 +262,7 @@ const Dashboard = ({ style }) => {
     const fetch28DayDeathsPerCountry = async () => {
       try {
         const data = await get28DayDeathsPerCountry();
-        console.log('Fetched 28-Day Deaths Per Country:', data); // debugging
+        // console.log('Fetched 28-Day Deaths Per Country:', data); // debugging
         setDeaths28DayPerCountry(data.total_28_day_deaths_per_country);
       } catch (error) {
         console.error('Error fetching 28-day deaths per country:', error);
@@ -302,289 +365,96 @@ const Dashboard = ({ style }) => {
     fetchTotalDeathsPerCountry();
   }, []);
 
-  return (
-    <div className="dashboard-wrapper">
-        <div className="column">
-            <div className="dashboard-container">
-                <h3 className="small-text red-text">JHU Ceased Updates at:</h3>
-                <p className="small-text white-text">3/10/2023, 2:21 PM</p>
-                <p className="small-text red-text">See Terms of Use for more info</p>
-            </div>
-            <div className="cases-deaths-container">
-  <h3 className="small-text">
-    <span className="red-text">Cases</span> | Deaths by Country/Region/Sovereignty
-  </h3>
+return (
+  <>
+    {/* Main Dashboard Grid */}
+    <div className="dashboard-grid">
+      {/* Left Panel */}
+      <div className="left-panel">
+        <div className="stat-box">
+          <h3 className="stat-label">Total Confirmed</h3>
+          <p className="stat-value red-text">
+            {casesLoading
+              ? "Loading..."
+              : casesError
+              ? casesError
+              : selectedCountry
+              ? totalCasesPerCountry?.find((data) => data.country === selectedCountry)
+                  ?.total_cases?.toLocaleString() || "No data available"
+              : totalCases !== null && totalCases !== undefined
+              ? totalCases.toLocaleString()
+              : "No data available"}
+          </p>
+        </div>
 
-  <input
-    type="text"
-    placeholder="Search by country name"
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-    className="country-search-input"
-  />
-
-<div className="country-cases-deaths">
-            {totalCasesPerCountryLoading || cases28DayPerCountryLoading ? (
-              <p>Loading cases...</p>
-            ) : totalCasesPerCountryError || cases28DayPerCountryError ? (
-              <>
-                {totalCasesPerCountryError && <p className="error-text">{totalCasesPerCountryError}</p>}
-                {cases28DayPerCountryError && <p className="error-text">{cases28DayPerCountryError}</p>}
-              </>
-            ) : (
-              Array.isArray(totalCasesPerCountry) &&
-              totalCasesPerCountry.map((countryData) => {
-                const country28DayData = cases28DayPerCountry?.find(
-                  (data) => data.country === countryData.country
-                );
-                const countryDeaths28DayData = deaths28DayPerCountry?.find(
-                  (data) => data.country === countryData.country
-                );
-
-                return (
-                  <div 
-                    key={countryData.country} 
-                    className="country-data" 
-                    onClick={() => handleCountryClick(countryData.country)} 
-                    style={{ cursor: 'pointer', backgroundColor: selectedCountry === countryData.country ? '#ddd' : 'transparent' }}
-                  >
-                    <span className="country-name">{countryData.country}</span>
-                    <br />
-                    <span className="totals-label">Totals: </span>
-                    <span className="case-count red-text">
-                      {countryData.total_cases.toLocaleString()}
-                    </span>
-                    <span> | </span>
-                    <span className="death-count">
-                      {totalDeathsPerCountry?.find(deathData => deathData.country === countryData.country)?.total_deaths?.toLocaleString() || "N/A"}
-                    </span>
-                    <br />
-                    <span className="totals-label">28-Day Cases: </span>
-                    <span className="case-count red-text">
-                      {country28DayData?.total_28_day_cases_per_country?.toLocaleString() || "N/A"}
-                    </span>
-                    <span> | </span>
-                    <span className="death-count">
-                      {countryDeaths28DayData?.total_28_day_deaths_per_country?.toLocaleString() || "N/A"}
-                    </span>
-                  </div>
-                );
-              })
-            )}
+        <div className="country-list-container">
+          <h4 className="country-list-title">
+            Confirmed Cases by Country/Region
+            <br />
+            /Sovereignty
+          </h4>
+          <div className="country-list">
+            {totalCasesPerCountry.map((countryData) => (
+              <div
+                key={countryData.country}
+                className={`country-item ${selectedCountry === countryData.country ? "selected" : ""}`}
+                onClick={() => handleCountryClick(countryData.country)}
+              >
+                <span className="country-cases red-text">
+                  {countryData.total_cases?.toLocaleString() || "N/A"}
+                </span>
+                <span> </span>
+                <span className="country-name">{countryData.country}</span>
+              </div>
+            ))}
           </div>
         </div>
-{/* <div className="country-cases-deaths">
-  {totalCasesPerCountryLoading || cases28DayPerCountryLoading ? (
-    <p>Loading cases...</p>
-  ) : totalCasesPerCountryError || cases28DayPerCountryError ? (
-    <>
-      {totalCasesPerCountryError && <p className="error-text">{totalCasesPerCountryError}</p>}
-      {cases28DayPerCountryError && <p className="error-text">{cases28DayPerCountryError}</p>}
-    </>
-  ) : (
-    Array.isArray(totalCasesPerCountry) &&
-    totalCasesPerCountry.map((countryData) => {
-      const country28DayData = cases28DayPerCountry?.find(
-        (data) => data.country === countryData.country
-      );
-      
-      return (
-        <div key={countryData.country} className="country-data">
-          <span className="country-name">{countryData.country}</span>
-          <br />
-          <span className="totals-label">Totals: </span>
-          <span className="case-count red-text">
-            {countryData.total_cases.toLocaleString()}
-          </span>
-          <span> | </span>
-          <span className="death-count">
-            {totalDeathsPerCountry?.find(deathData => deathData.country === countryData.country)?.total_deaths?.toLocaleString() || "N/A"}
-          </span>
-          <br />
-          <span className="totals-label">28-Day Cases: </span>
-          <span className="case-count red-text">
-            {country28DayData?.total_28_day_cases_per_country?.toLocaleString() || "N/A"}
-          </span>
+
+        <div className="last-updated">
+          <h4 className="update-label">Last Updated at (M/D/YYYY)</h4>
+          <p className="update-time">4/2/2020 9:02:01 AM</p>
         </div>
-      );
-    })
-  )}
-</div> */}
+      </div>
+
+      {/* Map Panel */}
+      <div className="map-panel">
+        <div className="view-toggle-buttons">
+          <button className="view-toggle-btn" title="Bookmark">…</button>
+          <button className="view-toggle-btn" title="List view">…</button>
+          <button className="view-toggle-btn" title="Grid view">…</button>
         </div>
 
-        <div className="column">
-  <div className="total-cases-container">
-    <h3 className="small-text">Total Cases</h3>
-    <p className="small-text">
-      {casesLoading
-        ? 'Loading...'
-        : casesError
-        ? casesError
-        : selectedCountry
-        ? totalCasesPerCountry?.find((data) => data.country === selectedCountry)?.total_cases?.toLocaleString() || 'No data available'
-        : totalCases !== null && totalCases !== undefined
-        ? <span className="red-text">{totalCases.toLocaleString()}</span>
-        : 'No data available'}
-    </p>
-  </div>
-  <div className="cases-28-day-container">
-    <h3 className="small-text">28-Day Cases</h3>
-    <p className="small-text">
-      {cases28DayLoading
-        ? 'Loading...'
-        : cases28DayError
-        ? cases28DayError
-        : selectedCountry
-        ? cases28DayPerCountry?.find((data) => data.country === selectedCountry)?.total_28_day_cases_per_country?.toLocaleString() || 'No data available'
-        : cases28Day !== null && cases28Day !== undefined
-        ? <span className="red-text">{cases28Day.toLocaleString()}</span>
-        : 'No data available'}
-    </p>
-  </div>
-  {/* <div className="world-map-container">
-    <WorldMap
-      style={{ width: '100%', height: '300px' }}
-      color="lightblue"
-      highlightedCountries={selectedCountry ? [selectedCountry] : []}
-    />
-  </div> */}
-    <div className="world-map-container">
-      <MapContainer
-        style={{ width: '100%', height: '300px' }}
-        center={[51.505, -0.09]}
-        zoom={2}
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-        />
-        
-        <Marker position={[51.505, -0.09]}>
-          <Popup>A sample popup for selected country!</Popup>
-        </Marker>
-      </MapContainer>
-    </div>
-    </div>
-        {/* country names */}
-        {/* {continents.map((continent, index) => (
-            <Marker key={index} position={continent.position}>
-              <Popup>{continent.name}</Popup>
-            </Marker>
-          ))}
+        <canvas ref={canvasRef} className="map-container" />
+
+        <div className="zoom-controls">
+          <button className="zoom-btn" onClick={handleZoomIn} title="Zoom in">+</button>
+          <button className="zoom-btn" onClick={handleZoomOut} title="Zoom out">−</button>
         </div>
-      </div> */}
 
-<div className="column">
-  <div className="total-deaths-container">
-    <h3 className="small-text">Total Deaths</h3>
-    <p className="small-text">
-      {deathsLoading
-        ? 'Loading...'
-        : deathsError
-        ? deathsError
-        : selectedCountry
-        ? totalDeathsPerCountry?.find((data) => data.country === selectedCountry)?.total_deaths?.toLocaleString() || 'No data available'
-        : totalDeaths !== null && totalDeaths !== undefined
-        ? totalDeaths.toLocaleString()
-        : 'No data available'}
-    </p>
-  </div>
-  <div className="deaths-28-day-container">
-    <h3 className="small-text">28-Day Deaths</h3>
-    <p className="small-text">
-      {deaths28DayLoading
-        ? 'Loading...'
-        : deaths28DayError
-        ? deaths28DayError
-        : selectedCountry
-        ? deaths28DayPerCountry?.find((data) => data.country === selectedCountry)?.total_28_day_deaths_per_country?.toLocaleString() || 'No data available'
-        : deaths28Day !== null && deaths28Day !== undefined
-        ? deaths28Day.toLocaleString()
-        : 'No data available'}
-    </p>
-  </div>
-</div>
+        <div className="map-tabs">
+          <button className="map-tab active">Cumulative Confirmed Cases</button>
+          <button className="map-tab">Active Cases</button>
+        </div>
 
-<div className="column">
-<div className="total-vaccine-doses-container">
-  <h3 className="small-text">Total Vaccine Doses Administered</h3>
-  <p className="small-text">
-    {vaccineDosesLoading ? (
-      'Loading...'
-    ) : vaccineDosesError ? (
-      vaccineDosesError
-    ) : selectedCountry ? (
-      totalVaccineDosesPerCountry?.[selectedCountry]?.total_vaccine_doses ? (
-        <span className="green-text">
-          {totalVaccineDosesPerCountry[selectedCountry].total_vaccine_doses.toLocaleString()}
-        </span>
-      ) : (
-        'No data available'
-      )
-    ) : totalVaccineDoses !== null && totalVaccineDoses !== undefined ? (
-      <span className="green-text">{totalVaccineDoses.toLocaleString()}</span>
-    ) : (
-      'No data available'
-    )}
-  </p>
-</div>
-<div className="vaccine-28-day-container">
-  <h3 className="small-text">28-Day Vaccine Doses Administered</h3>
-  <p className="small-text">
-    {vaccineDoses28DayLoading
-      ? 'Loading...'
-      : vaccineDoses28DayError
-      ? vaccineDoses28DayError
-      : selectedCountry
-      ? vaccineDoses28DayPerCountry?.[selectedCountry]?.total_28_day_vaccine_doses
-        ? <span className="green-text">{vaccineDoses28DayPerCountry[selectedCountry].total_28_day_vaccine_doses.toLocaleString()}</span>
-        : 'No data available for selected country'
-      : vaccineDoses28Day !== null && vaccineDoses28Day !== undefined
-      ? <span className="green-text">{vaccineDoses28Day.toLocaleString()}</span>
-      : 'No data available'}
-  </p>
-</div>
-<div className="weekly-cases-container">
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data1}>
-          <CartesianGrid strokeDasharray="3 3" />
-          
-          <XAxis dataKey="week" />
-          
-          <YAxis tickFormatter={formatYAxis} ticks={[0, 2000000, 4000000, 6000000]} />
-          
-          <Tooltip />
-          <Legend />
-          
-          <Line type="monotone" dataKey="cases" stroke="#8884d8" />
-        </LineChart>
-      </ResponsiveContainer>
-
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data2}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="week" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line type="monotone" dataKey="deaths" stroke="#82ca9d" />
-        </LineChart>
-      </ResponsiveContainer>
-
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data3}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="week" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line type="monotone" dataKey="recovered" stroke="#ff7300" />
-        </LineChart>
-      </ResponsiveContainer>
-</div>
-</div>
-    </div>
-  );
+        {/* Bottom Info Bar */}
+        <div className="info-bar">
+          <div className="info-section">
+            <span className="info-label">180</span>
+            <span className="info-sublabel">countries/regions</span>
+          </div>
+          <div className="info-text">
+            <strong>Lancet Inf Dis</strong> Article: <a href="#">Here</a>. Mobile Version: <a href="#">Here</a>.
+            Visualization: <a href="#">JHU CSSE</a>. Automation Support: <a href="#">Esri Living Atlas team</a> and{" "}
+            <a href="#">JHU APL</a>. <a href="#">Contact Us</a>. <a href="#">FAQ</a>.<br />
+            Data sources: WHO, CDC, ECDC, NHC, DXY, 1point3acres, Worldometers.info, BNO, state and national government
+            health departments, and local media reports. Read more in <a href="#">this blog</a>.<br />
+            Downloadable database: GitHub: <a href="#">Here</a>. Feature layer: <a href="#">Here</a>.
+          </div>
+        </div>
+      </div>
+        </div>
+  </>
+);
 
 };
 
