@@ -5,7 +5,10 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "nodemon server.mjs",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "node scripts/cleanData.mjs",
+    "clean:watch": "nodemon scripts/cleanData.mjs",
+    "clean:schedule": "node scripts/scheduleClean.mjs"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +23,7 @@
     "express": "^5.1.0",
     "ml-kmeans": "^6.0.0",
     "mongoose": "^8.18.1",
+    "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
     "sqlite3": "^5.1.7"
   },
