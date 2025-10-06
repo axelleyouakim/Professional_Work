@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
+import { parse } from 'csv-parse/sync';
+import { kmeans } from 'ml-kmeans';
 import CovidData from './models/CovidData.js';
 
 dotenv.config();
@@ -108,6 +110,177 @@ app.get('/get_country_death_and_cases', async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// =============== 1. Mean Daily Cases ===============
+app.get('/get_mean_cases', async (req, res) => {
+  try {
+    const url =
+      'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+    const response = await fetch(url);
+    const data = await response.text();
+
+    // Parse CSV properly
+    const records = parse(data, { columns: true });
+    const dateColumns = Object.keys(records[0]).slice(4);
+
+    let totalsPerDay = new Array(dateColumns.length).fill(0);
+
+    records.forEach(row => {
+      dateColumns.forEach((date, idx) => {
+        const val = parseInt(row[date], 10);
+        if (!isNaN(val)) totalsPerDay[idx] += val;
+      });
+    });
+
+    // Daily new cases
+    let dailyNew = [];
+    for (let i = 1; i < totalsPerDay.length; i++) {
+      dailyNew.push(totalsPerDay[i] - totalsPerDay[i - 1]);
+    }
+
+    const mean =
+      dailyNew.reduce((a, b) => a + b, 0) / (dailyNew.length || 1);
+
+    res.json({ mean_daily_cases: mean.toFixed(2) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to calculate mean cases' });
+  }
+});
+
+// =============== 2. Weekly Evolution ===============
+app.get('/get_cases_evolution', async (req, res) => {
+  try {
+    const url =
+      'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+    const response = await fetch(url);
+    const data = await response.text();
+
+    const records = parse(data, { columns: true });
+    const dateColumns = Object.keys(records[0]).slice(4);
+
+    let totalsPerDay = new Array(dateColumns.length).fill(0);
+
+    records.forEach(row => {
+      dateColumns.forEach((date, idx) => {
+        const val = parseInt(row[date], 10);
+        if (!isNaN(val)) totalsPerDay[idx] += val;
+      });
+    });
+
+    // Weekly growth evolution
+    let weeklyEvolution = [];
+    for (let i = 7; i < totalsPerDay.length; i += 7) {
+      const prev = totalsPerDay[i - 7];
+      const curr = totalsPerDay[i];
+      const growth = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
+      weeklyEvolution.push({ week: i / 7, growth: growth.toFixed(2) });
+    }
+
+    res.json({ weekly_evolution: weeklyEvolution });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to calculate evolution' });
+  }
+});
+
+// =============== 3. K-Means Clustering ===============
+app.get('/get_kmeans_clusters', async (req, res) => {
+  try {
+    const url =
+      'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+    const response = await fetch(url);
+    const data = await response.text();
+
+    const records = parse(data, { columns: true });
+    const dateColumns = Object.keys(records[0]).slice(4);
+    const latestDate = dateColumns[dateColumns.length - 1];
+    const previousDate = dateColumns[dateColumns.length - 8]; // 7 days ago
+
+    // ✅ Step 1: Aggregate by country (sum all provinces/states)
+    let countryMap = {};
+
+    records.forEach(row => {
+      const country = row['Country/Region'];
+      const latestCases = parseInt(row[latestDate], 10) || 0;
+      const previousCases = parseInt(row[previousDate], 10) || 0;
+
+      if (!countryMap[country]) {
+        countryMap[country] = {
+          totalCases: 0,
+          previousCases: 0
+        };
+      }
+
+      countryMap[country].totalCases += latestCases;
+      countryMap[country].previousCases += previousCases;
+    });
+
+    // ✅ Step 2: Build dataset with multiple features
+    let dataset = [];
+    let countryNames = [];
+
+    Object.entries(countryMap).forEach(([country, stats]) => {
+      // Skip countries with no data
+      if (stats.totalCases === 0) return;
+
+      // Calculate weekly growth rate
+      const weeklyGrowth = stats.previousCases > 0 
+        ? ((stats.totalCases - stats.previousCases) / stats.previousCases) * 100 
+        : 0;
+
+      // Use log scale for total cases to prevent large countries from dominating
+      const logCases = Math.log10(stats.totalCases + 1);
+
+      dataset.push([
+        logCases,        // Feature 1: Log-scaled total cases
+        weeklyGrowth     // Feature 2: Weekly growth rate
+      ]);
+
+      countryNames.push(country);
+    });
+
+    // ✅ Step 3: Run k-means clustering
+    const numClusters = 3;
+    const result = kmeans(dataset, numClusters, {
+      initialization: 'kmeans++',  // Better initialization
+      maxIterations: 100
+    });
+
+    // ✅ Step 4: Organize results
+    const countriesClustered = countryNames.map((country, idx) => ({
+      country: country,
+      cluster: result.clusters[idx],
+      totalCases: countryMap[country].totalCases,
+      weeklyGrowth: dataset[idx][1].toFixed(2) + '%'
+    }));
+
+    // Group by cluster for easier visualization
+    const clusterGroups = {};
+    for (let i = 0; i < numClusters; i++) {
+      clusterGroups[i] = countriesClustered.filter(c => c.cluster === i);
+    }
+
+    res.json({
+      centroids: result.centroids.map(c => ({
+        logCases: c[0].toFixed(2),
+        weeklyGrowth: c[1].toFixed(2) + '%'
+      })),
+      clusters: clusterGroups,
+      summary: {
+        totalCountries: countryNames.length,
+        clusterDistribution: Object.values(clusterGroups).map(arr => arr.length)
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: 'Failed to perform k-means clustering',
+      details: err.message,
+    });
   }
 });
 
