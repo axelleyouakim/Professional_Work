@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Navigation Structure (Arborescence du Frontend)
 
-## Getting Started
+## Application Routes
 
-First, run the development server:
+This COVID-19 Dashboard includes the following navigation structure:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+/                   → Dashboard (Main page with statistics and map)
+├── /table          → Data Table (Searchable country statistics)
+├── /charts         → Charts View (Time-series visualizations)
+├── /map            → Map View (Geographic data visualization)
+└── /about          → About Page (Project information)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Navigation Component
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+The application uses a persistent navigation bar (`Navbar.js`) that appears on all pages below the header. Users can navigate between different views by clicking on the navigation links.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Navigation Features:
+- **Dashboard**: Interactive overview with real-time statistics, country lists, and world map
+- **Data Table**: Sortable and searchable table showing all countries' COVID-19 data
+- **Charts**: Time-series graphs showing trends over time
+- **Map View**: Interactive world map with zoom controls and case visualization
+- **About**: Information about the project, data sources, and technology stack
 
-## Learn More
+## File Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/
+│   ├── components/
+│   │   ├── Header.js           # Top header with JHU branding
+│   │   ├── Header.css
+│   │   ├── Navbar.js           # Navigation bar component
+│   │   ├── Navbar.css
+│   │   ├── Dashboard.js        # Main dashboard component
+│   │   └── Dashboard.css
+│   ├── table/
+│   │   ├── page.js             # Table view page
+│   │   └── table.css
+│   ├── charts/
+│   │   ├── page.js             # Charts view page
+│   │   └── charts.css
+│   ├── map/
+│   │   ├── page.js             # Map view page
+│   │   └── map.css
+│   ├── about/
+│   │   ├── page.js             # About page
+│   │   └── about.css
+│   ├── page.js                 # Main entry point (Dashboard)
+│   └── globals.css
+└── services/
+    └── api.js                  # API service functions
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How Navigation Works
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Header Component**: Displays the JHU branding and project title on all pages
+2. **Navbar Component**: Provides clickable links to navigate between pages
+3. **Next.js Routing**: Uses Next.js App Router for client-side navigation
+4. **Active State**: Navigation links highlight the current page
 
-## Deploy on Vercel
+## Implementation Details
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Each page follows this structure:
+```jsx
+import Header from '../components/Header';
+import Navbar from '../components/Navbar';
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+const PageComponent = () => {
+  return (
+    <div>
+      <Header />
+      <Navbar />
+      {/* Page-specific content */}
+    </div>
+  );
+};
+```
+
+## Navigation Screenshots
+
+To demonstrate the navigation in action:
+
+1. **Navigation Bar Appearance**: The navbar appears below the header on all pages
+2. **Active Page Indication**: Current page is highlighted with orange underline
+3. **Hover Effect**: Navigation links change color and background on hover
+4. **Responsive Design**: Navigation adapts to smaller screens with column layout
+
+## User Flow
+
+```
+User enters application
+    ↓
+Lands on Dashboard (/)
+    ↓
+Can navigate to:
+    • Table (/table) - View detailed country data
+    • Charts (/charts) - Analyze trends
+    • Map (/map) - Geographic visualization
+    • About (/about) - Learn about the project
+    ↓
+Can return to Dashboard at any time
+```
+
+## Testing Navigation
+
+To verify navigation works correctly:
+
+1. Start the application: `npm run dev`
+2. Visit `http://localhost:3000`
+3. Click each navigation link to verify page transitions
+4. Confirm navbar appears on all pages
+5. Check that active page is highlighted
+6. Test responsive behavior on mobile devices
