@@ -5,10 +5,17 @@ import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import { parse } from 'csv-parse/sync';
 import { kmeans } from 'ml-kmeans';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import CovidData from './models/CovidData.js';
 import { cacheMiddleware } from './middleware/cacheMiddleware.js';
+import { importAllData } from './importCsvs.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,8 +24,17 @@ app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] }));
 app.use(express.json());
 
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+  .then(async () => {
+    console.log('MongoDB connected');
+    const count = await CovidData.countDocuments();
+    if (count === 0) {
+      console.log('No data found in database. Starting import...');
+      await importAllData();
+    } else {
+      console.log(`Database already has ${count} documents`);
+    }
+  })
+  .catch(err => console.error('MongoDB connection error:', err));
 
 app.get('/covid-data', async (req, res) => {
   try {
@@ -28,6 +44,17 @@ app.get('/covid-data', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+async function loadCleanedData(filename) {
+  try {
+    const filePath = path.join(__dirname, 'data', 'cleaned', filename);
+    const data = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error(`❌ Error loading ${filename}:`, error.message);
+    return null;
+  }
+}
 
 app.get('/', (req, res) => {
   res.send("Hello World");
@@ -59,31 +86,37 @@ app.get('/get_country', async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE - Route principale
 app.get('/get_total_cases', cacheMiddleware(300), async (req, res) => {
   try {
-    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-    const response = await fetch(url);
-    const data = await response.text();
+    const cleanedData = await loadCleanedData('merged_statistics.json');
+    if (!cleanedData) {
+      // Fallback to old method if cleaned data not available
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+      const response = await fetch(url);
+      const data = await response.text();
 
-    const rows = data.split('\n');
-    const header = rows[0].split(',');
-    const latestDate = header[header.length - 1];
+      const rows = data.split('\n');
+      const header = rows[0].split(',');
+      const latestDate = header[header.length - 1];
 
-    let globalTotal = 0;
-
-    for (let i = 1; i < rows.length; i++) {
-      const columns = rows[i].split(',');
-      const countryCases = parseInt(columns[columns.length - 1], 10);
-      if (!isNaN(countryCases)) {
-        globalTotal += countryCases;
+      let globalTotal = 0;
+      for (let i = 1; i < rows.length; i++) {
+        const columns = rows[i].split(',');
+        const countryCases = parseInt(columns[columns.length - 1], 10);
+        if (!isNaN(countryCases)) {
+          globalTotal += countryCases;
+        }
       }
+      return res.json({ total_cases: globalTotal, latest_date: latestDate });
     }
 
-    res.json({ total_cases: globalTotal, latest_date: latestDate });
+    res.json({
+      total_cases: cleanedData.globalStats.totalCases,
+      latest_date: cleanedData.lastUpdated
+    });
   } catch (error) {
-    console.error('Error fetching global total cases:', error);
-    res.status(500).json({ error: 'Failed to fetch global total cases' });
+    console.error('Error fetching total cases:', error);
+    res.status(500).json({ error: 'Failed to fetch total cases' });
   }
 });
 
@@ -114,23 +147,44 @@ app.get('/get_country_death_and_cases', async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_mean_cases', cacheMiddleware(300), async (req, res) => {
   try {
-    const url =
-      'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-    const response = await fetch(url);
-    const data = await response.text();
+    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
+    
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+      const response = await fetch(url);
+      const data = await response.text();
 
-    const records = parse(data, { columns: true });
-    const dateColumns = Object.keys(records[0]).slice(4);
+      const records = parse(data, { columns: true });
+      const dateColumns = Object.keys(records[0]).slice(4);
 
+      let totalsPerDay = new Array(dateColumns.length).fill(0);
+
+      records.forEach(row => {
+        dateColumns.forEach((date, idx) => {
+          const val = parseInt(row[date], 10);
+          if (!isNaN(val)) totalsPerDay[idx] += val;
+        });
+      });
+
+      let dailyNew = [];
+      for (let i = 1; i < totalsPerDay.length; i++) {
+        dailyNew.push(totalsPerDay[i] - totalsPerDay[i - 1]);
+      }
+
+      const mean = dailyNew.reduce((a, b) => a + b, 0) / (dailyNew.length || 1);
+      return res.json({ mean_daily_cases: mean.toFixed(2) });
+    }
+
+    // Use cleaned data
+    const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
     let totalsPerDay = new Array(dateColumns.length).fill(0);
 
-    records.forEach(row => {
+    cleanedData.data.forEach(country => {
       dateColumns.forEach((date, idx) => {
-        const val = parseInt(row[date], 10);
-        if (!isNaN(val)) totalsPerDay[idx] += val;
+        totalsPerDay[idx] += country.timeSeries[date] || 0;
       });
     });
 
@@ -139,9 +193,7 @@ app.get('/get_mean_cases', cacheMiddleware(300), async (req, res) => {
       dailyNew.push(totalsPerDay[i] - totalsPerDay[i - 1]);
     }
 
-    const mean =
-      dailyNew.reduce((a, b) => a + b, 0) / (dailyNew.length || 1);
-
+    const mean = dailyNew.reduce((a, b) => a + b, 0) / (dailyNew.length || 1);
     res.json({ mean_daily_cases: mean.toFixed(2) });
   } catch (err) {
     console.error(err);
@@ -149,23 +201,46 @@ app.get('/get_mean_cases', cacheMiddleware(300), async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_cases_evolution', cacheMiddleware(300), async (req, res) => {
   try {
-    const url =
-      'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-    const response = await fetch(url);
-    const data = await response.text();
+    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
+    
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+      const response = await fetch(url);
+      const data = await response.text();
 
-    const records = parse(data, { columns: true });
-    const dateColumns = Object.keys(records[0]).slice(4);
+      const records = parse(data, { columns: true });
+      const dateColumns = Object.keys(records[0]).slice(4);
 
+      let totalsPerDay = new Array(dateColumns.length).fill(0);
+
+      records.forEach(row => {
+        dateColumns.forEach((date, idx) => {
+          const val = parseInt(row[date], 10);
+          if (!isNaN(val)) totalsPerDay[idx] += val;
+        });
+      });
+
+      let weeklyEvolution = [];
+      for (let i = 7; i < totalsPerDay.length; i += 7) {
+        const prev = totalsPerDay[i - 7];
+        const curr = totalsPerDay[i];
+        const growth = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
+        weeklyEvolution.push({ week: i / 7, growth: growth.toFixed(2) });
+      }
+
+      return res.json({ weekly_evolution: weeklyEvolution });
+    }
+
+    // Use cleaned data
+    const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
     let totalsPerDay = new Array(dateColumns.length).fill(0);
 
-    records.forEach(row => {
+    cleanedData.data.forEach(country => {
       dateColumns.forEach((date, idx) => {
-        const val = parseInt(row[date], 10);
-        if (!isNaN(val)) totalsPerDay[idx] += val;
+        totalsPerDay[idx] += country.timeSeries[date] || 0;
       });
     });
 
@@ -184,55 +259,117 @@ app.get('/get_cases_evolution', cacheMiddleware(300), async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_kmeans_clusters', cacheMiddleware(600), async (req, res) => {
   try {
-    const url =
-      'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-    const response = await fetch(url);
-    const data = await response.text();
+    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
+    
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+      const response = await fetch(url);
+      const data = await response.text();
 
-    const records = parse(data, { columns: true });
-    const dateColumns = Object.keys(records[0]).slice(4);
+      const records = parse(data, { columns: true });
+      const dateColumns = Object.keys(records[0]).slice(4);
+      const latestDate = dateColumns[dateColumns.length - 1];
+      const previousDate = dateColumns[dateColumns.length - 8];
+
+      let countryMap = {};
+
+      records.forEach(row => {
+        const country = row['Country/Region'];
+        const latestCases = parseInt(row[latestDate], 10) || 0;
+        const previousCases = parseInt(row[previousDate], 10) || 0;
+
+        if (!countryMap[country]) {
+          countryMap[country] = {
+            totalCases: 0,
+            previousCases: 0
+          };
+        }
+
+        countryMap[country].totalCases += latestCases;
+        countryMap[country].previousCases += previousCases;
+      });
+
+      let dataset = [];
+      let countryNames = [];
+
+      Object.entries(countryMap).forEach(([country, stats]) => {
+        if (stats.totalCases === 0) return;
+
+        const weeklyGrowth = stats.previousCases > 0 
+          ? ((stats.totalCases - stats.previousCases) / stats.previousCases) * 100 
+          : 0;
+
+        const logCases = Math.log10(stats.totalCases + 1);
+
+        dataset.push([
+          logCases,
+          weeklyGrowth
+        ]);
+
+        countryNames.push(country);
+      });
+
+      const numClusters = 3;
+      const result = kmeans(dataset, numClusters, {
+        initialization: 'kmeans++',
+        maxIterations: 100
+      });
+
+      const countriesClustered = countryNames.map((country, idx) => ({
+        country: country,
+        cluster: result.clusters[idx],
+        totalCases: countryMap[country].totalCases,
+        weeklyGrowth: dataset[idx][1].toFixed(2) + '%'
+      }));
+
+      const clusterGroups = {};
+      for (let i = 0; i < numClusters; i++) {
+        clusterGroups[i] = countriesClustered.filter(c => c.cluster === i);
+      }
+
+      return res.json({
+        centroids: result.centroids.map(c => ({
+          logCases: c[0].toFixed(2),
+          weeklyGrowth: c[1].toFixed(2) + '%'
+        })),
+        clusters: clusterGroups,
+        summary: {
+          totalCountries: countryNames.length,
+          clusterDistribution: Object.values(clusterGroups).map(arr => arr.length)
+        }
+      });
+    }
+
+    // Use cleaned data
+    const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
     const latestDate = dateColumns[dateColumns.length - 1];
     const previousDate = dateColumns[dateColumns.length - 8];
 
-    let countryMap = {};
-
-    records.forEach(row => {
-      const country = row['Country/Region'];
-      const latestCases = parseInt(row[latestDate], 10) || 0;
-      const previousCases = parseInt(row[previousDate], 10) || 0;
-
-      if (!countryMap[country]) {
-        countryMap[country] = {
-          totalCases: 0,
-          previousCases: 0
-        };
-      }
-
-      countryMap[country].totalCases += latestCases;
-      countryMap[country].previousCases += previousCases;
-    });
-
     let dataset = [];
     let countryNames = [];
+    let countryMap = {};
 
-    Object.entries(countryMap).forEach(([country, stats]) => {
-      if (stats.totalCases === 0) return;
+    cleanedData.data.forEach(country => {
+      const latestCases = country.timeSeries[latestDate] || 0;
+      const previousCases = country.timeSeries[previousDate] || 0;
 
-      const weeklyGrowth = stats.previousCases > 0 
-        ? ((stats.totalCases - stats.previousCases) / stats.previousCases) * 100 
+      if (latestCases === 0) return;
+
+      const weeklyGrowth = previousCases > 0 
+        ? ((latestCases - previousCases) / previousCases) * 100 
         : 0;
 
-      const logCases = Math.log10(stats.totalCases + 1);
+      const logCases = Math.log10(latestCases + 1);
 
-      dataset.push([
-        logCases,
-        weeklyGrowth
-      ]);
-
-      countryNames.push(country);
+      dataset.push([logCases, weeklyGrowth]);
+      countryNames.push(country.country);
+      countryMap[country.country] = {
+        totalCases: latestCases,
+        weeklyGrowth: weeklyGrowth
+      };
     });
 
     const numClusters = 3;
@@ -315,77 +452,109 @@ app.get('/get_death_cases_28_days', async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE - Route principale
 app.get('/get_total_cases_per_country', cacheMiddleware(300), async (req, res) => {
-  const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-
   try {
-    const response = await fetch(url);
-    const data = await response.text();
+    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
+    console.log('Cleaned data loaded:', cleanedData ? 'YES' : 'NO');
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+      const response = await fetch(url);
+      const data = await response.text();
 
-    const rows = data.split('\n');
-    const header = rows[0].split(',');
-    const latestDate = header[header.length - 1];
+      const rows = data.split('\n');
+      const header = rows[0].split(',');
+      const latestDate = header[header.length - 1];
 
-    const countryTotalCases = {};
+      const countryTotalCases = {};
+      for (let i = 1; i < rows.length; i++) {
+        const columns = rows[i].split(',');
+        const country = columns[1];
+        const countryCases = parseInt(columns[columns.length - 1], 10);
 
-    for (let i = 1; i < rows.length; i++) {
-      const columns = rows[i].split(',');
-      const country = columns[1];
-      const countryCases = parseInt(columns[columns.length - 1], 10);
-
-      if (!isNaN(countryCases)) {
-        if (!countryTotalCases[country]) {
-          countryTotalCases[country] = 0;
+        if (!isNaN(countryCases)) {
+          if (!countryTotalCases[country]) {
+            countryTotalCases[country] = 0;
+          }
+          countryTotalCases[country] += countryCases;
         }
-        countryTotalCases[country] += countryCases;
       }
+      const formattedResult = Object.keys(countryTotalCases).map(country => ({
+        country: country,
+        total_cases: countryTotalCases[country],
+      }));
+
+      return res.json({
+        data: formattedResult,
+        latest_date: latestDate,
+      });
     }
-    const formattedResult = Object.keys(countryTotalCases).map(country => ({
-      country: country,
-      total_cases: countryTotalCases[country],
+
+    const formattedData = cleanedData.data.map(country => ({
+      country: country.country,
+      total_cases: country.totalCases
     }));
 
     res.json({
-      data: formattedResult,
-      latest_date: latestDate,
+      data: formattedData,
+      latest_date: cleanedData.dateRange.end
     });
   } catch (error) {
-    console.error('Error fetching total cases per country:', error);
-    res.status(500).json({ message: 'Failed to fetch total cases per country', error: error.message });
+    console.error('Error fetching cases per country:', error);
+    res.status(500).json({ error: 'Failed to fetch cases per country' });
   }
 });
 
-// ✅ AVEC CACHE - Route principale
 app.get('/get_cases_time_series', cacheMiddleware(600), async (req, res) => {
   try {
-    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-    const response = await fetch(url);
-    const data = await response.text();
-
-    const rows = data.split('\n').filter(row => row.trim() !== '');
-    const header = rows[0].split(',');
+    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
     
-    const dateColumns = header.slice(4);
-    
-    const timeSeriesData = dateColumns.map(date => ({
-      date: date.trim(),
-      cases: 0
-    }));
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
+      const response = await fetch(url);
+      const data = await response.text();
 
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row.trim()) continue;
+      const rows = data.split('\n').filter(row => row.trim() !== '');
+      const header = rows[0].split(',');
       
-      const columns = row.split(',');
+      const dateColumns = header.slice(4);
       
-      for (let j = 4; j < columns.length && j - 4 < timeSeriesData.length; j++) {
-        const cases = parseInt(columns[j], 10);
-        if (!isNaN(cases)) {
-          timeSeriesData[j - 4].cases += cases;
+      const timeSeriesData = dateColumns.map(date => ({
+        date: date.trim(),
+        cases: 0
+      }));
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row.trim()) continue;
+        
+        const columns = row.split(',');
+        
+        for (let j = 4; j < columns.length && j - 4 < timeSeriesData.length; j++) {
+          const cases = parseInt(columns[j], 10);
+          if (!isNaN(cases)) {
+            timeSeriesData[j - 4].cases += cases;
+          }
         }
       }
+
+      return res.json({ data: timeSeriesData });
     }
+
+    // Use cleaned data
+    const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
+    
+    const timeSeriesData = dateColumns.map(date => {
+      let totalCases = 0;
+      cleanedData.data.forEach(country => {
+        totalCases += country.timeSeries[date] || 0;
+      });
+      return {
+        date: date,
+        cases: totalCases
+      };
+    });
 
     res.json({ data: timeSeriesData });
   } catch (error) {
@@ -394,76 +563,99 @@ app.get('/get_cases_time_series', cacheMiddleware(600), async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE - Route principale
 app.get('/get_total_deaths', cacheMiddleware(300), async (req, res) => {
   try {
-    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
-    const response = await fetch(url);
+    const cleanedData = await loadCleanedData('merged_statistics.json');
+    
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
+      const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.text();
-    const rows = data.split('\n');
-    const header = rows[0].split(',');
-    const latestDate = header[header.length - 1];
-
-    let globalTotalDeaths = 0;
-
-    for (let i = 1; i < rows.length; i++) {
-      const columns = rows[i].split(',');
-      const countryDeaths = parseInt(columns[columns.length - 1], 10);
-      if (!isNaN(countryDeaths)) {
-        globalTotalDeaths += countryDeaths;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.text();
+      const rows = data.split('\n');
+      const header = rows[0].split(',');
+      const latestDate = header[header.length - 1];
+
+      let globalTotalDeaths = 0;
+
+      for (let i = 1; i < rows.length; i++) {
+        const columns = rows[i].split(',');
+        const countryDeaths = parseInt(columns[columns.length - 1], 10);
+        if (!isNaN(countryDeaths)) {
+          globalTotalDeaths += countryDeaths;
+        }
+      }
+
+      return res.json({ total_deaths: globalTotalDeaths, latest_date: latestDate });
     }
 
-    res.json({ total_deaths: globalTotalDeaths, latest_date: latestDate });
+    res.json({
+      total_deaths: cleanedData.globalStats.totalDeaths,
+      latest_date: cleanedData.lastUpdated
+    });
   } catch (error) {
     console.error('Error fetching global total deaths:', error);
     res.status(500).json({ error: 'Failed to fetch global total deaths' });
   }
 });
 
-// ✅ AVEC CACHE - Route principale
 app.get('/get_total_deaths_per_country', cacheMiddleware(300), async (req, res) => {
   try {
-    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
-    const response = await fetch(url);
+    const cleanedData = await loadCleanedData('deaths_cleaned.json');
+    
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
+      const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.text();
-    const rows = data.split('\n');
-    const header = rows[0].split(',');
-    const latestDate = header[header.length - 1];
-
-    const countryTotalDeaths = {};
-
-    for (let i = 1; i < rows.length; i++) {
-      const columns = rows[i].split(',');
-      const country = columns[1];
-      const countryDeaths = parseInt(columns[columns.length - 1], 10);
-
-      if (!isNaN(countryDeaths)) {
-        if (!countryTotalDeaths[country]) {
-          countryTotalDeaths[country] = 0;
-        }
-        countryTotalDeaths[country] += countryDeaths;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.text();
+      const rows = data.split('\n');
+      const header = rows[0].split(',');
+      const latestDate = header[header.length - 1];
+
+      const countryTotalDeaths = {};
+
+      for (let i = 1; i < rows.length; i++) {
+        const columns = rows[i].split(',');
+        const country = columns[1];
+        const countryDeaths = parseInt(columns[columns.length - 1], 10);
+
+        if (!isNaN(countryDeaths)) {
+          if (!countryTotalDeaths[country]) {
+            countryTotalDeaths[country] = 0;
+          }
+          countryTotalDeaths[country] += countryDeaths;
+        }
+      }
+
+      const formattedResult = Object.keys(countryTotalDeaths).map(country => ({
+        country: country,
+        total_deaths: countryTotalDeaths[country],
+      }));
+
+      return res.json({
+        data: formattedResult,
+        latest_date: latestDate,
+      });
     }
 
-    const formattedResult = Object.keys(countryTotalDeaths).map(country => ({
-      country: country,
-      total_deaths: countryTotalDeaths[country],
+    const formattedData = cleanedData.data.map(country => ({
+      country: country.country,
+      total_deaths: country.totalDeaths
     }));
 
     res.json({
-      data: formattedResult,
-      latest_date: latestDate,
+      data: formattedData,
+      latest_date: cleanedData.dateRange.end
     });
   } catch (error) {
     console.error('Error fetching total deaths per country:', error);
@@ -471,68 +663,91 @@ app.get('/get_total_deaths_per_country', cacheMiddleware(300), async (req, res) 
   }
 });
 
-// ✅ AVEC CACHE - Route principale
 app.get('/get_total_recovered', cacheMiddleware(300), async (req, res) => {
   try {
-    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
-    const response = await fetch(url);
-    const data = await response.text();
+    const cleanedData = await loadCleanedData('merged_statistics.json');
+    
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
+      const response = await fetch(url);
+      const data = await response.text();
 
-    const rows = data.split('\n');
-    const header = rows[0].split(',');
-    const dateColumns = header.slice(4);
+      const rows = data.split('\n');
+      const header = rows[0].split(',');
+      const dateColumns = header.slice(4);
 
-    let globalTotalRecovered = 0;
+      let globalTotalRecovered = 0;
 
-    for (let i = 1; i < rows.length; i++) {
-      if (!rows[i].trim()) continue;
-      const columns = rows[i].split(',');
-      const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
-      const maxRecovered = Math.max(...recoveredValues);
-      globalTotalRecovered += maxRecovered;
+      for (let i = 1; i < rows.length; i++) {
+        if (!rows[i].trim()) continue;
+        const columns = rows[i].split(',');
+        const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
+        const maxRecovered = Math.max(...recoveredValues);
+        globalTotalRecovered += maxRecovered;
+      }
+
+      return res.json({ total_recovered: globalTotalRecovered });
     }
 
-    res.json({ total_recovered: globalTotalRecovered });
+    res.json({
+      total_recovered: cleanedData.globalStats.totalRecovered,
+      latest_date: cleanedData.lastUpdated
+    });
   } catch (error) {
     console.error('Error fetching global total recovered:', error);
     res.status(500).json({ error: 'Failed to fetch global total recovered' });
   }
 });
 
-// ✅ AVEC CACHE - Route principale
 app.get('/get_total_recovered_per_country', cacheMiddleware(300), async (req, res) => {
   try {
-    const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
-    const response = await fetch(url);
-    const data = await response.text();
+    const cleanedData = await loadCleanedData('recovered_cleaned.json');
+    
+    if (!cleanedData) {
+      // Fallback to old method
+      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
+      const response = await fetch(url);
+      const data = await response.text();
 
-    const rows = data.split('\n');
-    const header = rows[0].split(',');
-    const dateColumns = header.slice(4);
+      const rows = data.split('\n');
+      const header = rows[0].split(',');
+      const dateColumns = header.slice(4);
 
-    const countryTotalRecovered = {};
+      const countryTotalRecovered = {};
 
-    for (let i = 1; i < rows.length; i++) {
-      if (!rows[i].trim()) continue;
-      const columns = rows[i].split(',');
-      const country = columns[1];
+      for (let i = 1; i < rows.length; i++) {
+        if (!rows[i].trim()) continue;
+        const columns = rows[i].split(',');
+        const country = columns[1];
 
-      const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
-      const maxRecovered = Math.max(...recoveredValues);
+        const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
+        const maxRecovered = Math.max(...recoveredValues);
 
-      if (!countryTotalRecovered[country]) {
-        countryTotalRecovered[country] = 0;
+        if (!countryTotalRecovered[country]) {
+          countryTotalRecovered[country] = 0;
+        }
+        countryTotalRecovered[country] += maxRecovered;
       }
-      countryTotalRecovered[country] += maxRecovered;
+
+      const formattedResult = Object.keys(countryTotalRecovered).map(country => ({
+        country: country,
+        total_recovered: countryTotalRecovered[country],
+      }));
+
+      return res.json({
+        data: formattedResult,
+      });
     }
 
-    const formattedResult = Object.keys(countryTotalRecovered).map(country => ({
-      country: country,
-      total_recovered: countryTotalRecovered[country],
+    const formattedData = cleanedData.data.map(country => ({
+      country: country.country,
+      total_recovered: country.totalRecovered
     }));
 
     res.json({
-      data: formattedResult,
+      data: formattedData,
+      latest_date: cleanedData.dateRange.end
     });
   } catch (error) {
     console.error('Error fetching total recovered per country:', error);
@@ -540,7 +755,6 @@ app.get('/get_total_recovered_per_country', cacheMiddleware(300), async (req, re
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_28_day_cases', cacheMiddleware(300), async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';

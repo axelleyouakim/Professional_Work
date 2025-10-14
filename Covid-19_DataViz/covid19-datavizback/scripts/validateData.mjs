@@ -153,8 +153,12 @@ async function validateCleanedData() {
   }
 }
 
-// Run if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run if executed directly (Windows-compatible)
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const isMainModule = process.argv[1] === __filename || process.argv[1].endsWith('validateData.mjs');
+
+if (isMainModule) {
   validateCleanedData();
 }
 

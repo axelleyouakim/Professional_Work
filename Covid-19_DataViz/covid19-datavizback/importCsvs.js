@@ -521,4 +521,8 @@ function mergeDocumentsInPlace(existingDocs, newDocs) {
   }
 }
 
-importAllData();
+export { importAllData };
+
+if (process.argv[1] === import.meta.url) {
+  importAllData();
+}
