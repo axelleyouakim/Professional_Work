@@ -108,8 +108,8 @@ const Dashboard = ({ style }) => {
 
   const handleAdminLevelChange = (level) => {
     setAdminLevel(level)
-    // TODO: Fetch data for the selected admin level
-    // For now, this just changes the active button state
+    // TODO: fetch data for the selected admin level
+    // for now, this just changes the active button state
     console.log(`[v0] Admin level changed to: ${level}`)
   }
 

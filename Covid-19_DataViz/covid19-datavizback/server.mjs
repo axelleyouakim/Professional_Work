@@ -90,7 +90,6 @@ app.get('/get_total_cases', cacheMiddleware(300), async (req, res) => {
   try {
     const cleanedData = await loadCleanedData('merged_statistics.json');
     if (!cleanedData) {
-      // Fallback to old method if cleaned data not available
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
       const response = await fetch(url);
       const data = await response.text();
@@ -152,7 +151,6 @@ app.get('/get_mean_cases', cacheMiddleware(300), async (req, res) => {
     const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
     
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
       const response = await fetch(url);
       const data = await response.text();
@@ -178,7 +176,6 @@ app.get('/get_mean_cases', cacheMiddleware(300), async (req, res) => {
       return res.json({ mean_daily_cases: mean.toFixed(2) });
     }
 
-    // Use cleaned data
     const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
     let totalsPerDay = new Array(dateColumns.length).fill(0);
 
@@ -206,7 +203,6 @@ app.get('/get_cases_evolution', cacheMiddleware(300), async (req, res) => {
     const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
     
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
       const response = await fetch(url);
       const data = await response.text();
@@ -234,7 +230,6 @@ app.get('/get_cases_evolution', cacheMiddleware(300), async (req, res) => {
       return res.json({ weekly_evolution: weeklyEvolution });
     }
 
-    // Use cleaned data
     const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
     let totalsPerDay = new Array(dateColumns.length).fill(0);
 
@@ -264,7 +259,6 @@ app.get('/get_kmeans_clusters', cacheMiddleware(600), async (req, res) => {
     const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
     
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
       const response = await fetch(url);
       const data = await response.text();
@@ -343,7 +337,6 @@ app.get('/get_kmeans_clusters', cacheMiddleware(600), async (req, res) => {
       });
     }
 
-    // Use cleaned data
     const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
     const latestDate = dateColumns[dateColumns.length - 1];
     const previousDate = dateColumns[dateColumns.length - 8];
@@ -457,7 +450,6 @@ app.get('/get_total_cases_per_country', cacheMiddleware(300), async (req, res) =
     const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
     console.log('Cleaned data loaded:', cleanedData ? 'YES' : 'NO');
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
       const response = await fetch(url);
       const data = await response.text();
@@ -510,7 +502,6 @@ app.get('/get_cases_time_series', cacheMiddleware(600), async (req, res) => {
     const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
     
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
       const response = await fetch(url);
       const data = await response.text();
@@ -542,7 +533,6 @@ app.get('/get_cases_time_series', cacheMiddleware(600), async (req, res) => {
       return res.json({ data: timeSeriesData });
     }
 
-    // Use cleaned data
     const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
     
     const timeSeriesData = dateColumns.map(date => {
@@ -568,7 +558,6 @@ app.get('/get_total_deaths', cacheMiddleware(300), async (req, res) => {
     const cleanedData = await loadCleanedData('merged_statistics.json');
     
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
       const response = await fetch(url);
 
@@ -609,7 +598,6 @@ app.get('/get_total_deaths_per_country', cacheMiddleware(300), async (req, res) 
     const cleanedData = await loadCleanedData('deaths_cleaned.json');
     
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
       const response = await fetch(url);
 
@@ -668,7 +656,6 @@ app.get('/get_total_recovered', cacheMiddleware(300), async (req, res) => {
     const cleanedData = await loadCleanedData('merged_statistics.json');
     
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
       const response = await fetch(url);
       const data = await response.text();
@@ -705,7 +692,6 @@ app.get('/get_total_recovered_per_country', cacheMiddleware(300), async (req, re
     const cleanedData = await loadCleanedData('recovered_cleaned.json');
     
     if (!cleanedData) {
-      // Fallback to old method
       const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
       const response = await fetch(url);
       const data = await response.text();
@@ -795,7 +781,6 @@ app.get('/get_28_day_cases', cacheMiddleware(300), async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_28_day_cases_per_country', cacheMiddleware(300), async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
@@ -856,7 +841,6 @@ app.get('/get_28_day_cases_per_country', cacheMiddleware(300), async (req, res) 
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_28_day_deaths', cacheMiddleware(300), async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
@@ -897,7 +881,6 @@ app.get('/get_28_day_deaths', cacheMiddleware(300), async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_28_day_deaths_per_country', cacheMiddleware(300), async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
@@ -958,7 +941,6 @@ app.get('/get_28_day_deaths_per_country', cacheMiddleware(300), async (req, res)
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_total_vaccine_doses', cacheMiddleware(300), async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/govex/COVID-19/master/data_tables/vaccine_data/global_data/time_series_covid19_vaccine_global.csv';
@@ -1050,7 +1032,6 @@ app.get('/get_vaccine_doses_per_country', async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_28_day_vaccine_doses', cacheMiddleware(300), async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/govex/COVID-19/master/data_tables/vaccine_data/global_data/time_series_covid19_vaccine_global.csv';
@@ -1109,7 +1090,6 @@ app.get('/get_28_day_vaccine_doses', cacheMiddleware(300), async (req, res) => {
   }
 });
 
-// ✅ AVEC CACHE
 app.get('/get_28_day_vaccine_doses_per_country', cacheMiddleware(300), async (req, res) => {
   try {
     const url = 'https://raw.githubusercontent.com/govex/COVID-19/master/data_tables/vaccine_data/global_data/time_series_covid19_vaccine_global.csv';

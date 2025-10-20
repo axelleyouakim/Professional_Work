@@ -3,9 +3,7 @@ import { parse } from 'csv-parse/sync';
 import fs from 'fs/promises';
 import path from 'path';
 
-// ============================================
-// 1. CLEAN CONFIRMED CASES DATA
-// ============================================
+
 async function cleanConfirmedCases() {
   console.log('🧹 Cleaning confirmed cases data...');
   
@@ -14,11 +12,9 @@ async function cleanConfirmedCases() {
     const response = await fetch(url);
     const rawData = await response.text();
 
-    // Parse CSV
     const records = parse(rawData, { columns: true });
     const dateColumns = Object.keys(records[0]).slice(4);
 
-    // Aggregate by country (sum provinces/states)
     const countryData = {};
 
     records.forEach(row => {
@@ -35,7 +31,6 @@ async function cleanConfirmedCases() {
         };
       }
 
-      // Sum cases for each date
       dateColumns.forEach(date => {
         const cases = parseInt(row[date], 10) || 0;
         if (!countryData[country].timeSeries[date]) {
@@ -45,7 +40,6 @@ async function cleanConfirmedCases() {
       });
     });
 
-    // Convert to array and filter out zero cases
     const cleanedData = Object.values(countryData)
       .filter(country => {
         const latestDate = dateColumns[dateColumns.length - 1];
@@ -59,7 +53,6 @@ async function cleanConfirmedCases() {
       }))
       .sort((a, b) => b.totalCases - a.totalCases);
 
-    // Save to file
     await saveCleanedData('confirmed_cases_cleaned.json', {
       lastUpdated: new Date().toISOString(),
       dateRange: {
@@ -79,9 +72,7 @@ async function cleanConfirmedCases() {
   }
 }
 
-// ============================================
-// 2. CLEAN DEATHS DATA
-// ============================================
+
 async function cleanDeathsData() {
   console.log('🧹 Cleaning deaths data...');
   
@@ -142,9 +133,7 @@ async function cleanDeathsData() {
   }
 }
 
-// ============================================
-// 3. CLEAN RECOVERED DATA
-// ============================================
+
 async function cleanRecoveredData() {
   console.log('🧹 Cleaning recovered data...');
 
@@ -161,7 +150,6 @@ async function cleanRecoveredData() {
     records.forEach(row => {
       const country = row['Country/Region'];
 
-      // Get the maximum recovered value across ALL dates for this row
       const recoveredValues = dateColumns.map(date => parseInt(row[date], 10) || 0);
       const maxRecovered = Math.max(...recoveredValues);
 
@@ -173,10 +161,8 @@ async function cleanRecoveredData() {
         };
       }
 
-      // Add this row's max to the country's total
       countryData[country].totalRecovered += maxRecovered;
 
-      // Build time series by summing all rows for this country per date
       dateColumns.forEach(date => {
         const recovered = parseInt(row[date], 10) || 0;
         if (!countryData[country].timeSeries[date]) {
@@ -209,22 +195,17 @@ async function cleanRecoveredData() {
   }
 }
 
-// ============================================
-// 4. MERGE AND CALCULATE STATISTICS
-// ============================================
+
 async function mergeAndCalculateStats() {
   console.log('📊 Merging data and calculating statistics...');
 
   try {
-    // Load cleaned data
     const confirmed = JSON.parse(await fs.readFile('./data/cleaned/confirmed_cases_cleaned.json', 'utf-8'));
     const deaths = JSON.parse(await fs.readFile('./data/cleaned/deaths_cleaned.json', 'utf-8'));
     const recovered = JSON.parse(await fs.readFile('./data/cleaned/recovered_cleaned.json', 'utf-8'));
 
-    // Create country map
     const countryStats = {};
 
-    // Add confirmed cases
     confirmed.data.forEach(country => {
       countryStats[country.country] = {
         country: country.country,
@@ -238,21 +219,18 @@ async function mergeAndCalculateStats() {
       };
     });
 
-    // Add deaths
     deaths.data.forEach(country => {
       if (countryStats[country.country]) {
         countryStats[country.country].totalDeaths = country.totalDeaths;
       }
     });
 
-    // Add recovered
     recovered.data.forEach(country => {
       if (countryStats[country.country]) {
         countryStats[country.country].totalRecovered = country.totalRecovered;
       }
     });
 
-    // Calculate rates and active cases
     Object.values(countryStats).forEach(country => {
       country.activeCases = country.totalCases - country.totalDeaths - country.totalRecovered;
       country.mortalityRate = country.totalCases > 0 
@@ -287,13 +265,10 @@ async function mergeAndCalculateStats() {
   }
 }
 
-// ============================================
-// 5. HELPER: SAVE CLEANED DATA
-// ============================================
+
 async function saveCleanedData(filename, data) {
   const dataDir = path.join(process.cwd(), 'data', 'cleaned');
   
-  // Create directory if it doesn't exist
   await fs.mkdir(dataDir, { recursive: true });
   
   const filePath = path.join(dataDir, filename);
@@ -302,16 +277,13 @@ async function saveCleanedData(filename, data) {
   console.log(`💾 Saved: ${filename}`);
 }
 
-// ============================================
-// 6. MAIN EXECUTION
-// ============================================
+
 async function runAllCleaningScripts() {
   console.log('🚀 Starting data cleaning pipeline...\n');
   
   const startTime = Date.now();
 
   try {
-    // Run cleaning scripts in sequence
     await cleanConfirmedCases();
     await cleanDeathsData();
     await cleanRecoveredData();
@@ -329,7 +301,6 @@ async function runAllCleaningScripts() {
   }
 }
 
-// Run if executed directly (Windows-compatible)
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const isMainModule = process.argv[1] === __filename || process.argv[1].endsWith('cleanData.mjs');
@@ -338,7 +309,6 @@ if (isMainModule) {
   runAllCleaningScripts();
 }
 
-// Export functions for use in other scripts
 export {
   cleanConfirmedCases,
   cleanDeathsData,

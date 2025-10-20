@@ -9,7 +9,6 @@ redisClient.on('connect', () => console.log('Redis connected'));
 
 await redisClient.connect();
 
-// Middleware de cache
 export const cacheMiddleware = (duration = 300) => {
   return async (req, res, next) => {
     if (!redisClient.isOpen) {
@@ -29,7 +28,6 @@ export const cacheMiddleware = (duration = 300) => {
       
       console.log(`❌ Cache MISS: ${key}`);
       
-      // Intercepter la réponse pour la mettre en cache
       const originalJson = res.json.bind(res);
       res.json = (data) => {
         redisClient.setEx(key, duration, JSON.stringify(data))
