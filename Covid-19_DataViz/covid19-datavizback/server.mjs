@@ -10,7 +10,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import CovidData from './models/CovidData.js';
 import { cacheMiddleware } from './middleware/cacheMiddleware.js';
-import { importAllData } from './importCsvs.js';
+import { importCleanedDataToMongoDB } from './importCleanedData.mjs';
+// import { importAllData } from './importCsvs.js';
 
 dotenv.config();
 
@@ -23,18 +24,31 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] }));
 app.use(express.json());
 
+// mongoose.connect(process.env.MONGODB_URI)
+//   .then(async () => {
+//     console.log('MongoDB connected');
+//     const count = await CovidData.countDocuments();
+//     if (count === 0) {
+//       console.log('No data found in database. Starting import...');
+//       await importAllData();
+//     } else {
+//       console.log(`Database already has ${count} documents`);
+//     }
+//   })
+//   .catch(err => console.error('MongoDB connection error:', err));
 mongoose.connect(process.env.MONGODB_URI)
   .then(async () => {
-    console.log('MongoDB connected');
+    console.log('✅ MongoDB connected');
     const count = await CovidData.countDocuments();
     if (count === 0) {
-      console.log('No data found in database. Starting import...');
-      await importAllData();
+      console.log('⚠️  No data in database. Run cleaning + import first:');
+      console.log('   1. npm run clean');
+      console.log('   2. node importCleanedData.mjs');
     } else {
-      console.log(`Database already has ${count} documents`);
+      console.log(`📊 Database has ${count} documents from ${(await CovidData.distinct('Country_Region')).length} countries`);
     }
   })
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
 app.get('/covid-data', async (req, res) => {
   try {
@@ -148,206 +162,126 @@ app.get('/get_country_death_and_cases', async (req, res) => {
 
 app.get('/get_mean_cases', cacheMiddleware(300), async (req, res) => {
   try {
-    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
-    
-    if (!cleanedData) {
-      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-      const response = await fetch(url);
-      const data = await response.text();
+    // Récupère tous les documents groupés par date
+    const dailyTotals = await CovidData.aggregate([
+      {
+        $group: {
+          _id: "$Date",
+          totalConfirmed: { $sum: "$Confirmed" }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
 
-      const records = parse(data, { columns: true });
-      const dateColumns = Object.keys(records[0]).slice(4);
-
-      let totalsPerDay = new Array(dateColumns.length).fill(0);
-
-      records.forEach(row => {
-        dateColumns.forEach((date, idx) => {
-          const val = parseInt(row[date], 10);
-          if (!isNaN(val)) totalsPerDay[idx] += val;
-        });
-      });
-
-      let dailyNew = [];
-      for (let i = 1; i < totalsPerDay.length; i++) {
-        dailyNew.push(totalsPerDay[i] - totalsPerDay[i - 1]);
-      }
-
-      const mean = dailyNew.reduce((a, b) => a + b, 0) / (dailyNew.length || 1);
-      return res.json({ mean_daily_cases: mean.toFixed(2) });
+    if (dailyTotals.length < 2) {
+      return res.json({ mean_daily_cases: 0 });
     }
 
-    const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
-    let totalsPerDay = new Array(dateColumns.length).fill(0);
-
-    cleanedData.data.forEach(country => {
-      dateColumns.forEach((date, idx) => {
-        totalsPerDay[idx] += country.timeSeries[date] || 0;
-      });
-    });
-
+    // Calcule les nouvelles infections quotidiennes
     let dailyNew = [];
-    for (let i = 1; i < totalsPerDay.length; i++) {
-      dailyNew.push(totalsPerDay[i] - totalsPerDay[i - 1]);
+    for (let i = 1; i < dailyTotals.length; i++) {
+      const diff = dailyTotals[i].totalConfirmed - dailyTotals[i - 1].totalConfirmed;
+      if (diff > 0) dailyNew.push(diff);
     }
 
-    const mean = dailyNew.reduce((a, b) => a + b, 0) / (dailyNew.length || 1);
-    res.json({ mean_daily_cases: mean.toFixed(2) });
+    const mean = dailyNew.length > 0 
+      ? dailyNew.reduce((a, b) => a + b, 0) / dailyNew.length 
+      : 0;
+
+    res.json({ 
+      mean_daily_cases: mean.toFixed(2),
+      source: 'mongodb'
+    });
   } catch (err) {
-    console.error(err);
+    console.error('Error calculating mean cases:', err);
     res.status(500).json({ error: 'Failed to calculate mean cases' });
   }
 });
 
 app.get('/get_cases_evolution', cacheMiddleware(300), async (req, res) => {
   try {
-    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
-    
-    if (!cleanedData) {
-      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-      const response = await fetch(url);
-      const data = await response.text();
+    // Récupère tous les cas confirmés par date
+    const dailyTotals = await CovidData.aggregate([
+      {
+        $group: {
+          _id: "$Date",
+          totalConfirmed: { $sum: "$Confirmed" }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
 
-      const records = parse(data, { columns: true });
-      const dateColumns = Object.keys(records[0]).slice(4);
-
-      let totalsPerDay = new Array(dateColumns.length).fill(0);
-
-      records.forEach(row => {
-        dateColumns.forEach((date, idx) => {
-          const val = parseInt(row[date], 10);
-          if (!isNaN(val)) totalsPerDay[idx] += val;
-        });
-      });
-
-      let weeklyEvolution = [];
-      for (let i = 7; i < totalsPerDay.length; i += 7) {
-        const prev = totalsPerDay[i - 7];
-        const curr = totalsPerDay[i];
-        const growth = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
-        weeklyEvolution.push({ week: i / 7, growth: growth.toFixed(2) });
-      }
-
-      return res.json({ weekly_evolution: weeklyEvolution });
+    if (dailyTotals.length < 7) {
+      return res.json({ weekly_evolution: [] });
     }
 
-    const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
-    let totalsPerDay = new Array(dateColumns.length).fill(0);
-
-    cleanedData.data.forEach(country => {
-      dateColumns.forEach((date, idx) => {
-        totalsPerDay[idx] += country.timeSeries[date] || 0;
-      });
-    });
-
+    // Calcule l'évolution hebdomadaire
     let weeklyEvolution = [];
-    for (let i = 7; i < totalsPerDay.length; i += 7) {
-      const prev = totalsPerDay[i - 7];
-      const curr = totalsPerDay[i];
+    for (let i = 7; i < dailyTotals.length; i += 7) {
+      const prev = dailyTotals[i - 7].totalConfirmed;
+      const curr = dailyTotals[i].totalConfirmed;
       const growth = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
-      weeklyEvolution.push({ week: i / 7, growth: growth.toFixed(2) });
+      
+      weeklyEvolution.push({ 
+        week: Math.floor(i / 7), 
+        growth: growth.toFixed(2),
+        date: dailyTotals[i]._id
+      });
     }
 
-    res.json({ weekly_evolution: weeklyEvolution });
+    res.json({ 
+      weekly_evolution: weeklyEvolution,
+      source: 'mongodb'
+    });
   } catch (err) {
-    console.error(err);
+    console.error('Error calculating evolution:', err);
     res.status(500).json({ error: 'Failed to calculate evolution' });
   }
 });
 
 app.get('/get_kmeans_clusters', cacheMiddleware(600), async (req, res) => {
   try {
-    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
-    
-    if (!cleanedData) {
-      const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-      const response = await fetch(url);
-      const data = await response.text();
-
-      const records = parse(data, { columns: true });
-      const dateColumns = Object.keys(records[0]).slice(4);
-      const latestDate = dateColumns[dateColumns.length - 1];
-      const previousDate = dateColumns[dateColumns.length - 8];
-
-      let countryMap = {};
-
-      records.forEach(row => {
-        const country = row['Country/Region'];
-        const latestCases = parseInt(row[latestDate], 10) || 0;
-        const previousCases = parseInt(row[previousDate], 10) || 0;
-
-        if (!countryMap[country]) {
-          countryMap[country] = {
-            totalCases: 0,
-            previousCases: 0
-          };
+    // Récupère les dernières données par pays
+    const latestData = await CovidData.aggregate([
+      { $sort: { Date: -1 } },
+      {
+        $group: {
+          _id: "$Country_Region",
+          latestDate: { $first: "$Date" },
+          latestCases: { $first: "$Confirmed" }
         }
-
-        countryMap[country].totalCases += latestCases;
-        countryMap[country].previousCases += previousCases;
-      });
-
-      let dataset = [];
-      let countryNames = [];
-
-      Object.entries(countryMap).forEach(([country, stats]) => {
-        if (stats.totalCases === 0) return;
-
-        const weeklyGrowth = stats.previousCases > 0 
-          ? ((stats.totalCases - stats.previousCases) / stats.previousCases) * 100 
-          : 0;
-
-        const logCases = Math.log10(stats.totalCases + 1);
-
-        dataset.push([
-          logCases,
-          weeklyGrowth
-        ]);
-
-        countryNames.push(country);
-      });
-
-      const numClusters = 3;
-      const result = kmeans(dataset, numClusters, {
-        initialization: 'kmeans++',
-        maxIterations: 100
-      });
-
-      const countriesClustered = countryNames.map((country, idx) => ({
-        country: country,
-        cluster: result.clusters[idx],
-        totalCases: countryMap[country].totalCases,
-        weeklyGrowth: dataset[idx][1].toFixed(2) + '%'
-      }));
-
-      const clusterGroups = {};
-      for (let i = 0; i < numClusters; i++) {
-        clusterGroups[i] = countriesClustered.filter(c => c.cluster === i);
       }
+    ]);
 
-      return res.json({
-        centroids: result.centroids.map(c => ({
-          logCases: c[0].toFixed(2),
-          weeklyGrowth: c[1].toFixed(2) + '%'
-        })),
-        clusters: clusterGroups,
-        summary: {
-          totalCountries: countryNames.length,
-          clusterDistribution: Object.values(clusterGroups).map(arr => arr.length)
+    // Récupère les données d'il y a 7 jours
+    const sevenDaysAgo = new Date(latestData[0].latestDate);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const previousData = await CovidData.aggregate([
+      { $match: { Date: { $gte: sevenDaysAgo } } },
+      { $sort: { Date: 1 } },
+      {
+        $group: {
+          _id: "$Country_Region",
+          firstCases: { $first: "$Confirmed" }
         }
-      });
-    }
+      }
+    ]);
 
-    const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
-    const latestDate = dateColumns[dateColumns.length - 1];
-    const previousDate = dateColumns[dateColumns.length - 8];
+    // Crée une map pour l'accès rapide
+    const previousMap = {};
+    previousData.forEach(item => {
+      previousMap[item._id] = item.firstCases;
+    });
 
+    // Prépare les données pour k-means
     let dataset = [];
     let countryNames = [];
     let countryMap = {};
 
-    cleanedData.data.forEach(country => {
-      const latestCases = country.timeSeries[latestDate] || 0;
-      const previousCases = country.timeSeries[previousDate] || 0;
+    latestData.forEach(country => {
+      const latestCases = country.latestCases || 0;
+      const previousCases = previousMap[country._id] || 0;
 
       if (latestCases === 0) return;
 
@@ -358,19 +292,28 @@ app.get('/get_kmeans_clusters', cacheMiddleware(600), async (req, res) => {
       const logCases = Math.log10(latestCases + 1);
 
       dataset.push([logCases, weeklyGrowth]);
-      countryNames.push(country.country);
-      countryMap[country.country] = {
+      countryNames.push(country._id);
+      countryMap[country._id] = {
         totalCases: latestCases,
         weeklyGrowth: weeklyGrowth
       };
     });
 
+    if (dataset.length < 3) {
+      return res.json({ 
+        error: 'Not enough data for clustering',
+        source: 'mongodb'
+      });
+    }
+
+    // Exécute k-means
     const numClusters = 3;
     const result = kmeans(dataset, numClusters, {
       initialization: 'kmeans++',
       maxIterations: 100
     });
 
+    // Regroupe les résultats
     const countriesClustered = countryNames.map((country, idx) => ({
       country: country,
       cluster: result.clusters[idx],
@@ -392,11 +335,12 @@ app.get('/get_kmeans_clusters', cacheMiddleware(600), async (req, res) => {
       summary: {
         totalCountries: countryNames.length,
         clusterDistribution: Object.values(clusterGroups).map(arr => arr.length)
-      }
+      },
+      source: 'mongodb'
     });
 
   } catch (err) {
-    console.error(err);
+    console.error('Error in k-means clustering:', err);
     res.status(500).json({
       error: 'Failed to perform k-means clustering',
       details: err.message,
