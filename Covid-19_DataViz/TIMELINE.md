@@ -9,16 +9,16 @@ This document presents the complete development plan of the COVID-19 Dashboard p
 ### Feature 1: Backend Infrastructure + Data Import
 MongoDB + Mongoose schema configured  
 Basic Express API routes operational  
-CSV import from GitHub *(confirmed, deaths, recovered)*  
-Data stored in MongoDB  
+CSV import from JHU CSSE GitHub repository *(confirmed, deaths, recovered)*  
+Data cleaned and stored in MongoDB  
 Testable API routes:  
 `/get_total_cases`, `/get_total_deaths`, `/get_total_recovered`
 
 **Technical Deliverables:**
 - Docker Compose with MongoDB  
 - Mongoose Models  
-- 3 main GET API routes  
-- Data import script  
+- RESTful API structure  
+- Data cleaning pipeline script  
 
 ---
 
@@ -26,7 +26,7 @@ Testable API routes:
 Main layout with Header + Navbar  
 Global totals displayed (cases / deaths / recovered)  
 Country list with data (simple table)  
-Frontend-backend connection functional  
+Frontend-backend connection functional (React + Axios)  
 Page accessible at `localhost:3000`
 
 **Technical Deliverables:**
@@ -35,9 +35,9 @@ Page accessible at `localhost:3000`
 - Country data table  
 - API calls connected to backend  
 
-**To Document:**
-- Global architecture (diagram)  
-- Feature list for all 5 months  
+**Documentation:**
+- Architecture diagram (frontend ↔ backend ↔ database)  
+- Complete feature list (this document)  
 - README with setup instructions  
 
 ---
@@ -46,122 +46,147 @@ Page accessible at `localhost:3000`
 
 ### Feature 3: Interactive Map Visualization
 World map with D3.js  
-Red circles = cases per country (size proportional)  
-Functional zoom/pan  
-Real-time data from MongoDB  
+Red bubbles = cases per country (size proportional to case count)  
+Interactive hover tooltips showing country details  
+Functional zoom/pan with D3 zoom behavior  
+Real-time data from MongoDB via API  
 
 **Technical Deliverables:**
-- Operational `/map` page  
-- Functional D3.js canvas  
+- Operational `/map` component  
+- D3.js GeoJSON rendering  
 - MongoDB data integration  
+- Responsive SVG canvas  
 
 ---
 
 ### Feature 4: Redis Cache + Backend Optimization
 Redis installed and integrated  
-5-minute cache on main routes  
-Visible *Cache HIT/MISS* logs  
-Improved API performance  
+Cache middleware on frequently requested routes  
+5-minute TTL on global statistics  
+Cache HIT/MISS logging visible in console  
+Improved API response time  
 
 **Technical Deliverables:**
-- Redis middleware  
-- 10+ routes with cache  
-- Updated Docker Compose  
+- Redis middleware implemented  
+- 5+ routes with caching layer  
+- Updated Docker Compose with Redis service  
+- Performance comparison documented  
 
 ---
 
 ## MONTH 3
 
 ### Feature 5: Advanced Data Table
-Complete `/table` page  
-Table with: Country, Cases, Deaths, Recovered  
-Country search (filter)  
-Sortable columns  
+Complete `/table` page with full dataset  
+Table columns: Country, Confirmed, Deaths, Recovered  
+Country search functionality (real-time filter)  
+Sortable columns (ascending/descending)  
+Pagination for large datasets  
 
 **Technical Deliverables:**
-- Fully functional table page  
-- Search/filter implemented  
-- Data fetched from backend  
+- Fully functional table component  
+- Client-side search/filter implemented  
+- Sorting logic with React state  
+- Data fetched from backend 
 
 ---
 
-### Feature 6: K-Means Clustering
+### Feature 6: K-Means Clustering Analysis
 Operational `/get_kmeans_clusters` route  
-Clustering countries into 3 groups  
-Displaying clusters in the table  
-Different colors per cluster  
+K-means algorithm clustering countries into 3 groups  
+Clusters based on cases/deaths/recovered patterns  
+Cluster results displayed in table with color coding  
+Visual representation of regional pandemic patterns  
 
 **Technical Deliverables:**
-- Integrated `ml-kmeans`  
-- API route returning clusters  
-- Frontend displaying clusters  
+- K-means implementation (ml-kmeans or custom)  
+- API route returning cluster assignments  
+- Frontend displaying clusters with distinct colors  
+- Clustering logic documented  
 
 ---
 
 ## MONTH 4
 
-### Feature 7: Real-Time Charts
-`/charts` page with Chart.js  
+### Feature 7: Time-Series Charts
+`/charts` page with **Recharts** library  
 Line chart: global cases over time  
-Data from `/get_cases_time_series`  
-Real-time updates  
+Area chart: cumulative deaths and recoveries  
+Data from `/get_cases_time_series` route (timeline)
+Interactive tooltips and legends  
 
 **Technical Deliverables:**
-- Integrated Chart.js  
-- Functional time series route  
-- Fully working charts page  
+- Integrated Recharts (LineChart, AreaChart)  
+- Time series API endpoint functional  
+- Fully working charts page with multiple visualizations  
+- Date range selector implemented  
 
 ---
 
-### Feature 8: 28-Day Statistics
-Display of 28-day evolution  
-Routes: `/get_28_day_cases`, `/get_28_day_deaths`  
-Automatic difference calculation  
-Widget in dashboard showing results  
+### Feature 8: Statistical Analysis & Evolution Tracking
+Mean/average calculations (global and by region)  
+Routes: `/api/statistics/mean`, `/api/statistics/evolution`  
+Growth rate and trend analysis  
+Moving averages (7-day, 14-day)  
+Dashboard widgets displaying statistical insights  
 
 **Technical Deliverables:**
-- 2 operational 28-day routes  
-- Dashboard widget displaying data  
-- Backend-side calculations  
+- Statistical calculation routes operational  
+- Dashboard displaying mean, growth rate, trends  
+- Backend-side data aggregation  
+- Comparison between time periods  
 
 ---
 
 ## MONTH 5
 
-### Feature 9: Vaccines + Animations
-Operational `/get_total_vaccine_doses` route  
-Vaccine dose display in dashboard  
-Light animations *(fade-in, transitions)*  
-Completed **About** page  
+### Feature 9: UI/UX Polish & Responsive Design
+Fully responsive design (desktop, tablet, mobile)  
+Consistent dark mode theme  
+Loading states with skeleton loaders  
+Error handling with user-friendly messages  
+Improved navigation with active link indicators  
 
 **Technical Deliverables:**
-- Vaccine dose routes  
-- Basic CSS animations  
-- About page with project info  
+- Mobile-first CSS/responsive layout  
+- Loading and error state components  
+- Polished UI across all pages  
+- Accessibility improvements  
 
 ---
 
-### Feature 10: Polish + Final Documentation
-Responsive design (desktop + mobile)  
-Consistent dark mode  
+### Feature 10: Final Documentation & Deployment
+Complete README with:
+  - Installation instructions
+  - Tech stack explanation
+  - API documentation
+  - Usage examples  
 All navigation links functional  
-Complete README with setup  
-Commented code  
-API routes tested  
+Code commented and cleaned  
+Docker deployment ready (frontend + backend + MongoDB + Redis)  
 
 **Technical Deliverables:**
-- Responsive CSS  
-- Complete documentation  
-- All bugs fixed  
-- Demo video *(optional)*  
+- Production-ready Docker Compose  
+- Comprehensive documentation  
+- All features tested and working  
+- Demo screenshots/video (optional)  
 
 ---
 
 ## Summary
 At the end of the 5 months:
-- Robust and optimized backend (MongoDB + Redis)  
-- Interactive and responsive frontend (Next.js + Chart.js + D3.js)  
-- Dynamic and analytical visualizations  
+- Robust and optimized backend (Express + MongoDB + Redis)  
+- Interactive and responsive frontend (React + Recharts + D3.js)  
+- Dynamic and analytical visualizations (map, charts, tables)  
+- Statistical analysis (k-means, means, trends)  
 - Clear and complete documentation  
 
 ---
+
+**Tech Stack:**
+- **Frontend:** Next.js, React, Recharts, D3.js, Custom CSS
+- **Backend:** Node.js, Express, Mongoose
+- **Database:** MongoDB
+- **Cache:** Redis
+- **DevOps:** Docker, Docker Compose
+- **Version Control:** GitHub
