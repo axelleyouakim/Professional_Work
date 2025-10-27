@@ -1,3 +1,4 @@
+// cleaned up version of this file is importCleanedData.mjs
 import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
