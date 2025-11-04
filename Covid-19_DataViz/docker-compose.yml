@@ -1,9 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # MongoDB Database
+  # ---------------------------
+  # 🗄️ MongoDB Database
+  # ---------------------------
   mongodb:
-    image: mongo:latest
+    image: mongo:7
     container_name: covid_mongodb
     restart: always
     environment:
@@ -16,13 +18,17 @@ services:
       - mongodb_data:/data/db
     networks:
       - covid_network
+    # 🔧 Healthcheck SIMPLE et compatible Windows
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "mongosh --eval 'db.runCommand({ ping: 1 })' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
-  # Redis Cache
+  # ---------------------------
+  # ⚡ Redis Cache
+  # ---------------------------
   redis:
     image: redis:alpine
     container_name: covid_redis
@@ -38,8 +44,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
-  # Backend API
+  # ---------------------------
+  # 🔙 Backend API
+  # ---------------------------
   backend:
     build:
       context: ./covid19-datavizback
@@ -54,17 +63,18 @@ services:
       - MONGODB_URI=mongodb://root:example@mongodb:27017/covid_db?authSource=admin
       - REDIS_URL=redis://redis:6379
     depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - mongodb
+      - redis
     networks:
       - covid_network
     volumes:
       - ./covid19-datavizback:/app
       - /app/node_modules
+    command: npm start
 
-  # Frontend
+  # ---------------------------
+  # 🖥️ Frontend (Next.js)
+  # ---------------------------
   frontend:
     build:
       context: ./covid19-datavizfront
@@ -85,10 +95,16 @@ services:
       - /app/node_modules
       - /app/.next
 
+# ---------------------------
+# 🔗 Réseau partagé
+# ---------------------------
 networks:
   covid_network:
     driver: bridge
 
+# ---------------------------
+# 💾 Volumes persistants
+# ---------------------------
 volumes:
   mongodb_data:
     driver: local

@@ -84,7 +84,7 @@ export const getTotalVaccineDoses = api.getTotalVaccineDoses;
 export const get28DayVaccineDoses = api.get28DayVaccineDoses;
 export const get28DayVaccineDosesPerCountry = api.get28DayVaccineDosesPerCountry;
 
-// Aliases for old naming conventions (pour compatibilité avec Dashboard.js)
+// Aliases for compatibility
 export const getGlobalTotalCases = api.getTotalCases;
 export const getGlobalTotalDeaths = api.getTotalDeaths;
 export const getGlobalTotalRecovered = api.getTotalRecovered;

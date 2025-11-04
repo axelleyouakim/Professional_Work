@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 import {
   LineChart,
@@ -12,341 +12,58 @@ import {
 import * as d3 from 'd3';
 import * as topojson from "topojson-client";
 
-const geoUrl = "https://raw.githubusercontent.com/deldersveld/topojson/master/world-countries.json"
-
-import {
-  getGlobalTotalCases,
-  getGlobalTotalDeaths,
-  get28DayCases,
-  get28DayDeaths,
-  getTotalVaccineDoses,
-  get28DayVaccineDoses,
-  get28DayVaccineDosesPerCountry,
-  getTotalCasesPerCountry,
-  getTotalDeathsPerCountry,
-  get28DayCasesPerCountry,
-  get28DayDeathsPerCountry,
-  getTotalRecoveredPerCountry,
-  getGlobalTotalRecovered,
-  getCasesTimeSeries,
-} from "../../services/api"
+// Import des hooks TanStack Query
+import { useCovidDashboardData } from '../hooks/useCovidData';
 import "./Dashboard.css"
 
 const Dashboard = ({ style }) => {
-  const [totalCases, setTotalCases] = useState(null)
-  const [totalDeaths, setTotalDeaths] = useState(null)
-  const [casesLoading, setCasesLoading] = useState(true)
-  const [deathsLoading, setDeathsLoading] = useState(true)
-  const [casesError, setCasesError] = useState("")
-  const [deathsError, setDeathsError] = useState("")
+  // ============= TanStack Query Hooks (remplace tous les useEffect!) =============
+  const {
+    totalCases,
+    totalDeaths,
+    totalRecovered,
+    cases28Day,
+    deaths28Day,
+    totalCasesPerCountry,
+    totalDeathsPerCountry,
+    totalRecoveredPerCountry,
+    cases28DayPerCountry,
+    deaths28DayPerCountry,
+    totalVaccineDoses,
+    vaccines28Day,
+    vaccines28DayPerCountry,
+    chartData,
+  } = useCovidDashboardData();
 
-  const [cases28Day, setCases28Day] = useState(null)
-  const [cases28DayLoading, setCases28DayLoading] = useState(true)
-  const [cases28DayError, setCases28DayError] = useState("")
-
-  const [deaths28Day, setDeaths28Day] = useState(null)
-  const [deaths28DayLoading, setDeaths28DayLoading] = useState(true)
-  const [deaths28DayError, setDeaths28DayError] = useState("")
-
-  const [totalVaccineDoses, setTotalVaccineDoses] = useState(null)
-  const [vaccineDosesLoading, setVaccineDosesLoading] = useState(true)
-  const [vaccineDosesError, setVaccineDosesError] = useState("")
-
-  const [totalVaccineDosesPerCountry, setTotalVaccineDosesPerCountry] = useState(null)
-  const [vaccineDosesPerCountryLoading, setVaccineDosesPerCountryLoading] = useState(true)
-  const [vaccineDosesPerCountryError, setVaccineDosesPerCountryError] = useState("")
-
-  const [vaccineDoses28Day, setVaccineDoses28Day] = useState(null)
-  const [vaccineDoses28DayLoading, setVaccineDoses28DayLoading] = useState(true)
-  const [vaccineDoses28DayError, setVaccineDoses28DayError] = useState("")
-
-  const [vaccineDoses28DayPerCountry, setVaccineDoses28DayPerCountry] = useState(null)
-  const [vaccineDoses28DayPerCountryLoading, setVaccineDoses28DayPerCountryLoading] = useState(true)
-  const [vaccineDoses28DayPerCountryError, setVaccineDoses28DayPerCountryError] = useState("")
-
-  const [countryCases, setCountryCases] = useState([])
-  const [countryCasesLoading, setCountryCasesLoading] = useState(true)
-  const [countryCasesError, setCountryCasesError] = useState("")
-
-  const [totalCasesPerCountry, setTotalCasesPerCountry] = useState([])
-  const [totalCasesPerCountryLoading, setTotalCasesPerCountryLoading] = useState(true)
-  const [totalCasesPerCountryError, setTotalCasesPerCountryError] = useState("")
-
-  const [totalDeathsPerCountry, setTotalDeathsPerCountry] = useState([])
-  const [totalDeathsPerCountryLoading, setTotalDeathsPerCountryLoading] = useState(true)
-  const [totalDeathsPerCountryError, setTotalDeathsPerCountryError] = useState("")
-
-  const [cases28DayPerCountry, setCases28DayPerCountry] = useState(null)
-  const [cases28DayPerCountryLoading, setCases28DayPerCountryLoading] = useState(true)
-  const [cases28DayPerCountryError, setCases28DayPerCountryError] = useState("")
-
-  const [deaths28DayPerCountry, setDeaths28DayPerCountry] = useState(null)
-  const [deaths28DayPerCountryLoading, setDeaths28DayPerCountryLoading] = useState(true)
-  const [deaths28DayPerCountryError, setDeaths28DayPerCountryError] = useState("")
-
-  const [totalRecovered, setTotalRecovered] = useState(null)
-  const [totalRecoveredPerCountry, setTotalRecoveredPerCountry] = useState([])
-  const [recoveredLoading, setRecoveredLoading] = useState(true)
-  const [recoveredError, setRecoveredError] = useState("")
-
+  // ============= Local State (UI state only) =============
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCountry, setSelectedCountry] = useState(null)
+  const [adminLevel, setAdminLevel] = useState("admin0")
+  const [worldData, setWorldData] = useState(null)
+  const [zoomLevel, setZoomLevel] = useState(1)
+  const canvasRef = useRef(null)
 
-  const [chartData, setChartData] = useState([])
-  const [chartLoading, setChartLoading] = useState(true)
-  const [chartError, setChartError] = useState("")
-
-  const [adminLevel, setAdminLevel] = useState("admin0") // 'admin0' (country), 'admin1' (state/province), 'admin2' (county/district)
-
-  const filteredCountries = totalCasesPerCountry.filter((country) =>
+  // ============= Derived State =============
+  const filteredCountries = (totalCasesPerCountry.data || []).filter((country) =>
     country.country.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
+  // ============= Event Handlers =============
   const handleCountryClick = (countryName) => {
     setSelectedCountry(countryName)
   }
 
   const handleAdminLevelChange = (level) => {
     setAdminLevel(level)
-    // TODO: fetch data for the selected admin level
-    // for now, this just changes the active button state
     console.log(`[v0] Admin level changed to: ${level}`)
   }
 
-  const canvasRef = useRef(null)
-  const [worldData, setWorldData] = useState(null)
-  const [zoomLevel, setZoomLevel] = useState(1)
-
-  useEffect(() => {
-    const fetchTotalCases = async () => {
-      try {
-        const data = await getGlobalTotalCases()
-        setTotalCases(data.total_cases)
-      } catch (error) {
-        console.error("Error fetching total cases:", error)
-        setCasesError("Failed to fetch total cases.")
-      } finally {
-        setCasesLoading(false)
-      }
-    }
-    fetchTotalCases()
-  }, [])
-
-  useEffect(() => {
-    const fetchTotalDeaths = async () => {
-      try {
-        const data = await getGlobalTotalDeaths()
-        setTotalDeaths(data.total_deaths)
-      } catch (error) {
-        console.error("Error fetching total deaths:", error)
-        setDeathsError("Failed to fetch total deaths.")
-      } finally {
-        setDeathsLoading(false)
-      }
-    }
-    fetchTotalDeaths()
-  }, [])
-
-  useEffect(() => {
-    const fetch28DayCases = async () => {
-      try {
-        const data = await get28DayCases()
-        setCases28Day(data.total_28_day_cases)
-      } catch (error) {
-        console.error("Error fetching 28-day cases:", error)
-        setCases28DayError("Failed to fetch 28-day cases.")
-      } finally {
-        setCases28DayLoading(false)
-      }
-    }
-    fetch28DayCases()
-  }, [])
-
-  useEffect(() => {
-    const fetch28DayCasesPerCountry = async () => {
-      try {
-        const data = await get28DayCasesPerCountry()
-        console.log("Fetched 28-Day Cases Per Country:", data)
-        setCases28DayPerCountry(data.total_28_day_cases_per_country)
-      } catch (error) {
-        console.error("Error fetching 28-day cases per country:", error)
-        setCases28DayPerCountryError("Failed to fetch 28-day cases.")
-      } finally {
-        setCases28DayPerCountryLoading(false)
-      }
-    }
-    fetch28DayCasesPerCountry()
-  }, [])
-
-  useEffect(() => {
-    const fetch28DayDeaths = async () => {
-      try {
-        const data = await get28DayDeaths()
-        console.log("Fetched 28-Day Deaths Data:", data)
-        setDeaths28Day(data.total_28_day_deaths)
-      } catch (error) {
-        console.error("Error fetching 28-day deaths:", error)
-        setDeaths28DayError("Failed to fetch 28-day deaths.")
-      } finally {
-        setDeaths28DayLoading(false)
-      }
-    }
-    fetch28DayDeaths()
-  }, [])
-
-  useEffect(() => {
-    const fetch28DayDeathsPerCountry = async () => {
-      try {
-        const data = await get28DayDeathsPerCountry()
-        setDeaths28DayPerCountry(data.total_28_day_deaths_per_country)
-      } catch (error) {
-        console.error("Error fetching 28-day deaths per country:", error)
-        setDeaths28DayPerCountryError("Failed to fetch 28-day deaths per country.")
-      } finally {
-        setDeaths28DayPerCountryLoading(false)
-      }
-    }
-    fetch28DayDeathsPerCountry()
-  }, [])
-
-  useEffect(() => {
-    const fetchTotalVaccineDoses = async () => {
-      try {
-        const data = await getTotalVaccineDoses()
-        setTotalVaccineDoses(data.total_vaccine_doses)
-      } catch (error) {
-        console.error("Error fetching total vaccine doses:", error)
-        setVaccineDosesError("Failed to fetch total vaccine doses.")
-      } finally {
-        setVaccineDosesLoading(false)
-      }
-    }
-    fetchTotalVaccineDoses()
-  }, [])
-
-  useEffect(() => {
-    const fetch28DayVaccineDoses = async () => {
-      try {
-        const data = await get28DayVaccineDoses()
-        setVaccineDoses28Day(data.total_28_day_vaccine_doses)
-      } catch (error) {
-        console.error("Error fetching 28-day vaccine doses:", error)
-        setVaccineDoses28DayError("Failed to fetch 28-day vaccine doses.")
-      } finally {
-        setVaccineDoses28DayLoading(false)
-      }
-    }
-    fetch28DayVaccineDoses()
-  }, [])
-
-  useEffect(() => {
-    const fetch28DayVaccineDosesPerCountry = async () => {
-      try {
-        const data = await get28DayVaccineDosesPerCountry()
-        setVaccineDoses28DayPerCountry(data.total_28_day_vaccine_doses)
-      } catch (error) {
-        console.error("Error fetching 28-day vaccine doses per country:", error)
-        setVaccineDoses28DayPerCountryError("Failed to fetch 28-day vaccine doses per country.")
-      } finally {
-        setVaccineDoses28DayPerCountryLoading(false)
-      }
-    }
-    fetch28DayVaccineDosesPerCountry()
-  }, [])
-
-  useEffect(() => {
-    const fetchTotalCasesPerCountry = async () => {
-      try {
-        const data = await getTotalCasesPerCountry()
-        setTotalCasesPerCountry(data?.data || [])
-      } catch (error) {
-        console.error("Error fetching total cases per country:", error)
-        setTotalCasesPerCountryError("Failed to fetch total cases per country.")
-      } finally {
-        setTotalCasesPerCountryLoading(false)
-      }
-    }
-    fetchTotalCasesPerCountry()
-  }, [])
-
-  useEffect(() => {
-    const fetchTotalDeathsPerCountry = async () => {
-      try {
-        const data = await getTotalDeathsPerCountry()
-        setTotalDeathsPerCountry(data?.data || [])
-      } catch (error) {
-        console.error("Error fetching total deaths per country:", error)
-        setTotalDeathsPerCountryError("Failed to fetch total deaths per country.")
-      } finally {
-        setTotalDeathsPerCountryLoading(false)
-      }
-    }
-    fetchTotalDeathsPerCountry()
-  }, [])
-
-  useEffect(() => {
-    const fetchRecovered = async () => {
-      try {
-        setRecoveredLoading(true)
-        const global = await getGlobalTotalRecovered()
-        setTotalRecovered(global.total_recovered)
-
-        const perCountry = await getTotalRecoveredPerCountry()
-        setTotalRecoveredPerCountry(perCountry.data)
-      } catch (error) {
-        setRecoveredError("Failed to fetch recovered data")
-      } finally {
-        setRecoveredLoading(false)
-      }
-    }
-
-    fetchRecovered()
-  }, [])
-
-  useEffect(() => {
-    const fetchChartData = async () => {
-      try {
-        setChartLoading(true)
-        const data = await getCasesTimeSeries()
-
-        const formattedData = data.data
-          .filter((_, index) => index % 7 === 0)
-          .map((item) => {
-            const parts = item.date.split("/")
-            if (parts.length === 3) {
-              const month = Number.parseInt(parts[0], 10)
-              const day = Number.parseInt(parts[1], 10)
-              const year = Number.parseInt(parts[2], 10) + 2000
-              const date = new Date(year, month - 1, day)
-              return {
-                date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-                cases: item.cases,
-              }
-            }
-            return {
-              date: item.date,
-              cases: item.cases,
-            }
-          })
-
-        setChartData(formattedData)
-      } catch (error) {
-        console.error("Error fetching chart data:", error)
-        setChartError("Failed to load chart data")
-      } finally {
-        setChartLoading(false)
-      }
-    }
-
-    fetchChartData()
-  }, [])
-
+  // ============= Map Data Loading (unchanged) =============
   useEffect(() => {
     fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
       .then((response) => response.json())
       .then((topology) => {
         const countries = topojson.feature(topology, topology.objects.countries)
-
         countries.features.forEach((feature) => {
           const centroid = d3.geoCentroid(feature)
           feature.properties.centroid = centroid
@@ -356,6 +73,7 @@ const Dashboard = ({ style }) => {
       .catch((err) => console.error("Error loading map:", err))
   }, [])
 
+  // ============= Map Rendering (unchanged) =============
   useEffect(() => {
     if (!worldData) return
 
@@ -427,11 +145,12 @@ const Dashboard = ({ style }) => {
     }
 
     const drawCasesCircles = (ctx, proj, zoom) => {
-      if (!totalCasesPerCountry || totalCasesPerCountry.length === 0) return
+      const countriesData = totalCasesPerCountry.data || []
+      if (!countriesData || countriesData.length === 0) return
 
-      const maxCases = Math.max(...totalCasesPerCountry.map((c) => c.total_cases || 0))
+      const maxCases = Math.max(...countriesData.map((c) => c.total_cases || 0))
 
-      totalCasesPerCountry.forEach((countryData) => {
+      countriesData.forEach((countryData) => {
         if (!countryData.total_cases || countryData.total_cases === 0) return
 
         const feature = worldData.features.find((f) => {
@@ -553,7 +272,7 @@ const Dashboard = ({ style }) => {
     return () => {
       window.removeEventListener("resize", handleResize)
     }
-  }, [worldData, totalCasesPerCountry])
+  }, [worldData, totalCasesPerCountry.data])
 
   const handleZoomIn = () => {
     const canvas = canvasRef.current
@@ -565,6 +284,7 @@ const Dashboard = ({ style }) => {
     d3.select(canvas).transition().duration(300).call(d3.zoom().scaleBy, 0.77)
   }
 
+  // ============= Render =============
   return (
     <>
       <div className="dashboard-grid">
@@ -572,16 +292,16 @@ const Dashboard = ({ style }) => {
           <div className="stat-box">
             <h3 className="stat-label">Total Confirmed</h3>
             <p className="stat-value red-text">
-              {casesLoading
+              {totalCases.isLoading
                 ? "Loading..."
-                : casesError
-                  ? casesError
+                : totalCases.isError
+                  ? "Error loading data"
                   : selectedCountry
-                    ? totalCasesPerCountry
+                    ? (totalCasesPerCountry.data || [])
                         ?.find((data) => data.country === selectedCountry)
                         ?.total_cases?.toLocaleString() || "No data available"
-                    : totalCases !== null && totalCases !== undefined
-                      ? totalCases.toLocaleString()
+                    : totalCases.data !== null && totalCases.data !== undefined
+                      ? totalCases.data.toLocaleString()
                       : "No data available"}
             </p>
           </div>
@@ -615,17 +335,23 @@ const Dashboard = ({ style }) => {
             </div>
 
             <div className="country-list">
-              {totalCasesPerCountry.map((countryData) => (
-                <div
-                  key={countryData.country}
-                  className={`country-item ${selectedCountry === countryData.country ? "selected" : ""}`}
-                  onClick={() => handleCountryClick(countryData.country)}
-                >
-                  <span className="country-cases red-text">{countryData.total_cases?.toLocaleString() || "N/A"}</span>
-                  <span> </span>
-                  <span className="country-name">{countryData.country}</span>
-                </div>
-              ))}
+              {totalCasesPerCountry.isLoading ? (
+                <p>Loading countries...</p>
+              ) : totalCasesPerCountry.isError ? (
+                <p>Error loading countries</p>
+              ) : (
+                (totalCasesPerCountry.data || []).map((countryData) => (
+                  <div
+                    key={countryData.country}
+                    className={`country-item ${selectedCountry === countryData.country ? "selected" : ""}`}
+                    onClick={() => handleCountryClick(countryData.country)}
+                  >
+                    <span className="country-cases red-text">{countryData.total_cases?.toLocaleString() || "N/A"}</span>
+                    <span> </span>
+                    <span className="country-name">{countryData.country}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -666,7 +392,7 @@ const Dashboard = ({ style }) => {
 
           <div className="info-bar">
             <div className="info-section">
-              <span className="info-label">{totalCasesPerCountry.length}</span>
+              <span className="info-label">{(totalCasesPerCountry.data || []).length}</span>
               <span className="info-sublabel">countries/regions</span>
             </div>
             <div className="info-text">
@@ -686,32 +412,38 @@ const Dashboard = ({ style }) => {
               <div className="stat-box">
                 <h3 className="stat-label">Total Deaths</h3>
                 <p className="stat-value white-text">
-                  {deathsLoading
+                  {totalDeaths.isLoading
                     ? "Loading..."
-                    : deathsError
-                      ? deathsError
+                    : totalDeaths.isError
+                      ? "Error loading data"
                       : selectedCountry
-                        ? totalDeathsPerCountry
+                        ? (totalDeathsPerCountry.data || [])
                             ?.find((data) => data.country === selectedCountry)
                             ?.total_deaths?.toLocaleString() || "No data available"
-                        : totalDeaths !== null && totalDeaths !== undefined
-                          ? totalDeaths.toLocaleString()
+                        : totalDeaths.data !== null && totalDeaths.data !== undefined
+                          ? totalDeaths.data.toLocaleString()
                           : "No data available"}
                 </p>
               </div>
 
               <div className="country-list-container">
                 <div className="country-list">
-                  {totalDeathsPerCountry.map((countryData) => (
-                    <div key={countryData.country} className="country-item">
-                      <span className="country-deaths white-text">
-                        {countryData.total_deaths?.toLocaleString() || "N/A"}
-                      </span>{" "}
-                      <span className="country-name-small">deaths</span>
-                      <br />
-                      <span className="country-name">{countryData.country}</span>
-                    </div>
-                  ))}
+                  {totalDeathsPerCountry.isLoading ? (
+                    <p>Loading...</p>
+                  ) : totalDeathsPerCountry.isError ? (
+                    <p>Error loading data</p>
+                  ) : (
+                    (totalDeathsPerCountry.data || []).map((countryData) => (
+                      <div key={countryData.country} className="country-item">
+                        <span className="country-deaths white-text">
+                          {countryData.total_deaths?.toLocaleString() || "N/A"}
+                        </span>{" "}
+                        <span className="country-name-small">deaths</span>
+                        <br />
+                        <span className="country-name">{countryData.country}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -720,24 +452,24 @@ const Dashboard = ({ style }) => {
               <div className="stat-box">
                 <h3 className="stat-label">Total Recovered</h3>
                 <p className="stat-value green-text">
-                  {recoveredLoading
+                  {totalRecovered.isLoading
                     ? "Loading..."
-                    : recoveredError
-                      ? recoveredError
-                      : totalRecovered !== null && totalRecovered !== undefined
-                        ? totalRecovered.toLocaleString()
+                    : totalRecovered.isError
+                      ? "Error loading data"
+                      : totalRecovered.data !== null && totalRecovered.data !== undefined
+                        ? totalRecovered.data.toLocaleString()
                         : "No data available"}
                 </p>
               </div>
 
               <div className="country-list-container">
                 <div className="country-list">
-                  {recoveredLoading ? (
+                  {totalRecoveredPerCountry.isLoading ? (
                     <p>Loading...</p>
-                  ) : recoveredError ? (
-                    <p>{recoveredError}</p>
-                  ) : totalRecoveredPerCountry.length > 0 ? (
-                    totalRecoveredPerCountry.map((countryData) => (
+                  ) : totalRecoveredPerCountry.isError ? (
+                    <p>Error loading data</p>
+                  ) : (totalRecoveredPerCountry.data || []).length > 0 ? (
+                    (totalRecoveredPerCountry.data || []).map((countryData) => (
                       <div key={countryData.country} className="country-item">
                         <span className="country-recovered green-text">
                           {countryData.total_recovered?.toLocaleString() || "N/A"}
@@ -757,17 +489,17 @@ const Dashboard = ({ style }) => {
 
           <div className="chart-panel">
             <div className="chart-container">
-              {chartLoading ? (
+              {chartData.isLoading ? (
                 <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
                   <p style={{ color: "#999" }}>Loading chart data...</p>
                 </div>
-              ) : chartError ? (
+              ) : chartData.isError ? (
                 <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
-                  <p style={{ color: "#ff6b6b" }}>{chartError}</p>
+                  <p style={{ color: "#ff6b6b" }}>Error loading chart</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={chartData}>
+                  <LineChart data={chartData.data || []}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                     <XAxis dataKey="date" stroke="#999" />
                     <YAxis stroke="#999" />
