@@ -1,182 +1,92 @@
-import axios from 'axios';
+// API Configuration for COVID-19 DataViz Frontend
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-const API_URL = 'http://localhost:5000';
+// Generic fetch wrapper with error handling
+async function fetchAPI(endpoint, options = {}) {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
 
-export const getData = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_data`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching data:', error);
-        throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`API Error (${endpoint}):`, error);
+    throw error;
+  }
+}
+
+// API Methods
+export const api = {
+  // Countries
+  getCountries: () => fetchAPI('/get_country'),
+  getDeathByCountry: (country) => fetchAPI(`/get_death_by_country?country=${encodeURIComponent(country)}`),
+
+  // Global statistics
+  getTotalCases: () => fetchAPI('/get_total_cases'),
+  getTotalDeaths: () => fetchAPI('/get_total_deaths'),
+  getTotalRecovered: () => fetchAPI('/get_total_recovered'),
+
+  // Per country statistics
+  getAllCountryAndDeath: () => fetchAPI('/get_all_country_and_death'),
+  getCountryDeathAndCases: () => fetchAPI('/get_country_death_and_cases'),
+  getTotalCasesPerCountry: () => fetchAPI('/get_total_cases_per_country'),
+  getTotalDeathsPerCountry: () => fetchAPI('/get_total_deaths_per_country'),
+  getTotalRecoveredPerCountry: () => fetchAPI('/get_total_recovered_per_country'),
+
+  // Time series
+  getCasesTimeSeries: () => fetchAPI('/get_cases_time_series'),
+
+  // Advanced statistics
+  getMeanCases: () => fetchAPI('/get_mean_cases'),
+  getCasesEvolution: () => fetchAPI('/get_cases_evolution'),
+  getKMeansClusters: () => fetchAPI('/get_kmeans_clusters'),
+
+  // 28 days data
+  get28DayCases: () => fetchAPI('/get_28_day_cases'),
+  get28DayCasesPerCountry: () => fetchAPI('/get_28_day_cases_per_country'),
+  get28DayDeaths: () => fetchAPI('/get_28_day_deaths'),
+  get28DayDeathsPerCountry: () => fetchAPI('/get_28_day_deaths_per_country'),
+  getDeathCases28Days: () => fetchAPI('/get_death_cases_28_days'),
+
+  // Vaccine data
+  getTotalVaccineDoses: () => fetchAPI('/get_total_vaccine_doses'),
+  getVaccineDosesPerCountry: (country) => fetchAPI(`/get_vaccine_doses_per_country?country=${encodeURIComponent(country)}`),
+  get28DayVaccineDoses: () => fetchAPI('/get_28_day_vaccine_doses'),
+  get28DayVaccineDosesPerCountry: () => fetchAPI('/get_28_day_vaccine_doses_per_country'),
+
+  // All COVID data (for compatibility)
+  getCovidData: () => fetchAPI('/covid-data'),
 };
 
-export const getDeathByCountry = async (country) => {
-    try {
-        const response = await axios.get(`${API_URL}/get_death_by_country`, {
-            params: { country },
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching death data by country:', error);
-        throw error;
-    }
-};
+// Export individual functions for backward compatibility
+export const getCountries = api.getCountries;
+export const getTotalCases = api.getTotalCases;
+export const getTotalDeaths = api.getTotalDeaths;
+export const getTotalRecovered = api.getTotalRecovered;
+export const getTotalCasesPerCountry = api.getTotalCasesPerCountry;
+export const getTotalDeathsPerCountry = api.getTotalDeathsPerCountry;
+export const getTotalRecoveredPerCountry = api.getTotalRecoveredPerCountry;
+export const getCasesTimeSeries = api.getCasesTimeSeries;
+export const get28DayCases = api.get28DayCases;
+export const get28DayCasesPerCountry = api.get28DayCasesPerCountry;
+export const get28DayDeaths = api.get28DayDeaths;
+export const get28DayDeathsPerCountry = api.get28DayDeathsPerCountry;
+export const getTotalVaccineDoses = api.getTotalVaccineDoses;
+export const get28DayVaccineDoses = api.get28DayVaccineDoses;
+export const get28DayVaccineDosesPerCountry = api.get28DayVaccineDosesPerCountry;
 
-export const getTotalCasesPerCountry = async (country) => {
-    try {
-        const response = await axios.get(`${API_URL}/get_total_cases_per_country`, {
-            params: { country },
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching total cases by country:', error);
-        throw error;
-    }
-};
+// Aliases for old naming conventions (pour compatibilité avec Dashboard.js)
+export const getGlobalTotalCases = api.getTotalCases;
+export const getGlobalTotalDeaths = api.getTotalDeaths;
+export const getGlobalTotalRecovered = api.getTotalRecovered;
 
-export const getGlobalTotalCases = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_total_cases`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching global total cases:', error);
-        throw error;
-    }
-};
-
-export const getCasesTimeSeries = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_cases_time_series`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching cases time series:', error);
-        throw error;
-    }
-};
-
-export const getGlobalTotalDeaths = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_total_deaths`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching global total deaths:', error);
-        throw error;
-    }
-};
-
-export const getTotalDeathsPerCountry = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/get_total_deaths_per_country`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching total deaths per country:', error);
-      throw error;
-    }
-};
-
-export const getTotalRecoveredPerCountry = async (country) => {
-    try {
-        const response = await axios.get(`${API_URL}/get_total_recovered_per_country`, {
-            params: { country },
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching total recovered by country:', error);
-        throw error;
-    }
-};
-
-export const getGlobalTotalRecovered = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_total_recovered`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching global total recovered:', error);
-        throw error;
-    }
-};
-
-
-export const get28DayCases = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_28_day_cases`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching 28-day cases:', error);
-        throw error;
-    }
-};
-
-export const get28DayCasesPerCountry = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_28_day_cases_per_country`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching 28-day cases per country:', error);
-        throw error;
-    }
-};
-
-export const get28DayDeaths = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_28_day_deaths`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching 28-day deaths:', error);
-        throw error;
-    }
-};
-
-export const get28DayDeathsPerCountry = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_28_day_deaths_per_country`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching 28-day deaths per country:', error);
-        throw error;
-    }
-};
-
-export const getTotalVaccineDoses = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_total_vaccine_doses`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching total vaccine doses:', error);
-        throw error;
-    }
-};
-
-export const getTotalVaccineDosesPerCountry = async (country) => {
-    try {
-        const response = await axios.get(`${API_URL}/get_vaccine_doses_per_country`, {
-            params: { country },
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching vaccine doses by country:', error);
-        throw error;
-    }
-};
-
-export const get28DayVaccineDoses = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_28_day_vaccine_doses`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching 28-day vaccine doses:', error);
-        throw error;
-    }
-};
-
-export const get28DayVaccineDosesPerCountry = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/get_28_day_vaccine_doses_per_country`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching 28-day vaccine doses per country:', error);
-        throw error;
-    }
-};
+export default api;
