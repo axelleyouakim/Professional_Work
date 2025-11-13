@@ -338,18 +338,21 @@ export const covidService = {
     }
   },
 
-  // Get cases time series
-  getCasesTimeSeries: async () => {
+  // ✅ MÉTHODE MODIFIÉE : Get cases time series avec filtrage par période
+  getCasesTimeSeries: async (period) => {
     try {
       const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
-      
+    
+      let timeSeriesData;
+    
       if (!cleanedData) {
+        // Fallback: Fetch depuis GitHub
         const data = await fetchGitHubCSV('confirmed');
         const rows = data.split('\n').filter(row => row.trim() !== '');
         const header = rows[0].split(',');
         const dateColumns = header.slice(4);
-        
-        const timeSeriesData = dateColumns.map(date => ({
+      
+        timeSeriesData = dateColumns.map(date => ({
           date: date.trim(),
           cases: 0
         }));
@@ -358,7 +361,7 @@ export const covidService = {
           const row = rows[i];
           if (!row.trim()) continue;
           const columns = row.split(',');
-          
+        
           for (let j = 4; j < columns.length && j - 4 < timeSeriesData.length; j++) {
             const cases = parseInt(columns[j], 10);
             if (!isNaN(cases)) {
@@ -366,20 +369,87 @@ export const covidService = {
             }
           }
         }
-
-        return { data: timeSeriesData };
+      } else {
+        // Utiliser les données nettoyées
+        const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
+        timeSeriesData = dateColumns.map(date => {
+          let totalCases = 0;
+          cleanedData.data.forEach(country => {
+            totalCases += country.timeSeries[date] || 0;
+          });
+          return { date: date, cases: totalCases };
+        });
       }
 
-      const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
-      const timeSeriesData = dateColumns.map(date => {
-        let totalCases = 0;
-        cleanedData.data.forEach(country => {
-          totalCases += country.timeSeries[date] || 0;
-        });
-        return { date: date, cases: totalCases };
-      });
+      // ✅ NOUVEAU : Parser les dates et trier chronologiquement
+      const parsedData = timeSeriesData.map(item => {
+        // Format attendu: "M/D/YY" ou "M/D/YYYY"
+        const parts = item.date.split("/");
+        let dateObj;
+      
+        if (parts.length === 3) {
+          const month = parseInt(parts[0], 10);
+          const day = parseInt(parts[1], 10);
+          let year = parseInt(parts[2], 10);
+        
+          // Si année sur 2 chiffres, ajouter 2000
+          if (year < 100) {
+            year += 2000;
+          }
+        
+          dateObj = new Date(year, month - 1, day);
+        } else {
+          dateObj = new Date(item.date);
+        }
+      
+        return {
+          date: item.date,
+          cases: item.cases,
+          dateObj: dateObj
+        };
+      }).filter(item => !isNaN(item.dateObj.getTime())) // Enlever dates invalides
+        .sort((a, b) => a.dateObj - b.dateObj); // Trier par date croissante
 
-      return { data: timeSeriesData };
+      // ✅ NOUVEAU : Filtrer par période si demandée
+      let filteredData = parsedData;
+    
+      if (period && !isNaN(period)) {
+        const periodDays = parseInt(period);
+      
+        // Trouver la dernière date
+        const latestDate = parsedData[parsedData.length - 1].dateObj;
+      
+        // Calculer la date de début
+        const startDate = new Date(latestDate);
+        startDate.setDate(startDate.getDate() - periodDays);
+      
+        // Filtrer les données
+        filteredData = parsedData.filter(item => item.dateObj >= startDate);
+      
+        console.log(`📅 Timeline filter: ${periodDays} days from ${startDate.toLocaleDateString()} to ${latestDate.toLocaleDateString()}`);
+        console.log(`📊 Points: ${filteredData.length}`);
+      }
+
+      // ✅ NOUVEAU : Extraire la dernière date pour metadata
+      const lastDataPoint = filteredData[filteredData.length - 1];
+      const lastDate = lastDataPoint ? lastDataPoint.dateObj : null;
+    
+      // Formater lastDate au format "M/D/YYYY"
+      const formattedLastDate = lastDate 
+        ? `${lastDate.getMonth() + 1}/${lastDate.getDate()}/${lastDate.getFullYear()}`
+        : null;
+
+      // Retourner les données sans dateObj
+      const finalData = filteredData.map(({ dateObj, ...rest }) => rest);
+
+      return { 
+        data: finalData,
+        metadata: {
+          lastDate: formattedLastDate,
+          totalPoints: finalData.length,
+          period: period ? parseInt(period) : null
+        }
+      };
     } catch (error) {
       throw new AppError('Failed to fetch cases time series', 500);
     }

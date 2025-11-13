@@ -118,10 +118,11 @@ export const covidController = {
     }
   },
 
-  // GET cases time series
+  // ✅ MODIFIÉ : GET cases time series avec support du paramètre period
   getCasesTimeSeries: async (req, res, next) => {
     try {
-      const data = await covidService.getCasesTimeSeries();
+      const { period } = req.query; // Récupérer period (optionnel)
+      const data = await covidService.getCasesTimeSeries(period);
       res.json(data);
     } catch (error) {
       next(error);

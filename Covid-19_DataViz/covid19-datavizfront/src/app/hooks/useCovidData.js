@@ -26,7 +26,7 @@ export const covidKeys = {
   vaccines28DayPerCountry: () => [...covidKeys.vaccines(), '28-days-per-country'],
   
   timeSeries: () => [...covidKeys.all, 'time-series'],
-  casesTimeSeries: () => [...covidKeys.timeSeries(), 'cases'],
+  casesTimeSeries: (period) => period ? [...covidKeys.timeSeries(), 'cases', period] : [...covidKeys.timeSeries(), 'cases'],
 };
 
 // ============= GLOBAL STATS HOOKS =============
@@ -171,41 +171,23 @@ export const use28DayVaccineDosesPerCountry = () => {
 
 // ============= TIME SERIES HOOKS =============
 
-export const useCasesTimeSeries = () => {
+// ✅ FIX FINAL : Retourne DIRECTEMENT le tableau, PAS un objet wrapper
+export const useCasesTimeSeries = (period = null) => {
   return useQuery({
-    queryKey: covidKeys.casesTimeSeries(),
+    queryKey: covidKeys.casesTimeSeries(period),
     queryFn: async () => {
-      const data = await api.getCasesTimeSeries();
+      const response = await api.getCasesTimeSeries(period);
       
-      // Format data for chart
-      const formattedData = data.data
-        .filter((_, index) => index % 7 === 0)
-        .map((item) => {
-          const parts = item.date.split("/");
-          if (parts.length === 3) {
-            const month = Number.parseInt(parts[0], 10);
-            const day = Number.parseInt(parts[1], 10);
-            const year = Number.parseInt(parts[2], 10) + 2000;
-            const date = new Date(year, month - 1, day);
-            return {
-              date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-              cases: item.cases,
-            };
-          }
-          return {
-            date: item.date,
-            cases: item.cases,
-          };
-        });
-      
-      return formattedData;
+      // ✅ TanStack Query encapsule déjà dans .data
+      // Donc retourne DIRECTEMENT response.data (le tableau)
+      return response?.data || [];
     },
   });
 };
 
 // ============= COMBINED HOOK =============
 
-export const useCovidDashboardData = () => {
+export const useCovidDashboardData = (period = null) => {
   const totalCases = useGlobalTotalCases();
   const totalDeaths = useGlobalTotalDeaths();
   const totalRecovered = useGlobalTotalRecovered();
@@ -224,7 +206,7 @@ export const useCovidDashboardData = () => {
   const vaccines28Day = use28DayVaccineDoses();
   const vaccines28DayPerCountry = use28DayVaccineDosesPerCountry();
   
-  const chartData = useCasesTimeSeries();
+  const chartData = useCasesTimeSeries(period);
 
   return {
     // Global stats
@@ -250,7 +232,7 @@ export const useCovidDashboardData = () => {
     vaccines28Day,
     vaccines28DayPerCountry,
     
-    // Chart
+    // ✅ Chart - chartData.data sera maintenant DIRECTEMENT le tableau
     chartData,
   };
 };

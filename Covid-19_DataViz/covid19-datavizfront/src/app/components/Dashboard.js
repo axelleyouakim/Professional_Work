@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -15,14 +16,28 @@ import * as topojson from "topojson-client";
 // Import des hooks TanStack Query
 import { useCovidDashboardData } from '../hooks/useCovidData';
 
-// Import des nouveaux composants (OPTIONNEL - commentez si pas encore créés)
+// Import des nouveaux composants
 import TimelineSlider from './TimelineSlider';
 import CountrySearch from './CountrySearch';
+
+// Import des fonctions de filtrage
+import { filterCountriesBySearch } from '../utils/dataFilters';
 
 import "./Dashboard.css";
 
 const Dashboard = ({ style }) => {
-  // ============= TanStack Query Hooks =============
+  // ============= Local State FIRST (AVANT useCovidDashboardData) =============
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [adminLevel, setAdminLevel] = useState("admin0");
+  const [worldData, setWorldData] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const canvasRef = useRef(null);
+
+  // Timeline & Search State
+  const [selectedPeriod, setSelectedPeriod] = useState({ id: 'all', days: null });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // ============= TanStack Query Data (APRÈS selectedPeriod) =============
   const {
     totalCases,
     totalDeaths,
@@ -40,45 +55,9 @@ const Dashboard = ({ style }) => {
     chartData,
   } = useCovidDashboardData();
 
-  // ============= Local State =============
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [adminLevel, setAdminLevel] = useState("admin0");
-  const [worldData, setWorldData] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const canvasRef = useRef(null);
-
-  // ============= NEW: Timeline & Search State =============
-  const [selectedPeriod, setSelectedPeriod] = useState({ id: 'all', days: null });
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // ============= Client-side Filtering Functions =============
+  // ============= Client-side Filtering =============
   
-  // Fonction pour filtrer les données du graphique par période
-  const filterChartDataByPeriod = (data, days) => {
-    if (!days || !data || data.length === 0) {
-      return data;
-    }
-    // Garder les X derniers jours
-    return data.slice(-days);
-  };
-
-  // Fonction pour filtrer les pays par recherche
-  const filterCountriesBySearch = (countries, term) => {
-    if (!term || !countries) {
-      return countries;
-    }
-    const searchTerm = term.toLowerCase().trim();
-    return countries.filter((country) =>
-      country.country.toLowerCase().includes(searchTerm)
-    );
-  };
-
-  // ============= Filtered Data =============
-  
-  // Filtrer les données du graphique par période
-  const filteredChartData = filterChartDataByPeriod(chartData.data || [], selectedPeriod.days);
-
-  // Filtrer les pays par recherche
+  // Filtrer pays par recherche
   const filteredCasesCountries = filterCountriesBySearch(
     totalCasesPerCountry.data || [], 
     searchTerm
@@ -343,10 +322,8 @@ const Dashboard = ({ style }) => {
     <>
       <div className="dashboard-grid">
         <div className="left-panel">
-          {/* NEW: Timeline Slider */}
           <TimelineSlider onPeriodChange={handlePeriodChange} />
 
-          {/* NEW: Country Search with Debouncing */}
           <CountrySearch 
             onSearchChange={handleSearchChange} 
             resultsCount={filteredCasesCountries.length}
@@ -544,43 +521,47 @@ const Dashboard = ({ style }) => {
             </div>
           </div>
 
-          <div className="chart-panel">
-            <div className="chart-container">
-              {chartData.isLoading ? (
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
-                  <p style={{ color: "#999" }}>Loading chart data...</p>
-                </div>
-              ) : chartData.isError ? (
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
-                  <p style={{ color: "#ff6b6b" }}>Error loading chart</p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={filteredChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                    <XAxis dataKey="date" stroke="#999" />
-                    <YAxis stroke="#999" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
-                      labelStyle={{ color: "#fff" }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="cases"
-                      stroke="#ff9800"
-                      strokeWidth={2}
-                      dot={{ fill: "#ff9800", r: 4 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-              <div className="chart-tabs">
-                <button className="chart-tab active">Confirmed</button>
-                <button className="chart-tab">Logarithmic</button>
-                <button className="chart-tab">Daily Increase</button>
-              </div>
-            </div>
-          </div>
+<div className="chart-panel">
+  <div className="chart-container">
+    {chartData.isLoading ? (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
+        <p style={{ color: "#999" }}>Loading chart data...</p>
+      </div>
+    ) : chartData.isError ? (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
+        <p style={{ color: "#ff6b6b" }}>Error loading chart</p>
+      </div>
+    ) : !Array.isArray(chartData.data) ? (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
+        <p style={{ color: "#ffaa00" }}>Invalid data format</p>
+      </div>
+    ) : (
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart data={chartData.data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+          <XAxis dataKey="date" stroke="#999" />
+          <YAxis stroke="#999" />
+          <Tooltip
+            contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
+            labelStyle={{ color: "#fff" }}
+          />
+          <Line
+            type="monotone"
+            dataKey="cases"
+            stroke="#ff9800"
+            strokeWidth={2}
+            dot={{ fill: "#ff9800", r: 4 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    )}
+    <div className="chart-tabs">
+      <button className="chart-tab active">Confirmed</button>
+      <button className="chart-tab">Logarithmic</button>
+      <button className="chart-tab">Daily Increase</button>
+    </div>
+  </div>
+</div>
         </div>
       </div>
     </>

@@ -42,8 +42,11 @@ export const api = {
   getTotalDeathsPerCountry: () => fetchAPI('/get_total_deaths_per_country'),
   getTotalRecoveredPerCountry: () => fetchAPI('/get_total_recovered_per_country'),
 
-  // Time series
-  getCasesTimeSeries: () => fetchAPI('/get_cases_time_series'),
+  // ✅ MODIFIÉ : Time series avec support du paramètre period
+  getCasesTimeSeries: (period) => {
+    const url = period ? `/get_cases_time_series?period=${period}` : '/get_cases_time_series';
+    return fetchAPI(url);
+  },
 
   // Advanced statistics
   getMeanCases: () => fetchAPI('/get_mean_cases'),
@@ -75,7 +78,7 @@ export const getTotalRecovered = api.getTotalRecovered;
 export const getTotalCasesPerCountry = api.getTotalCasesPerCountry;
 export const getTotalDeathsPerCountry = api.getTotalDeathsPerCountry;
 export const getTotalRecoveredPerCountry = api.getTotalRecoveredPerCountry;
-export const getCasesTimeSeries = api.getCasesTimeSeries;
+export const getCasesTimeSeries = api.getCasesTimeSeries; // ✅ Supporte period
 export const get28DayCases = api.get28DayCases;
 export const get28DayCasesPerCountry = api.get28DayCasesPerCountry;
 export const get28DayDeaths = api.get28DayDeaths;
