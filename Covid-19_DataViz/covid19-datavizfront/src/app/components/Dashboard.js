@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -13,31 +14,23 @@ import {
 import * as d3 from 'd3';
 import * as topojson from "topojson-client";
 
-// Import des hooks TanStack Query
 import { useCovidDashboardData } from '../hooks/useCovidData';
-
-// Import des nouveaux composants
 import TimelineSlider from './TimelineSlider';
 import CountrySearch from './CountrySearch';
-
-// Import des fonctions de filtrage
-import { filterCountriesBySearch } from '../utils/dataFilters';
 
 import "./Dashboard.css";
 
 const Dashboard = ({ style }) => {
-  // ============= Local State FIRST (AVANT useCovidDashboardData) =============
+  // ============= État local (DÉCLARER EN PREMIER) =============
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [worldData, setWorldData] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const canvasRef = useRef(null);
-
-  // Timeline & Search State
   const [selectedPeriod, setSelectedPeriod] = useState({ id: 'all', days: null });
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ============= TanStack Query Data (APRÈS selectedPeriod) =============
+  // ============= TanStack Query Hooks (PASSER selectedPeriod.days) =============
   const {
     totalCases,
     totalDeaths,
@@ -53,9 +46,63 @@ const Dashboard = ({ style }) => {
     vaccines28Day,
     vaccines28DayPerCountry,
     chartData,
-  } = useCovidDashboardData();
+  } = useCovidDashboardData(selectedPeriod.days); // ✅ PASSER period
 
-  // ============= Client-side Filtering =============
+  // ============= Fonctions de formatage =============
+  
+  // ✅ Formater les données du graphique : date complète → mois uniquement
+  const formatChartData = useCallback((data) => {
+    if (!data || data.length === 0) return [];
+    
+    return data.map(item => {
+      const parts = item.date.split("/");
+      if (parts.length === 3) {
+        const month = parseInt(parts[0], 10);
+        const day = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
+        
+        if (year < 100) year += 2000;
+        
+        const dateObj = new Date(year, month - 1, day);
+        
+        // ✅ Juste le mois pour l'axe X
+        const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
+        
+        return {
+          date: monthName, // "Jan", "Feb", "Mar"...
+          cases: item.cases,
+          fullDate: `${monthName} ${day}, ${year}` // Pour le tooltip
+        };
+      }
+      return item;
+    });
+  }, []);
+
+  // ✅ Formater l'axe Y : 200000 → "200K", 1000000 → "1M"
+  const formatYAxis = useCallback((value) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(0)}K`;
+    }
+    return value;
+  }, []);
+
+  // ✅ Filtrer les pays par recherche
+  const filterCountriesBySearch = useCallback((countries, term) => {
+    if (!term || !countries) {
+      return countries;
+    }
+    const searchLower = term.toLowerCase().trim();
+    return countries.filter((country) =>
+      country.country.toLowerCase().includes(searchLower)
+    );
+  }, []);
+
+  // ============= Données filtrées =============
+  
+  // ✅ Formater les données du chart
+  const formattedChartData = formatChartData(chartData.data || []);
   
   // Filtrer pays par recherche
   const filteredCasesCountries = filterCountriesBySearch(
@@ -73,22 +120,35 @@ const Dashboard = ({ style }) => {
 
   // ============= Event Handlers =============
   
-  const handleCountryClick = (countryName) => {
+  const handleCountryClick = useCallback((countryName) => {
     setSelectedCountry(countryName);
-  };
+  }, []);
 
-  const handleAdminLevelChange = (level) => {
+  const handleAdminLevelChange = useCallback((level) => {
     setAdminLevel(level);
-    console.log(`Admin level changed to: ${level}`);
-  };
+  }, []);
 
   const handlePeriodChange = useCallback((period) => {
     setSelectedPeriod(period);
-    console.log('Period changed to:', period.label);
+    console.log('📅 Period changed to:', period.label, 'days:', period.days);
   }, []);
 
   const handleSearchChange = useCallback((term) => {
     setSearchTerm(term);
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      d3.select(canvas).transition().duration(300).call(d3.zoom().scaleBy, 1.3);
+    }
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      d3.select(canvas).transition().duration(300).call(d3.zoom().scaleBy, 0.77);
+    }
   }, []);
 
   // ============= Map Data Loading =============
@@ -307,264 +367,260 @@ const Dashboard = ({ style }) => {
     };
   }, [worldData, filteredCasesCountries]);
 
-  const handleZoomIn = () => {
-    const canvas = canvasRef.current;
-    d3.select(canvas).transition().duration(300).call(d3.zoom().scaleBy, 1.3);
-  };
-
-  const handleZoomOut = () => {
-    const canvas = canvasRef.current;
-    d3.select(canvas).transition().duration(300).call(d3.zoom().scaleBy, 0.77);
-  };
-
   // ============= Render =============
   return (
-    <>
-      <div className="dashboard-grid">
-        <div className="left-panel">
-          <TimelineSlider onPeriodChange={handlePeriodChange} />
+    <div className="dashboard-grid">
+      <div className="left-panel">
+        <TimelineSlider onPeriodChange={handlePeriodChange} />
 
-          <CountrySearch 
-            onSearchChange={handleSearchChange} 
-            resultsCount={filteredCasesCountries.length}
-          />
+        <CountrySearch 
+          onSearchChange={handleSearchChange} 
+          resultsCount={filteredCasesCountries.length}
+        />
 
-          <div className="stat-box">
-            <h3 className="stat-label">Total Confirmed</h3>
-            <p className="stat-value red-text">
-              {totalCases.isLoading
-                ? "Loading..."
-                : totalCases.isError
-                  ? "Error loading data"
-                  : selectedCountry
-                    ? filteredCasesCountries
-                        ?.find((data) => data.country === selectedCountry)
-                        ?.total_cases?.toLocaleString() || "No data available"
-                    : totalCases.data !== null && totalCases.data !== undefined
-                      ? totalCases.data.toLocaleString()
-                      : "No data available"}
-            </p>
-          </div>
-
-          <div className="country-list-container">
-            <h4 className="country-list-title">
-              Confirmed Cases by Country/Region
-              <br />
-              /Sovereignty
-            </h4>
-
-            <div className="admin-level-buttons">
-              <button
-                className={`admin-btn ${adminLevel === "admin0" ? "active" : ""}`}
-                onClick={() => handleAdminLevelChange("admin0")}
-              >
-                Admin0
-              </button>
-              <button
-                className={`admin-btn ${adminLevel === "admin1" ? "active" : ""}`}
-                onClick={() => handleAdminLevelChange("admin1")}
-              >
-                Admin1
-              </button>
-              <button
-                className={`admin-btn ${adminLevel === "admin2" ? "active" : ""}`}
-                onClick={() => handleAdminLevelChange("admin2")}
-              >
-                Admin2
-              </button>
-            </div>
-
-            <div className="country-list">
-              {totalCasesPerCountry.isLoading ? (
-                <p>Loading countries...</p>
-              ) : totalCasesPerCountry.isError ? (
-                <p>Error loading countries</p>
-              ) : filteredCasesCountries.length === 0 ? (
-                <p>No countries found</p>
-              ) : (
-                filteredCasesCountries.map((countryData) => (
-                  <div
-                    key={countryData.country}
-                    className={`country-item ${selectedCountry === countryData.country ? "selected" : ""}`}
-                    onClick={() => handleCountryClick(countryData.country)}
-                  >
-                    <span className="country-cases red-text">{countryData.total_cases?.toLocaleString() || "N/A"}</span>
-                    <span> </span>
-                    <span className="country-name">{countryData.country}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="last-updated">
-            <h4 className="update-label">Last Updated at (M/D/YYYY)</h4>
-            <p className="update-time">4/2/2020 9:02:01 AM</p>
-          </div>
+        <div className="stat-box">
+          <h3 className="stat-label">Total Confirmed</h3>
+          <p className="stat-value red-text">
+            {totalCases.isLoading
+              ? "Loading..."
+              : totalCases.isError
+                ? "Error loading data"
+                : selectedCountry
+                  ? filteredCasesCountries
+                      ?.find((data) => data.country === selectedCountry)
+                      ?.total_cases?.toLocaleString() || "No data available"
+                  : totalCases.data !== null && totalCases.data !== undefined
+                    ? totalCases.data.toLocaleString()
+                    : "No data available"}
+          </p>
         </div>
 
-        <div className="map-panel">
-          <div className="view-toggle-buttons">
-            <button className="view-toggle-btn" title="Bookmark">…</button>
-            <button className="view-toggle-btn" title="List view">…</button>
-            <button className="view-toggle-btn" title="Grid view">…</button>
+        <div className="country-list-container">
+          <h4 className="country-list-title">
+            Confirmed Cases by Country/Region
+            <br />
+            /Sovereignty
+          </h4>
+
+          <div className="admin-level-buttons">
+            <button
+              className={`admin-btn ${adminLevel === "admin0" ? "active" : ""}`}
+              onClick={() => handleAdminLevelChange("admin0")}
+            >
+              Admin0
+            </button>
+            <button
+              className={`admin-btn ${adminLevel === "admin1" ? "active" : ""}`}
+              onClick={() => handleAdminLevelChange("admin1")}
+            >
+              Admin1
+            </button>
+            <button
+              className={`admin-btn ${adminLevel === "admin2" ? "active" : ""}`}
+              onClick={() => handleAdminLevelChange("admin2")}
+            >
+              Admin2
+            </button>
           </div>
 
-          <canvas ref={canvasRef} className="map-container" />
-
-          <div className="zoom-controls">
-            <button className="zoom-btn" onClick={handleZoomIn} title="Zoom in">+</button>
-            <button className="zoom-btn" onClick={handleZoomOut} title="Zoom out">−</button>
-          </div>
-
-          <div className="map-tabs">
-            <button className="map-tab active">Cumulative Confirmed Cases</button>
-            <button className="map-tab">Active Cases</button>
-          </div>
-
-          <div className="info-bar">
-            <div className="info-section">
-              <span className="info-label">{filteredCasesCountries.length}</span>
-              <span className="info-sublabel">countries/regions</span>
-            </div>
-            <div className="info-text">
-              <strong>Lancet Inf Dis</strong> Article: <a href="#">Here</a>. Mobile Version: <a href="#">Here</a>.
-              Visualization: <a href="#">JHU CSSE</a>. Automation Support: <a href="#">Esri Living Atlas team</a> and{" "}
-              <a href="#">JHU APL</a>. <a href="#">Contact Us</a>. <a href="#">FAQ</a>.<br />
-              Data sources: WHO, CDC, ECDC, NHC, DXY, 1point3acres, Worldometers.info, BNO, state and national
-              government health departments, and local media reports. Read more in <a href="#">this blog</a>.<br />
-              Downloadable database: GitHub: <a href="#">Here</a>. Feature layer: <a href="#">Here</a>.
-            </div>
-          </div>
-        </div>
-
-        <div className="right-panels-container-narrow">
-          <div className="right-stats-column">
-            <div className="right-stat-panel">
-              <div className="stat-box">
-                <h3 className="stat-label">Total Deaths</h3>
-                <p className="stat-value white-text">
-                  {totalDeaths.isLoading
-                    ? "Loading..."
-                    : totalDeaths.isError
-                      ? "Error loading data"
-                      : selectedCountry
-                        ? filteredDeathsCountries
-                            ?.find((data) => data.country === selectedCountry)
-                            ?.total_deaths?.toLocaleString() || "No data available"
-                        : totalDeaths.data !== null && totalDeaths.data !== undefined
-                          ? totalDeaths.data.toLocaleString()
-                          : "No data available"}
-                </p>
-              </div>
-
-              <div className="country-list-container">
-                <div className="country-list">
-                  {totalDeathsPerCountry.isLoading ? (
-                    <p>Loading...</p>
-                  ) : totalDeathsPerCountry.isError ? (
-                    <p>Error loading data</p>
-                  ) : filteredDeathsCountries.length === 0 ? (
-                    <p>No countries found</p>
-                  ) : (
-                    filteredDeathsCountries.map((countryData) => (
-                      <div key={countryData.country} className="country-item">
-                        <span className="country-deaths white-text">
-                          {countryData.total_deaths?.toLocaleString() || "N/A"}
-                        </span>{" "}
-                        <span className="country-name-small">deaths</span>
-                        <br />
-                        <span className="country-name">{countryData.country}</span>
-                      </div>
-                    ))
-                  )}
+          <div className="country-list">
+            {totalCasesPerCountry.isLoading ? (
+              <p>Loading countries...</p>
+            ) : totalCasesPerCountry.isError ? (
+              <p>Error loading countries</p>
+            ) : filteredCasesCountries.length === 0 ? (
+              <p>No countries found</p>
+            ) : (
+              filteredCasesCountries.map((countryData) => (
+                <div
+                  key={countryData.country}
+                  className={`country-item ${selectedCountry === countryData.country ? "selected" : ""}`}
+                  onClick={() => handleCountryClick(countryData.country)}
+                >
+                  <span className="country-cases red-text">{countryData.total_cases?.toLocaleString() || "N/A"}</span>
+                  <span> </span>
+                  <span className="country-name">{countryData.country}</span>
                 </div>
-              </div>
-            </div>
+              ))
+            )}
+          </div>
+        </div>
 
-            <div className="right-stat-panel">
-              <div className="stat-box">
-                <h3 className="stat-label">Total Recovered</h3>
-                <p className="stat-value green-text">
-                  {totalRecovered.isLoading
-                    ? "Loading..."
-                    : totalRecovered.isError
-                      ? "Error loading data"
-                      : totalRecovered.data !== null && totalRecovered.data !== undefined
-                        ? totalRecovered.data.toLocaleString()
+        <div className="last-updated">
+          <h4 className="update-label">Last Updated at (M/D/YYYY)</h4>
+          <p className="update-time">4/2/2020 9:02:01 AM</p>
+        </div>
+      </div>
+
+      <div className="map-panel">
+        <div className="view-toggle-buttons">
+          <button className="view-toggle-btn" title="Bookmark">…</button>
+          <button className="view-toggle-btn" title="List view">…</button>
+          <button className="view-toggle-btn" title="Grid view">…</button>
+        </div>
+
+        <canvas ref={canvasRef} className="map-container" />
+
+        <div className="zoom-controls">
+          <button className="zoom-btn" onClick={handleZoomIn} title="Zoom in">+</button>
+          <button className="zoom-btn" onClick={handleZoomOut} title="Zoom out">−</button>
+        </div>
+
+        <div className="map-tabs">
+          <button className="map-tab active">Cumulative Confirmed Cases</button>
+          <button className="map-tab">Active Cases</button>
+        </div>
+
+        <div className="info-bar">
+          <div className="info-section">
+            <span className="info-label">{filteredCasesCountries.length}</span>
+            <span className="info-sublabel">countries/regions</span>
+          </div>
+          <div className="info-text">
+            <strong>Lancet Inf Dis</strong> Article: <a href="#">Here</a>. Mobile Version: <a href="#">Here</a>.
+            Visualization: <a href="#">JHU CSSE</a>. Automation Support: <a href="#">Esri Living Atlas team</a> and{" "}
+            <a href="#">JHU APL</a>. <a href="#">Contact Us</a>. <a href="#">FAQ</a>.<br />
+            Data sources: WHO, CDC, ECDC, NHC, DXY, 1point3acres, Worldometers.info, BNO, state and national
+            government health departments, and local media reports. Read more in <a href="#">this blog</a>.<br />
+            Downloadable database: GitHub: <a href="#">Here</a>. Feature layer: <a href="#">Here</a>.
+          </div>
+        </div>
+      </div>
+
+      <div className="right-panels-container-narrow">
+        <div className="right-stats-column">
+          <div className="right-stat-panel">
+            <div className="stat-box">
+              <h3 className="stat-label">Total Deaths</h3>
+              <p className="stat-value white-text">
+                {totalDeaths.isLoading
+                  ? "Loading..."
+                  : totalDeaths.isError
+                    ? "Error loading data"
+                    : selectedCountry
+                      ? filteredDeathsCountries
+                          ?.find((data) => data.country === selectedCountry)
+                          ?.total_deaths?.toLocaleString() || "No data available"
+                      : totalDeaths.data !== null && totalDeaths.data !== undefined
+                        ? totalDeaths.data.toLocaleString()
                         : "No data available"}
-                </p>
-              </div>
+              </p>
+            </div>
 
-              <div className="country-list-container">
-                <div className="country-list">
-                  {totalRecoveredPerCountry.isLoading ? (
-                    <p>Loading...</p>
-                  ) : totalRecoveredPerCountry.isError ? (
-                    <p>Error loading data</p>
-                  ) : filteredRecoveredCountries.length === 0 ? (
-                    <p>No countries found</p>
-                  ) : (
-                    filteredRecoveredCountries.map((countryData) => (
-                      <div key={countryData.country} className="country-item">
-                        <span className="country-recovered green-text">
-                          {countryData.total_recovered?.toLocaleString() || "N/A"}
-                        </span>{" "}
-                        <span className="country-name-small">recovered</span>
-                        <br />
-                        <span className="country-name">{countryData.country}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
+            <div className="country-list-container">
+              <div className="country-list">
+                {totalDeathsPerCountry.isLoading ? (
+                  <p>Loading...</p>
+                ) : totalDeathsPerCountry.isError ? (
+                  <p>Error loading data</p>
+                ) : filteredDeathsCountries.length === 0 ? (
+                  <p>No countries found</p>
+                ) : (
+                  filteredDeathsCountries.map((countryData) => (
+                    <div key={countryData.country} className="country-item">
+                      <span className="country-deaths white-text">
+                        {countryData.total_deaths?.toLocaleString() || "N/A"}
+                      </span>{" "}
+                      <span className="country-name-small">deaths</span>
+                      <br />
+                      <span className="country-name">{countryData.country}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
 
-<div className="chart-panel">
-  <div className="chart-container">
-    {chartData.isLoading ? (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
-        <p style={{ color: "#999" }}>Loading chart data...</p>
-      </div>
-    ) : chartData.isError ? (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
-        <p style={{ color: "#ff6b6b" }}>Error loading chart</p>
-      </div>
-    ) : !Array.isArray(chartData.data) ? (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
-        <p style={{ color: "#ffaa00" }}>Invalid data format</p>
-      </div>
-    ) : (
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={chartData.data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis dataKey="date" stroke="#999" />
-          <YAxis stroke="#999" />
-          <Tooltip
-            contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
-            labelStyle={{ color: "#fff" }}
-          />
-          <Line
-            type="monotone"
-            dataKey="cases"
-            stroke="#ff9800"
-            strokeWidth={2}
-            dot={{ fill: "#ff9800", r: 4 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    )}
-    <div className="chart-tabs">
-      <button className="chart-tab active">Confirmed</button>
-      <button className="chart-tab">Logarithmic</button>
-      <button className="chart-tab">Daily Increase</button>
-    </div>
-  </div>
-</div>
+          <div className="right-stat-panel">
+            <div className="stat-box">
+              <h3 className="stat-label">Total Recovered</h3>
+              <p className="stat-value green-text">
+                {totalRecovered.isLoading
+                  ? "Loading..."
+                  : totalRecovered.isError
+                    ? "Error loading data"
+                    : totalRecovered.data !== null && totalRecovered.data !== undefined
+                      ? totalRecovered.data.toLocaleString()
+                      : "No data available"}
+              </p>
+            </div>
+
+            <div className="country-list-container">
+              <div className="country-list">
+                {totalRecoveredPerCountry.isLoading ? (
+                  <p>Loading...</p>
+                ) : totalRecoveredPerCountry.isError ? (
+                  <p>Error loading data</p>
+                ) : filteredRecoveredCountries.length === 0 ? (
+                  <p>No countries found</p>
+                ) : (
+                  filteredRecoveredCountries.map((countryData) => (
+                    <div key={countryData.country} className="country-item">
+                      <span className="country-recovered green-text">
+                        {countryData.total_recovered?.toLocaleString() || "N/A"}
+                      </span>{" "}
+                      <span className="country-name-small">recovered</span>
+                      <br />
+                      <span className="country-name">{countryData.country}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="chart-panel">
+          <div className="chart-container">
+            {chartData.isLoading ? (
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
+                <p style={{ color: "#999" }}>Loading chart data...</p>
+              </div>
+            ) : chartData.isError ? (
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
+                <p style={{ color: "#ff6b6b" }}>Error loading chart</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={formattedChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#999"
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis 
+                    stroke="#999"
+                    tickFormatter={formatYAxis}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
+                    labelStyle={{ color: "#fff" }}
+                    formatter={(value) => value.toLocaleString()}
+                    labelFormatter={(label, payload) => {
+                      // Afficher la date complète dans le tooltip
+                      return payload && payload[0] ? payload[0].payload.fullDate : label;
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="cases"
+                    stroke="#ff9800"
+                    strokeWidth={2}
+                    dot={{ fill: "#ff9800", r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+            <div className="chart-tabs">
+              <button className="chart-tab active">Confirmed</button>
+              <button className="chart-tab">Logarithmic</button>
+              <button className="chart-tab">Daily Increase</button>
+            </div>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
