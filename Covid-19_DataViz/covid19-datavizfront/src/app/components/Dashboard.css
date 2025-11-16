@@ -407,6 +407,8 @@
   border-color: #555;
 }
 
+/* ===== SCROLLBAR STYLES ===== */
+
 .country-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -422,4 +424,615 @@
 
 .country-list::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+.info-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.info-bar::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.info-bar::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+
+/* ============================================
+   RESPONSIVE MEDIA QUERIES
+   ============================================ */
+
+/* ===== TRÈS GRANDS ÉCRANS (> 1920px) ===== */
+@media (min-width: 1921px) {
+  .dashboard-grid {
+    max-width: 1920px;
+    margin: 0 auto;
+  }
+}
+
+/* ===== GRANDS ÉCRANS (1400px - 1920px) ===== */
+@media (max-width: 1920px) and (min-width: 1400px) {
+  .dashboard-grid {
+    grid-template-columns: 240px 1fr 300px;
+  }
+
+  .stat-value {
+    font-size: 36px;
+  }
+
+  .right-stat-panel .stat-value {
+    font-size: 30px;
+  }
+}
+
+/* ===== ÉCRANS MOYENS (1200px - 1400px) ===== */
+@media (max-width: 1399px) and (min-width: 1200px) {
+  .dashboard-grid {
+    grid-template-columns: 200px 1fr 260px;
+    gap: 6px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+  }
+
+  .right-stat-panel .stat-value {
+    font-size: 24px;
+  }
+
+  .chart-panel {
+    height: 240px;
+  }
+}
+
+/* ===== TABLETTES PAYSAGE (992px - 1200px) ===== */
+@media (max-width: 1199px) and (min-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: 180px 1fr 240px;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .right-stat-panel .stat-value {
+    font-size: 20px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .country-item {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .chart-panel {
+    height: 220px;
+  }
+
+  .map-tabs {
+    bottom: 70px;
+  }
+
+  .map-tab {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .info-bar {
+    font-size: 9px;
+    padding: 6px 10px;
+    max-height: 70px;
+  }
+
+  .info-label {
+    font-size: 20px;
+  }
+
+  .info-sublabel {
+    font-size: 8px;
+  }
+}
+
+/* ===== TABLETTES PORTRAIT (768px - 992px) ===== */
+@media (max-width: 991px) and (min-width: 768px) {
+  .dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 60px);
+    gap: 8px;
+  }
+
+  .left-panel,
+  .map-panel,
+  .right-panels-container-narrow {
+    width: 100%;
+    min-height: 400px;
+  }
+
+  .left-panel {
+    order: 1;
+    max-height: 500px;
+  }
+
+  .map-panel {
+    order: 2;
+    min-height: 500px;
+  }
+
+  .right-panels-container-narrow {
+    order: 3;
+  }
+
+  .right-stats-column {
+    flex-direction: row;
+  }
+
+  .right-stat-panel {
+    max-height: 400px;
+  }
+
+  .chart-panel {
+    height: auto;
+    min-height: 250px;
+  }
+
+  .country-list {
+    max-height: 300px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+  }
+
+  .map-tabs {
+    bottom: 90px;
+    flex-wrap: wrap;
+    max-width: 90%;
+  }
+
+  .zoom-controls {
+    right: 10px;
+    top: auto;
+    bottom: 120px;
+    transform: none;
+  }
+
+  .info-bar {
+    position: relative;
+    flex-wrap: wrap;
+    max-height: none;
+  }
+}
+
+/* ===== MOBILES PAYSAGE (576px - 768px) ===== */
+@media (max-width: 767px) and (min-width: 576px) {
+  .dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .left-panel,
+  .map-panel,
+  .right-panels-container-narrow {
+    width: 100%;
+  }
+
+  .left-panel {
+    order: 1;
+    max-height: 450px;
+  }
+
+  .map-panel {
+    order: 2;
+    min-height: 400px;
+    height: 400px;
+  }
+
+  .right-panels-container-narrow {
+    order: 3;
+  }
+
+  .right-stats-column {
+    flex-direction: column;
+  }
+
+  .right-stat-panel {
+    max-height: 350px;
+  }
+
+  .chart-panel {
+    height: 250px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .country-list {
+    max-height: 250px;
+  }
+
+  .country-item {
+    font-size: 10px;
+  }
+
+  /* Simplifier les contrôles sur mobile */
+  .view-toggle-buttons {
+    top: 5px;
+    right: 5px;
+    gap: 2px;
+  }
+
+  .view-toggle-btn {
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+  }
+
+  .zoom-controls {
+    right: 5px;
+    bottom: 100px;
+  }
+
+  .zoom-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+
+  .map-tabs {
+    bottom: 70px;
+    gap: 2px;
+    max-width: 95%;
+  }
+
+  .map-tab {
+    font-size: 9px;
+    padding: 4px 6px;
+  }
+
+  .info-bar {
+    position: relative;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 9px;
+    padding: 8px;
+    max-height: none;
+  }
+
+  .info-section {
+    flex-direction: row;
+    gap: 8px;
+    min-width: auto;
+    width: 100%;
+  }
+
+  .info-label {
+    font-size: 18px;
+  }
+
+  .info-text {
+    margin-top: 8px;
+  }
+
+  .admin-level-buttons {
+    gap: 2px;
+  }
+
+  .admin-btn {
+    padding: 3px 8px;
+    font-size: 9px;
+  }
+}
+
+/* ===== PETITS MOBILES (< 576px) ===== */
+@media (max-width: 575px) {
+  .dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 6px;
+    padding: 4px;
+  }
+
+  .left-panel,
+  .map-panel,
+  .right-panels-container-narrow {
+    width: 100%;
+    border-radius: 4px;
+  }
+
+  .left-panel {
+    order: 1;
+    max-height: 400px;
+  }
+
+  .map-panel {
+    order: 2;
+    min-height: 300px;
+    height: 300px;
+  }
+
+  .right-panels-container-narrow {
+    order: 3;
+  }
+
+  .right-stats-column {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .right-stat-panel {
+    max-height: 300px;
+  }
+
+  .chart-panel {
+    height: 200px;
+  }
+
+  .stat-box {
+    padding: 8px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .right-stat-panel .stat-value {
+    font-size: 18px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+  }
+
+  .country-list-container {
+    padding: 6px;
+  }
+
+  .country-list {
+    max-height: 200px;
+  }
+
+  .country-item {
+    font-size: 9px;
+    padding: 3px 6px;
+  }
+
+  .country-list-title {
+    font-size: 10px;
+  }
+
+  /* Masquer certains éléments non essentiels */
+  .view-toggle-buttons {
+    display: none;
+  }
+
+  .admin-level-buttons {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .admin-btn {
+    padding: 2px 6px;
+    font-size: 8px;
+    flex: 1;
+    min-width: 60px;
+  }
+
+  .zoom-controls {
+    right: 5px;
+    bottom: 80px;
+    gap: 2px;
+  }
+
+  .zoom-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  .map-tabs {
+    bottom: 60px;
+    gap: 2px;
+    max-width: 98%;
+  }
+
+  .map-tab {
+    font-size: 8px;
+    padding: 3px 4px;
+  }
+
+  .info-bar {
+    position: relative;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 8px;
+    padding: 6px;
+    max-height: none;
+  }
+
+  .info-section {
+    flex-direction: row;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .info-label {
+    font-size: 16px;
+  }
+
+  .info-sublabel {
+    font-size: 8px;
+  }
+
+  .info-text {
+    font-size: 8px;
+    line-height: 1.3;
+    margin-top: 6px;
+  }
+
+  .last-updated {
+    padding: 8px;
+  }
+
+  .update-label {
+    font-size: 9px;
+  }
+
+  .update-time {
+    font-size: 10px;
+  }
+
+  .chart-container {
+    padding: 6px;
+  }
+
+  .chart-tabs {
+    gap: 2px;
+    margin-top: 6px;
+  }
+
+  .chart-tab {
+    padding: 3px 6px;
+    font-size: 8px;
+  }
+
+  /* Améliorer la lisibilité sur petits écrans */
+  .country-cases,
+  .country-deaths,
+  .country-recovered {
+    font-size: 10px;
+  }
+
+  .country-name {
+    font-size: 9px;
+  }
+}
+
+/* ===== TRÈS PETITS MOBILES (< 375px) ===== */
+@media (max-width: 374px) {
+  .dashboard-grid {
+    padding: 2px;
+    gap: 4px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .right-stat-panel .stat-value {
+    font-size: 16px;
+  }
+
+  .map-panel {
+    min-height: 250px;
+    height: 250px;
+  }
+
+  .chart-panel {
+    height: 180px;
+  }
+
+  .country-list {
+    max-height: 180px;
+  }
+
+  .stat-label,
+  .country-list-title {
+    font-size: 8px;
+  }
+
+  .country-item {
+    font-size: 8px;
+    padding: 2px 4px;
+  }
+
+  .info-bar {
+    padding: 4px;
+    font-size: 7px;
+  }
+
+  .info-label {
+    font-size: 14px;
+  }
+
+  .zoom-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+  }
+
+  .map-tab {
+    font-size: 7px;
+    padding: 2px 3px;
+  }
+}
+
+/* ===== MODE PAYSAGE MOBILE ===== */
+@media (max-height: 500px) and (orientation: landscape) {
+  .dashboard-grid {
+    height: auto;
+    min-height: auto;
+  }
+
+  .left-panel {
+    max-height: 300px;
+  }
+
+  .map-panel {
+    min-height: 350px;
+    height: 350px;
+  }
+
+  .right-stat-panel {
+    max-height: 250px;
+  }
+
+  .chart-panel {
+    height: 200px;
+  }
+
+  .country-list {
+    max-height: 150px;
+  }
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  .dashboard-grid {
+    display: block;
+    height: auto;
+  }
+
+  .view-toggle-buttons,
+  .zoom-controls,
+  .map-tabs {
+    display: none;
+  }
+
+  .left-panel,
+  .map-panel,
+  .right-panels-container-narrow {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+  }
+
+  .info-bar {
+    position: relative;
+  }
 }
