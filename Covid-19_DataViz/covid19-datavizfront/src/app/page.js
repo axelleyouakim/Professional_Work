@@ -17,7 +17,7 @@ const Page = () => {
   return (
     <div>
       <Header />
-      <Navbar />
+      {/* <Navbar /> */}
       {/* Dashboard utilise useCovidDashboardData() qui gère tous les appels API */}
       <Dashboard />
     </div>

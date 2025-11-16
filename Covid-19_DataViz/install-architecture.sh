@@ -17,6 +17,10 @@ echo "🐳 Construction et lancement des conteneurs..."
 chmod +x start.sh
 ./start.sh
 
+echo "📊 LANCEMENT AUTOMATIQUE DE L’ANALYSE DES DONNÉES..."
+chmod +x data-processing.sh
+./data-processing.sh
+
 echo "✅ Installation terminée !"
 echo "➡️ Frontend : http://localhost:3000"
 echo "➡️ Backend : http://localhost:5000/api"
