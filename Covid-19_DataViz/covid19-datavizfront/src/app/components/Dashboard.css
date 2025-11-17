@@ -92,6 +92,54 @@
   overflow: hidden;
 }
 
+/* ✅ NOUVEAU: Timeline au-dessus du chart avec scroll */
+.chart-panel-with-timeline {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Timeline fixe en haut - COMPACT */
+.timeline-above-chart {
+  padding: 8px;
+  border-bottom: 1px solid #333;
+  background: rgba(26, 26, 26, 0.95);
+  flex-shrink: 0;
+}
+
+/* Chart scrollable */
+.chart-scrollable-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.chart-scrollable-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chart-scrollable-container::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.chart-scrollable-container::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.chart-scrollable-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.chart-content {
+  min-height: min-content;
+}
+
 .stat-box {
   padding: 12px;
   border-bottom: 1px solid #333;

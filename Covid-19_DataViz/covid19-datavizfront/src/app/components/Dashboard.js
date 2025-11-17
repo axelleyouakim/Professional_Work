@@ -371,8 +371,6 @@ const Dashboard = ({ style }) => {
   return (
     <div className="dashboard-grid">
       <div className="left-panel">
-        <TimelineSlider onPeriodChange={handlePeriodChange} />
-
         <CountrySearch 
           onSearchChange={handleSearchChange} 
           resultsCount={filteredCasesCountries.length}
@@ -570,52 +568,62 @@ const Dashboard = ({ style }) => {
           </div>
         </div>
 
-        <div className="chart-panel">
-          <div className="chart-container">
-            {chartData.isLoading ? (
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
-                <p style={{ color: "#999" }}>Loading chart data...</p>
+        {/* ✅ NOUVEAU: Timeline au-dessus du chart avec scroll */}
+        <div className="chart-panel-with-timeline">
+          {/* Timeline fixe en haut */}
+          <div className="timeline-above-chart">
+            <TimelineSlider onPeriodChange={handlePeriodChange} />
+          </div>
+
+          {/* Chart scrollable */}
+          <div className="chart-scrollable-container">
+            <div className="chart-content">
+              <div className="chart-container">
+                {chartData.isLoading ? (
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
+                    <p style={{ color: "#999" }}>Loading chart data...</p>
+                  </div>
+                ) : chartData.isError ? (
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
+                    <p style={{ color: "#ff6b6b" }}>Error loading chart</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={formattedChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                      <XAxis 
+                        dataKey="date" 
+                        stroke="#999"
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis 
+                        stroke="#999"
+                        tickFormatter={formatYAxis}
+                      />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
+                        labelStyle={{ color: "#fff" }}
+                        formatter={(value) => value.toLocaleString()}
+                        labelFormatter={(label, payload) => {
+                          return payload && payload[0] ? payload[0].payload.fullDate : label;
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="cases"
+                        stroke="#ff9800"
+                        strokeWidth={2}
+                        dot={{ fill: "#ff9800", r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+                <div className="chart-tabs">
+                  <button className="chart-tab active">Confirmed</button>
+                  <button className="chart-tab">Logarithmic</button>
+                  <button className="chart-tab">Daily Increase</button>
+                </div>
               </div>
-            ) : chartData.isError ? (
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 200 }}>
-                <p style={{ color: "#ff6b6b" }}>Error loading chart</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={formattedChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="#999"
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis 
-                    stroke="#999"
-                    tickFormatter={formatYAxis}
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}
-                    labelStyle={{ color: "#fff" }}
-                    formatter={(value) => value.toLocaleString()}
-                    labelFormatter={(label, payload) => {
-                      // Afficher la date complète dans le tooltip
-                      return payload && payload[0] ? payload[0].payload.fullDate : label;
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="cases"
-                    stroke="#ff9800"
-                    strokeWidth={2}
-                    dot={{ fill: "#ff9800", r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-            <div className="chart-tabs">
-              <button className="chart-tab active">Confirmed</button>
-              <button className="chart-tab">Logarithmic</button>
-              <button className="chart-tab">Daily Increase</button>
             </div>
           </div>
         </div>
