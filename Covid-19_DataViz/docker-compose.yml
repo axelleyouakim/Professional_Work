@@ -1,9 +1,6 @@
 version: "3.8"
 
 services:
-  # ---------------------------
-  # 🗄️ MongoDB Database
-  # ---------------------------
   mongodb:
     image: mongo:7
     container_name: covid_mongodb
@@ -18,7 +15,6 @@ services:
       - mongodb_data:/data/db
     networks:
       - covid_network
-    # 🔧 Healthcheck SIMPLE et compatible Windows
     healthcheck:
       test: ["CMD-SHELL", "mongosh --eval 'db.runCommand({ ping: 1 })' || exit 1"]
       interval: 15s
@@ -26,9 +22,6 @@ services:
       retries: 10
       start_period: 30s
 
-  # ---------------------------
-  # ⚡ Redis Cache
-  # ---------------------------
   redis:
     image: redis:alpine
     container_name: covid_redis
@@ -46,9 +39,6 @@ services:
       retries: 5
       start_period: 20s
 
-  # ---------------------------
-  # 🔙 Backend API
-  # ---------------------------
   backend:
     build:
       context: ./covid19-datavizback
@@ -72,9 +62,6 @@ services:
       - /app/node_modules
     command: npm start
 
-  # ---------------------------
-  # 🖥️ Frontend (Next.js)
-  # ---------------------------
   frontend:
     build:
       context: ./covid19-datavizfront
@@ -95,16 +82,10 @@ services:
       - /app/node_modules
       - /app/.next
 
-# ---------------------------
-# 🔗 Réseau partagé
-# ---------------------------
 networks:
   covid_network:
     driver: bridge
 
-# ---------------------------
-# 💾 Volumes persistants
-# ---------------------------
 volumes:
   mongodb_data:
     driver: local
