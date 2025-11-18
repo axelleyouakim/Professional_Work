@@ -17,7 +17,7 @@ const TimelineSlider = ({ onPeriodChange }) => {
   const handlePeriodChange = (period) => {
     setSelectedPeriod(period.id);
     onPeriodChange(period);
-    setIsModalOpen(false); // Fermer le modal après sélection
+    setIsModalOpen(false);
   };
 
   const getCurrentPeriodLabel = () => {
@@ -26,7 +26,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
 
   return (
     <>
-      {/* Bouton compact qui ouvre le modal */}
       <button 
         className="timeline-compact-btn"
         onClick={() => setIsModalOpen(true)}
@@ -37,7 +36,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
         <span className="timeline-compact-arrow">▼</span>
       </button>
 
-      {/* Modal de sélection */}
       {isModalOpen && (
         <div className="timeline-modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="timeline-modal" onClick={(e) => e.stopPropagation()}>

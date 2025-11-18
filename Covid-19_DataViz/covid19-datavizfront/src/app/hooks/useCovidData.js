@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import * as api from '../../services/api';
 
-// Query keys constants
 export const covidKeys = {
   all: ['covid'],
   globalStats: () => [...covidKeys.all, 'global'],
@@ -28,8 +27,6 @@ export const covidKeys = {
   timeSeries: () => [...covidKeys.all, 'time-series'],
   casesTimeSeries: (period) => period ? [...covidKeys.timeSeries(), 'cases', period] : [...covidKeys.timeSeries(), 'cases'],
 };
-
-// ============= GLOBAL STATS HOOKS =============
 
 export const useGlobalTotalCases = () => {
   return useQuery({
@@ -61,8 +58,6 @@ export const useGlobalTotalRecovered = () => {
   });
 };
 
-// ============= 28 DAYS GLOBAL HOOKS =============
-
 export const use28DayCases = () => {
   return useQuery({
     queryKey: covidKeys.cases28Day(),
@@ -82,8 +77,6 @@ export const use28DayDeaths = () => {
     },
   });
 };
-
-// ============= PER COUNTRY HOOKS =============
 
 export const useTotalCasesPerCountry = () => {
   return useQuery({
@@ -115,8 +108,6 @@ export const useTotalRecoveredPerCountry = () => {
   });
 };
 
-// ============= 28 DAYS PER COUNTRY HOOKS =============
-
 export const use28DayCasesPerCountry = () => {
   return useQuery({
     queryKey: covidKeys.cases28DayPerCountry(),
@@ -136,8 +127,6 @@ export const use28DayDeathsPerCountry = () => {
     },
   });
 };
-
-// ============= VACCINE HOOKS =============
 
 export const useTotalVaccineDoses = () => {
   return useQuery({
@@ -169,23 +158,16 @@ export const use28DayVaccineDosesPerCountry = () => {
   });
 };
 
-// ============= TIME SERIES HOOKS =============
-
-// ✅ FIX FINAL : Retourne DIRECTEMENT le tableau, PAS un objet wrapper
 export const useCasesTimeSeries = (period = null) => {
   return useQuery({
     queryKey: covidKeys.casesTimeSeries(period),
     queryFn: async () => {
       const response = await api.getCasesTimeSeries(period);
       
-      // ✅ TanStack Query encapsule déjà dans .data
-      // Donc retourne DIRECTEMENT response.data (le tableau)
       return response?.data || [];
     },
   });
 };
-
-// ============= COMBINED HOOK =============
 
 export const useCovidDashboardData = (period = null) => {
   const totalCases = useGlobalTotalCases();
@@ -209,30 +191,24 @@ export const useCovidDashboardData = (period = null) => {
   const chartData = useCasesTimeSeries(period);
 
   return {
-    // Global stats
     totalCases,
     totalDeaths,
     totalRecovered,
     
-    // 28 days global
     cases28Day,
     deaths28Day,
     
-    // Per country
     totalCasesPerCountry,
     totalDeathsPerCountry,
     totalRecoveredPerCountry,
     
-    // 28 days per country
     cases28DayPerCountry,
     deaths28DayPerCountry,
     
-    // Vaccines
     totalVaccineDoses,
     vaccines28Day,
     vaccines28DayPerCountry,
     
-    // ✅ Chart - chartData.data sera maintenant DIRECTEMENT le tableau
     chartData,
   };
 };

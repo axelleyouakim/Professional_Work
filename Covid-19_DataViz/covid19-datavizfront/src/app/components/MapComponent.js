@@ -8,7 +8,6 @@ const MapComponent = ({ casesData }) => {
   const [worldData, setWorldData] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  // Load map data
   useEffect(() => {
     fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
       .then((response) => response.json())
@@ -23,7 +22,6 @@ const MapComponent = ({ casesData }) => {
       .catch((err) => console.error("Error loading map:", err));
   }, []);
 
-  // Render map
   useEffect(() => {
     if (!worldData) return;
 

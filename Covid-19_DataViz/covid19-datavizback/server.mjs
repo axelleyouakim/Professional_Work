@@ -11,11 +11,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ===== MIDDLEWARES =====
 app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] }));
 app.use(express.json());
 
-// ===== DATABASE CONNECTION =====
 mongoose.connect(process.env.MONGODB_URI)
   .then(async () => {
     console.log('✅ MongoDB connected');
@@ -31,10 +29,8 @@ mongoose.connect(process.env.MONGODB_URI)
   })
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// ===== ROUTES =====
 app.use('/api', covidRoutes);
 
-// Legacy root route for backward compatibility
 app.get('/', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -44,11 +40,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// ===== ERROR HANDLING =====
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// ===== START SERVER =====
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📡 API available at http://localhost:${PORT}/api`);

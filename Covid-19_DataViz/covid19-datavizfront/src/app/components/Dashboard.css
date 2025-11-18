@@ -92,7 +92,6 @@
   overflow: hidden;
 }
 
-/* ✅ NOUVEAU: Timeline au-dessus du chart avec scroll */
 .chart-panel-with-timeline {
   background: #1a1a1a;
   border: 1px solid #333;
@@ -103,7 +102,6 @@
   min-height: 0;
 }
 
-/* Timeline fixe en haut - COMPACT */
 .timeline-above-chart {
   padding: 8px;
   border-bottom: 1px solid #333;
@@ -111,7 +109,6 @@
   flex-shrink: 0;
 }
 
-/* Chart scrollable */
 .chart-scrollable-container {
   flex: 1;
   overflow-y: auto;
@@ -455,8 +452,6 @@
   border-color: #555;
 }
 
-/* ===== SCROLLBAR STYLES ===== */
-
 .country-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -487,11 +482,6 @@
   border-radius: 2px;
 }
 
-/* ============================================
-   RESPONSIVE MEDIA QUERIES
-   ============================================ */
-
-/* ===== TRÈS GRANDS ÉCRANS (> 1920px) ===== */
 @media (min-width: 1921px) {
   .dashboard-grid {
     max-width: 1920px;
@@ -499,7 +489,6 @@
   }
 }
 
-/* ===== GRANDS ÉCRANS (1400px - 1920px) ===== */
 @media (max-width: 1920px) and (min-width: 1400px) {
   .dashboard-grid {
     grid-template-columns: 240px 1fr 300px;
@@ -514,7 +503,6 @@
   }
 }
 
-/* ===== ÉCRANS MOYENS (1200px - 1400px) ===== */
 @media (max-width: 1399px) and (min-width: 1200px) {
   .dashboard-grid {
     grid-template-columns: 200px 1fr 260px;
@@ -534,7 +522,6 @@
   }
 }
 
-/* ===== TABLETTES PAYSAGE (992px - 1200px) ===== */
 @media (max-width: 1199px) and (min-width: 992px) {
   .dashboard-grid {
     grid-template-columns: 180px 1fr 240px;
@@ -587,7 +574,6 @@
   }
 }
 
-/* ===== TABLETTES PORTRAIT (768px - 992px) ===== */
 @media (max-width: 991px) and (min-width: 768px) {
   .dashboard-grid {
     display: flex;
@@ -659,7 +645,6 @@
   }
 }
 
-/* ===== MOBILES PAYSAGE (576px - 768px) ===== */
 @media (max-width: 767px) and (min-width: 576px) {
   .dashboard-grid {
     display: flex;
@@ -718,7 +703,6 @@
     font-size: 10px;
   }
 
-  /* Simplifier les contrôles sur mobile */
   .view-toggle-buttons {
     top: 5px;
     right: 5px;
@@ -787,7 +771,6 @@
   }
 }
 
-/* ===== PETITS MOBILES (< 576px) ===== */
 @media (max-width: 575px) {
   .dashboard-grid {
     display: flex;
@@ -865,7 +848,6 @@
     font-size: 10px;
   }
 
-  /* Masquer certains éléments non essentiels */
   .view-toggle-buttons {
     display: none;
   }
@@ -960,7 +942,6 @@
     font-size: 8px;
   }
 
-  /* Améliorer la lisibilité sur petits écrans */
   .country-cases,
   .country-deaths,
   .country-recovered {
@@ -972,7 +953,6 @@
   }
 }
 
-/* ===== TRÈS PETITS MOBILES (< 375px) ===== */
 @media (max-width: 374px) {
   .dashboard-grid {
     padding: 2px;
@@ -1031,7 +1011,6 @@
   }
 }
 
-/* ===== MODE PAYSAGE MOBILE ===== */
 @media (max-height: 500px) and (orientation: landscape) {
   .dashboard-grid {
     height: auto;
@@ -1060,7 +1039,6 @@
   }
 }
 
-/* ===== PRINT STYLES ===== */
 @media print {
   .dashboard-grid {
     display: block;

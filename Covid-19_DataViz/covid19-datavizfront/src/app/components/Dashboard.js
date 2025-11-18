@@ -21,7 +21,6 @@ import CountrySearch from './CountrySearch';
 import "./Dashboard.css";
 
 const Dashboard = ({ style }) => {
-  // ============= État local (DÉCLARER EN PREMIER) =============
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [worldData, setWorldData] = useState(null);
@@ -30,7 +29,6 @@ const Dashboard = ({ style }) => {
   const [selectedPeriod, setSelectedPeriod] = useState({ id: 'all', days: null });
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ============= TanStack Query Hooks (PASSER selectedPeriod.days) =============
   const {
     totalCases,
     totalDeaths,
@@ -46,11 +44,8 @@ const Dashboard = ({ style }) => {
     vaccines28Day,
     vaccines28DayPerCountry,
     chartData,
-  } = useCovidDashboardData(selectedPeriod.days); // ✅ PASSER period
+  } = useCovidDashboardData(selectedPeriod.days);
 
-  // ============= Fonctions de formatage =============
-  
-  // ✅ Formater les données du graphique : date complète → mois uniquement
   const formatChartData = useCallback((data) => {
     if (!data || data.length === 0) return [];
     
@@ -65,20 +60,18 @@ const Dashboard = ({ style }) => {
         
         const dateObj = new Date(year, month - 1, day);
         
-        // ✅ Juste le mois pour l'axe X
         const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
         
         return {
-          date: monthName, // "Jan", "Feb", "Mar"...
+          date: monthName,
           cases: item.cases,
-          fullDate: `${monthName} ${day}, ${year}` // Pour le tooltip
+          fullDate: `${monthName} ${day}, ${year}`
         };
       }
       return item;
     });
   }, []);
 
-  // ✅ Formater l'axe Y : 200000 → "200K", 1000000 → "1M"
   const formatYAxis = useCallback((value) => {
     if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
@@ -88,7 +81,6 @@ const Dashboard = ({ style }) => {
     return value;
   }, []);
 
-  // ✅ Filtrer les pays par recherche
   const filterCountriesBySearch = useCallback((countries, term) => {
     if (!term || !countries) {
       return countries;
@@ -99,12 +91,8 @@ const Dashboard = ({ style }) => {
     );
   }, []);
 
-  // ============= Données filtrées =============
-  
-  // ✅ Formater les données du chart
   const formattedChartData = formatChartData(chartData.data || []);
   
-  // Filtrer pays par recherche
   const filteredCasesCountries = filterCountriesBySearch(
     totalCasesPerCountry.data || [], 
     searchTerm
@@ -117,8 +105,6 @@ const Dashboard = ({ style }) => {
     totalRecoveredPerCountry.data || [], 
     searchTerm
   );
-
-  // ============= Event Handlers =============
   
   const handleCountryClick = useCallback((countryName) => {
     setSelectedCountry(countryName);
@@ -151,7 +137,6 @@ const Dashboard = ({ style }) => {
     }
   }, []);
 
-  // ============= Map Data Loading =============
   useEffect(() => {
     fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
       .then((response) => response.json())
@@ -166,7 +151,6 @@ const Dashboard = ({ style }) => {
       .catch((err) => console.error("Error loading map:", err));
   }, []);
 
-  // ============= Map Rendering =============
   useEffect(() => {
     if (!worldData) return;
 
@@ -367,7 +351,6 @@ const Dashboard = ({ style }) => {
     };
   }, [worldData, filteredCasesCountries]);
 
-  // ============= Render =============
   return (
     <div className="dashboard-grid">
       <div className="left-panel">
@@ -568,14 +551,11 @@ const Dashboard = ({ style }) => {
           </div>
         </div>
 
-        {/* ✅ NOUVEAU: Timeline au-dessus du chart avec scroll */}
         <div className="chart-panel-with-timeline">
-          {/* Timeline fixe en haut */}
           <div className="timeline-above-chart">
             <TimelineSlider onPeriodChange={handlePeriodChange} />
           </div>
 
-          {/* Chart scrollable */}
           <div className="chart-scrollable-container">
             <div className="chart-content">
               <div className="chart-container">

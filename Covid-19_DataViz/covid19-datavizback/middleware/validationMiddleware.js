@@ -1,6 +1,5 @@
 import { AppError } from './errorMiddleware.js';
 
-// Validation middleware for query parameters
 export const validateQueryParams = (requiredParams) => {
   return (req, res, next) => {
     const missingParams = [];
@@ -22,7 +21,6 @@ export const validateQueryParams = (requiredParams) => {
   };
 };
 
-// Validation middleware for body data
 export const validateBody = (requiredFields) => {
   return (req, res, next) => {
     const missingFields = [];
@@ -44,7 +42,6 @@ export const validateBody = (requiredFields) => {
   };
 };
 
-// Country validation
 export const validateCountry = (req, res, next) => {
   const { country } = req.query;
   

@@ -2,12 +2,10 @@ import { covidService } from '../services/covidService.js';
 import { AppError } from '../middleware/errorMiddleware.js';
 
 export const covidController = {
-  // Health check
   healthCheck: (req, res) => {
     res.json({ status: 'OK', message: 'COVID-19 API is running' });
   },
 
-  // GET all COVID data
   getAllCovidData: async (req, res, next) => {
     try {
       const data = await covidService.getAllCovidData();
@@ -17,7 +15,6 @@ export const covidController = {
     }
   },
 
-  // GET countries list
   getCountries: async (req, res, next) => {
     try {
       const countries = await covidService.getCountries();
@@ -27,7 +24,6 @@ export const covidController = {
     }
   },
 
-  // GET death by country
   getDeathByCountry: async (req, res, next) => {
     try {
       const { country } = req.query;
@@ -38,7 +34,6 @@ export const covidController = {
     }
   },
 
-  // GET total cases
   getTotalCases: async (req, res, next) => {
     try {
       const data = await covidService.getTotalCases();
@@ -48,7 +43,6 @@ export const covidController = {
     }
   },
 
-  // GET total deaths
   getTotalDeaths: async (req, res, next) => {
     try {
       const data = await covidService.getTotalDeaths();
@@ -58,7 +52,6 @@ export const covidController = {
     }
   },
 
-  // GET total recovered
   getTotalRecovered: async (req, res, next) => {
     try {
       const data = await covidService.getTotalRecovered();
@@ -68,7 +61,6 @@ export const covidController = {
     }
   },
 
-  // GET all country and death
   getAllCountryAndDeath: async (req, res, next) => {
     try {
       const data = await covidService.getAllCountryAndDeath();
@@ -78,7 +70,6 @@ export const covidController = {
     }
   },
 
-  // GET country death and cases
   getCountryDeathAndCases: async (req, res, next) => {
     try {
       const data = await covidService.getCountryDeathAndCases();
@@ -88,7 +79,6 @@ export const covidController = {
     }
   },
 
-  // GET total cases per country
   getTotalCasesPerCountry: async (req, res, next) => {
     try {
       const data = await covidService.getTotalCasesPerCountry();
@@ -98,7 +88,6 @@ export const covidController = {
     }
   },
 
-  // GET total deaths per country
   getTotalDeathsPerCountry: async (req, res, next) => {
     try {
       const data = await covidService.getTotalDeathsPerCountry();
@@ -108,7 +97,6 @@ export const covidController = {
     }
   },
 
-  // GET total recovered per country
   getTotalRecoveredPerCountry: async (req, res, next) => {
     try {
       const data = await covidService.getTotalRecoveredPerCountry();
@@ -118,7 +106,6 @@ export const covidController = {
     }
   },
 
-  // ✅ MODIFIÉ : GET cases time series avec support du paramètre period
   getCasesTimeSeries: async (req, res, next) => {
     try {
       const { period } = req.query; // Récupérer period (optionnel)
@@ -129,7 +116,6 @@ export const covidController = {
     }
   },
 
-  // GET mean cases
   getMeanCases: async (req, res, next) => {
     try {
       const data = await covidService.getMeanCases();
@@ -139,7 +125,6 @@ export const covidController = {
     }
   },
 
-  // GET cases evolution
   getCasesEvolution: async (req, res, next) => {
     try {
       const data = await covidService.getCasesEvolution();
@@ -149,7 +134,6 @@ export const covidController = {
     }
   },
 
-  // GET k-means clusters
   getKMeansClusters: async (req, res, next) => {
     try {
       const data = await covidService.getKMeansClusters();
@@ -159,7 +143,6 @@ export const covidController = {
     }
   },
 
-  // GET 28 day cases
   get28DayCases: async (req, res, next) => {
     try {
       const data = await covidService.get28DayCases();
@@ -169,7 +152,6 @@ export const covidController = {
     }
   },
 
-  // GET 28 day cases per country
   get28DayCasesPerCountry: async (req, res, next) => {
     try {
       const data = await covidService.get28DayCasesPerCountry();
@@ -179,7 +161,6 @@ export const covidController = {
     }
   },
 
-  // GET 28 day deaths
   get28DayDeaths: async (req, res, next) => {
     try {
       const data = await covidService.get28DayDeaths();
@@ -189,7 +170,6 @@ export const covidController = {
     }
   },
 
-  // GET 28 day deaths per country
   get28DayDeathsPerCountry: async (req, res, next) => {
     try {
       const data = await covidService.get28DayDeathsPerCountry();
@@ -199,7 +179,6 @@ export const covidController = {
     }
   },
 
-  // GET death cases 28 days
   getDeathCases28Days: async (req, res, next) => {
     try {
       const data = await covidService.getDeathCases28Days();
@@ -209,7 +188,6 @@ export const covidController = {
     }
   },
 
-  // GET total vaccine doses
   getTotalVaccineDoses: async (req, res, next) => {
     try {
       const data = await covidService.getTotalVaccineDoses();
@@ -219,7 +197,6 @@ export const covidController = {
     }
   },
 
-  // GET vaccine doses per country
   getVaccineDosesPerCountry: async (req, res, next) => {
     try {
       const { country } = req.query;
@@ -230,7 +207,6 @@ export const covidController = {
     }
   },
 
-  // GET 28 day vaccine doses
   get28DayVaccineDoses: async (req, res, next) => {
     try {
       const data = await covidService.get28DayVaccineDoses();
@@ -240,7 +216,6 @@ export const covidController = {
     }
   },
 
-  // GET 28 day vaccine doses per country
   get28DayVaccineDosesPerCountry: async (req, res, next) => {
     try {
       const data = await covidService.get28DayVaccineDosesPerCountry();

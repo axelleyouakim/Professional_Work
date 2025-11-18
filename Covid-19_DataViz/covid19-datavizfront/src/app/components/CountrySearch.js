@@ -4,9 +4,8 @@ import './CountrySearch.css';
 
 const CountrySearch = ({ onSearchChange, resultsCount }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Debounce de 300ms
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Appeler onSearchChange uniquement quand la valeur debouncée change
   useEffect(() => {
     onSearchChange(debouncedSearchTerm);
   }, [debouncedSearchTerm, onSearchChange]);

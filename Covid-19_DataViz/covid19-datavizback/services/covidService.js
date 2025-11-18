@@ -9,8 +9,6 @@ import { AppError } from '../middleware/errorMiddleware.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ===== HELPER FUNCTIONS =====
-
 async function loadCleanedData(filename) {
   try {
     const filePath = path.join(__dirname, '..', 'data', 'cleaned', filename);
@@ -37,10 +35,7 @@ async function fetchGitHubCSV(type) {
   return await response.text();
 }
 
-// ===== SERVICE METHODS =====
-
 export const covidService = {
-  // Get all COVID data
   getAllCovidData: async () => {
     try {
       return await CovidData.find({});
@@ -49,7 +44,6 @@ export const covidService = {
     }
   },
 
-  // Get countries list
   getCountries: async () => {
     try {
       return await CovidData.distinct("Country_Region");
@@ -58,7 +52,6 @@ export const covidService = {
     }
   },
 
-  // Get death by country
   getDeathByCountry: async (country) => {
     try {
       const result = await CovidData.aggregate([
@@ -71,7 +64,6 @@ export const covidService = {
     }
   },
 
-  // Get total cases
   getTotalCases: async () => {
     try {
       const cleanedData = await loadCleanedData('merged_statistics.json');
@@ -102,7 +94,6 @@ export const covidService = {
     }
   },
 
-  // Get total deaths
   getTotalDeaths: async () => {
     try {
       const cleanedData = await loadCleanedData('merged_statistics.json');
@@ -133,7 +124,6 @@ export const covidService = {
     }
   },
 
-  // Get total recovered
   getTotalRecovered: async () => {
     try {
       const cleanedData = await loadCleanedData('merged_statistics.json');
@@ -164,7 +154,6 @@ export const covidService = {
     }
   },
 
-  // Get all country and death
   getAllCountryAndDeath: async () => {
     try {
       return await CovidData.aggregate([
@@ -175,7 +164,6 @@ export const covidService = {
     }
   },
 
-  // Get country death and cases
   getCountryDeathAndCases: async () => {
     try {
       return await CovidData.aggregate([
@@ -191,7 +179,6 @@ export const covidService = {
     }
   },
 
-  // Get total cases per country
   getTotalCasesPerCountry: async () => {
     try {
       const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
@@ -241,7 +228,6 @@ export const covidService = {
     }
   },
 
-  // Get total deaths per country
   getTotalDeathsPerCountry: async () => {
     try {
       const cleanedData = await loadCleanedData('deaths_cleaned.json');
@@ -291,7 +277,6 @@ export const covidService = {
     }
   },
 
-  // Get total recovered per country
   getTotalRecoveredPerCountry: async () => {
     try {
       const cleanedData = await loadCleanedData('recovered_cleaned.json');
@@ -338,7 +323,6 @@ export const covidService = {
     }
   },
 
-  // ✅ MÉTHODE MODIFIÉE : Get cases time series avec filtrage par période
   getCasesTimeSeries: async (period) => {
     try {
       const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
@@ -346,7 +330,6 @@ export const covidService = {
       let timeSeriesData;
     
       if (!cleanedData) {
-        // Fallback: Fetch depuis GitHub
         const data = await fetchGitHubCSV('confirmed');
         const rows = data.split('\n').filter(row => row.trim() !== '');
         const header = rows[0].split(',');
@@ -370,7 +353,6 @@ export const covidService = {
           }
         }
       } else {
-        // Utiliser les données nettoyées
         const dateColumns = Object.keys(cleanedData.data[0].timeSeries);
         timeSeriesData = dateColumns.map(date => {
           let totalCases = 0;
@@ -381,9 +363,7 @@ export const covidService = {
         });
       }
 
-      // ✅ NOUVEAU : Parser les dates et trier chronologiquement
       const parsedData = timeSeriesData.map(item => {
-        // Format attendu: "M/D/YY" ou "M/D/YYYY"
         const parts = item.date.split("/");
         let dateObj;
       
@@ -392,7 +372,6 @@ export const covidService = {
           const day = parseInt(parts[1], 10);
           let year = parseInt(parts[2], 10);
         
-          // Si année sur 2 chiffres, ajouter 2000
           if (year < 100) {
             year += 2000;
           }
@@ -407,39 +386,32 @@ export const covidService = {
           cases: item.cases,
           dateObj: dateObj
         };
-      }).filter(item => !isNaN(item.dateObj.getTime())) // Enlever dates invalides
-        .sort((a, b) => a.dateObj - b.dateObj); // Trier par date croissante
+      }).filter(item => !isNaN(item.dateObj.getTime()))
+        .sort((a, b) => a.dateObj - b.dateObj);
 
-      // ✅ NOUVEAU : Filtrer par période si demandée
       let filteredData = parsedData;
     
       if (period && !isNaN(period)) {
         const periodDays = parseInt(period);
       
-        // Trouver la dernière date
         const latestDate = parsedData[parsedData.length - 1].dateObj;
       
-        // Calculer la date de début
         const startDate = new Date(latestDate);
         startDate.setDate(startDate.getDate() - periodDays);
       
-        // Filtrer les données
         filteredData = parsedData.filter(item => item.dateObj >= startDate);
       
         console.log(`📅 Timeline filter: ${periodDays} days from ${startDate.toLocaleDateString()} to ${latestDate.toLocaleDateString()}`);
         console.log(`📊 Points: ${filteredData.length}`);
       }
 
-      // ✅ NOUVEAU : Extraire la dernière date pour metadata
       const lastDataPoint = filteredData[filteredData.length - 1];
       const lastDate = lastDataPoint ? lastDataPoint.dateObj : null;
     
-      // Formater lastDate au format "M/D/YYYY"
       const formattedLastDate = lastDate 
         ? `${lastDate.getMonth() + 1}/${lastDate.getDate()}/${lastDate.getFullYear()}`
         : null;
 
-      // Retourner les données sans dateObj
       const finalData = filteredData.map(({ dateObj, ...rest }) => rest);
 
       return { 
@@ -455,7 +427,6 @@ export const covidService = {
     }
   },
 
-  // Get mean cases
   getMeanCases: async () => {
     try {
       const dailyTotals = await CovidData.aggregate([
@@ -491,7 +462,6 @@ export const covidService = {
     }
   },
 
-  // Get cases evolution
   getCasesEvolution: async () => {
     try {
       const dailyTotals = await CovidData.aggregate([
@@ -530,7 +500,6 @@ export const covidService = {
     }
   },
 
-  // Get K-means clusters
   getKMeansClusters: async () => {
     try {
       const latestData = await CovidData.aggregate([
@@ -629,7 +598,6 @@ export const covidService = {
     }
   },
 
-  // Get 28 day cases
   get28DayCases: async () => {
     try {
       const data = await fetchGitHubCSV('confirmed');
@@ -660,7 +628,6 @@ export const covidService = {
     }
   },
 
-  // Get 28 day cases per country
   get28DayCasesPerCountry: async () => {
     try {
       const data = await fetchGitHubCSV('confirmed');
@@ -705,7 +672,6 @@ export const covidService = {
     }
   },
 
-  // Get 28 day deaths
   get28DayDeaths: async () => {
     try {
       const data = await fetchGitHubCSV('deaths');
@@ -736,7 +702,6 @@ export const covidService = {
     }
   },
 
-  // Get 28 day deaths per country
   get28DayDeathsPerCountry: async () => {
     try {
       const data = await fetchGitHubCSV('deaths');
@@ -781,7 +746,6 @@ export const covidService = {
     }
   },
 
-  // Get death cases 28 days
   getDeathCases28Days: async () => {
     try {
       const resultTotal = await CovidData.aggregate([
@@ -823,7 +787,6 @@ export const covidService = {
     }
   },
 
-  // Get total vaccine doses
   getTotalVaccineDoses: async () => {
     try {
       const data = await fetchGitHubCSV('vaccine');
@@ -858,7 +821,6 @@ export const covidService = {
     }
   },
 
-  // Get vaccine doses per country
   getVaccineDosesPerCountry: async (country) => {
     try {
       const data = await fetchGitHubCSV('vaccine');
@@ -896,7 +858,6 @@ export const covidService = {
     }
   },
 
-  // Get 28 day vaccine doses
   get28DayVaccineDoses: async () => {
     try {
       const data = await fetchGitHubCSV('vaccine');
@@ -944,7 +905,6 @@ export const covidService = {
     }
   },
 
-  // Get 28 day vaccine doses per country
   get28DayVaccineDosesPerCountry: async () => {
     try {
       const data = await fetchGitHubCSV('vaccine');
