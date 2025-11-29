@@ -22,15 +22,17 @@ const ChartComponent = ({ data }) => {
 
   if (!data || data.length === 0) {
     return (
-      <div className="chart-container">
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "center", 
-          alignItems: "center", 
-          height: 200,
-          color: "#999" 
-        }}>
-          No chart data available
+      <div className="chart-content">
+        <div className="chart-container">
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "center", 
+            alignItems: "center", 
+            height: 200,
+            color: "#999" 
+          }}>
+            No chart data available
+          </div>
         </div>
       </div>
     );

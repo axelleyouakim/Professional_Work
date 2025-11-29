@@ -8,32 +8,20 @@ import MapComponent from './MapComponent';
 import ChartComponent from './ChartComponent';
 import TimelineSlider from './TimelineSlider';
 import CountrySearch from './CountrySearch';
+import AdminLevelSelector from './AdminLevelSelector';
+import LastUpdatedDisplay from './LastUpdatedDisplay';
 import "./Dashboard.css";
 
-/**
- * DASHBOARD - Composant Présentationnel
- * 
- * Responsabilités :
- * 1. Reçoit TOUTES les données de la page parent via props
- * 2. Gère uniquement l'état UI local (selectedCountry, searchTerm)
- * 3. Affiche les données dans les composants enfants
- * 4. NE FAIT AUCUN appel API directement
- */
 const Dashboard = ({ 
-  data,               // Toutes les données COVID de la page parent
-  selectedPeriod,     // Période sélectionnée
-  onPeriodChange      // Handler pour changer la période
+  data,               // Toutes les données COVID (de page.js)
+  selectedPeriod,     // Période sélectionnée (de page.js)
+  onPeriodChange      // Handler pour changer période (remonte à page.js)
 }) => {
-  // ─────────────────────────────────────────────────────────
-  // STATE LOCAL - UI UNIQUEMENT (pas de data fetching)
-  // ─────────────────────────────────────────────────────────
+
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ─────────────────────────────────────────────────────────
-  // HANDLERS - Interactions UI
-  // ─────────────────────────────────────────────────────────
   const handleCountryClick = useCallback((countryName) => {
     setSelectedCountry(countryName);
   }, []);
@@ -42,13 +30,12 @@ const Dashboard = ({
     setSearchTerm(term);
   }, []);
 
-  const handlePeriodChange = useCallback((period) => {
-    onPeriodChange(period);
-    console.log('📅 Period changed:', period.label);
-  }, [onPeriodChange]);
+  const handleAdminLevelChange = useCallback((level) => {
+    setAdminLevel(level);
+  }, []);
 
   // ─────────────────────────────────────────────────────────
-  // COMPUTED VALUES - Filtres client-side
+  // COMPUTED VALUES - Filtrage client-side
   // ─────────────────────────────────────────────────────────
   const filterCountriesBySearch = useCallback((countries, term) => {
     if (!term || !countries) return countries;
@@ -72,7 +59,7 @@ const Dashboard = ({
   );
 
   // ─────────────────────────────────────────────────────────
-  // HELPER - Format chart data
+  // HELPER - Format chart data (transformation client-side)
   // ─────────────────────────────────────────────────────────
   const formatChartData = useCallback((chartData) => {
     if (!chartData || chartData.length === 0) return [];
@@ -101,20 +88,22 @@ const Dashboard = ({
   const formattedChartData = formatChartData(data.chartData.data || []);
 
   // ─────────────────────────────────────────────────────────
-  // RENDER
+  // RENDER - Composition de composants atomiques
+  // Chaque composant est indépendant et atomique
   // ─────────────────────────────────────────────────────────
   return (
     <div className="dashboard-grid">
       {/* ═══════════════════════════════════════════════════ */}
-      {/* LEFT PANEL - Stats + Country List */}
+      {/* LEFT PANEL */}
       {/* ═══════════════════════════════════════════════════ */}
       <div className="left-panel">
+        {/* Search bar */}
         <CountrySearch 
           onSearchChange={handleSearchChange} 
           resultsCount={filteredCasesCountries.length}
         />
 
-        {/* Total Confirmed Cases */}
+        {/* Total Confirmed - Composant individuel */}
         <QueryStateWrapper 
           query={data.totalCases}
           loadingMessage="Loading total cases..."
@@ -131,29 +120,13 @@ const Dashboard = ({
           )}
         </QueryStateWrapper>
 
-        {/* Admin Level Buttons */}
-        <div className="admin-level-buttons">
-          <button
-            className={`admin-btn ${adminLevel === "admin0" ? "active" : ""}`}
-            onClick={() => setAdminLevel("admin0")}
-          >
-            Admin0
-          </button>
-          <button
-            className={`admin-btn ${adminLevel === "admin1" ? "active" : ""}`}
-            onClick={() => setAdminLevel("admin1")}
-          >
-            Admin1
-          </button>
-          <button
-            className={`admin-btn ${adminLevel === "admin2" ? "active" : ""}`}
-            onClick={() => setAdminLevel("admin2")}
-          >
-            Admin2
-          </button>
-        </div>
+        {/* Admin Level Selector - Composant individuel */}
+        <AdminLevelSelector 
+          selectedLevel={adminLevel}
+          onLevelChange={handleAdminLevelChange}
+        />
 
-        {/* Country List - Cases */}
+        {/* Country List - Composant individuel */}
         <QueryStateWrapper 
           query={data.totalCasesPerCountry}
           loadingMessage="Loading countries..."
@@ -170,10 +143,8 @@ const Dashboard = ({
           )}
         </QueryStateWrapper>
 
-        <div className="last-updated">
-          <h4 className="update-label">Last Updated at (M/D/YYYY)</h4>
-          <p className="update-time">4/2/2020 9:02:01 AM</p>
-        </div>
+        {/* Last Updated - Composant individuel */}
+        <LastUpdatedDisplay timestamp="4/2/2020 9:02:01 AM" />
       </div>
 
       {/* ═══════════════════════════════════════════════════ */}
@@ -189,12 +160,15 @@ const Dashboard = ({
       </QueryStateWrapper>
 
       {/* ═══════════════════════════════════════════════════ */}
-      {/* RIGHT PANEL - Deaths + Recovered + Chart */}
+      {/* RIGHT PANEL */}
       {/* ═══════════════════════════════════════════════════ */}
       <div className="right-panels-container-narrow">
         <div className="right-stats-column">
+          {/* ───────────────────────────────────────────────── */}
           {/* Deaths Panel */}
+          {/* ───────────────────────────────────────────────── */}
           <div className="right-stat-panel">
+            {/* Total Deaths - Composant individuel */}
             <QueryStateWrapper query={data.totalDeaths}>
               {(totalDeathsData) => (
                 <StatsCard 
@@ -208,6 +182,7 @@ const Dashboard = ({
               )}
             </QueryStateWrapper>
 
+            {/* Deaths Country List - Composant individuel */}
             <QueryStateWrapper query={data.totalDeathsPerCountry}>
               {() => (
                 <CountryList
@@ -220,8 +195,11 @@ const Dashboard = ({
             </QueryStateWrapper>
           </div>
 
+          {/* ───────────────────────────────────────────────── */}
           {/* Recovered Panel */}
+          {/* ───────────────────────────────────────────────── */}
           <div className="right-stat-panel">
+            {/* Total Recovered - Composant individuel */}
             <QueryStateWrapper query={data.totalRecovered}>
               {(totalRecoveredData) => (
                 <StatsCard 
@@ -232,6 +210,7 @@ const Dashboard = ({
               )}
             </QueryStateWrapper>
 
+            {/* Recovered Country List - Composant individuel */}
             <QueryStateWrapper query={data.totalRecoveredPerCountry}>
               {() => (
                 <CountryList
@@ -245,12 +224,16 @@ const Dashboard = ({
           </div>
         </div>
 
+        {/* ───────────────────────────────────────────────── */}
         {/* Chart Panel avec Timeline */}
+        {/* ───────────────────────────────────────────────── */}
         <div className="chart-panel-with-timeline">
+          {/* Timeline Slider - Composant individuel */}
           <div className="timeline-above-chart">
-            <TimelineSlider onPeriodChange={handlePeriodChange} />
+            <TimelineSlider onPeriodChange={onPeriodChange} />
           </div>
 
+          {/* Chart - Composant individuel */}
           <div className="chart-scrollable-container">
             <QueryStateWrapper 
               query={data.chartData}
