@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-11-18T11:52:48.413Z",
+  "timestamp": "2025-11-25T02:04:28.099Z",
   "status": "FAILED",
   "issues": [
     "Korea, North: Deaths (6) exceed cases (1)"
   ],
   "warnings": [
     "Confirmed cases: 2 countries missing coordinates",
-    "Data is 985 days old"
+    "Data is 992 days old"
   ],
   "stats": {
     "totalCountries": 201,
