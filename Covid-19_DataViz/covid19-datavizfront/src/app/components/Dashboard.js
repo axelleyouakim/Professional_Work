@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import QueryStateWrapper from './QueryStateWrapper';
 import StatsCard from './StatsCard';
 import CountryList from './CountryList';
@@ -12,16 +12,31 @@ import AdminLevelSelector from './AdminLevelSelector';
 import LastUpdatedDisplay from './LastUpdatedDisplay';
 import "./Dashboard.css";
 
+/**
+ * ════════════════════════════════════════════════════════════
+ * DASHBOARD - Backend filtre maintenant par période
+ * ════════════════════════════════════════════════════════════
+ * 
+ * ✅ TOUS les composants changent quand on slide :
+ * - Total Confirmed (backend filtre)
+ * - Total Deaths (backend filtre)
+ * - Total Recovered (backend filtre)
+ * - Country Lists (backend filtre)
+ * - Map (backend filtre)
+ * - Chart (backend filtre)
+ */
 const Dashboard = ({ 
-  data,               // Toutes les données COVID (de page.js)
-  selectedPeriod,     // Période sélectionnée (de page.js)
-  onPeriodChange      // Handler pour changer période (remonte à page.js)
+  data,
+  selectedPeriod,
+  onPeriodChange
 }) => {
-
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [searchTerm, setSearchTerm] = useState('');
 
+  // ─────────────────────────────────────────────────────────
+  // HANDLERS
+  // ─────────────────────────────────────────────────────────
   const handleCountryClick = useCallback((countryName) => {
     setSelectedCountry(countryName);
   }, []);
@@ -35,7 +50,7 @@ const Dashboard = ({
   }, []);
 
   // ─────────────────────────────────────────────────────────
-  // COMPUTED VALUES - Filtrage client-side
+  // FILTRE PAR RECHERCHE (client-side uniquement)
   // ─────────────────────────────────────────────────────────
   const filterCountriesBySearch = useCallback((countries, term) => {
     if (!term || !countries) return countries;
@@ -45,21 +60,20 @@ const Dashboard = ({
     );
   }, []);
 
-  const filteredCasesCountries = filterCountriesBySearch(
-    data.totalCasesPerCountry.data || [], 
-    searchTerm
-  );
-  const filteredDeathsCountries = filterCountriesBySearch(
-    data.totalDeathsPerCountry.data || [], 
-    searchTerm
-  );
-  const filteredRecoveredCountries = filterCountriesBySearch(
-    data.totalRecoveredPerCountry.data || [], 
-    searchTerm
-  );
+  const filteredCasesCountries = useMemo(() => {
+    return filterCountriesBySearch(data.totalCasesPerCountry.data || [], searchTerm);
+  }, [data.totalCasesPerCountry.data, searchTerm, filterCountriesBySearch]);
+
+  const filteredDeathsCountries = useMemo(() => {
+    return filterCountriesBySearch(data.totalDeathsPerCountry.data || [], searchTerm);
+  }, [data.totalDeathsPerCountry.data, searchTerm, filterCountriesBySearch]);
+
+  const filteredRecoveredCountries = useMemo(() => {
+    return filterCountriesBySearch(data.totalRecoveredPerCountry.data || [], searchTerm);
+  }, [data.totalRecoveredPerCountry.data, searchTerm, filterCountriesBySearch]);
 
   // ─────────────────────────────────────────────────────────
-  // HELPER - Format chart data (transformation client-side)
+  // FORMAT CHART DATA
   // ─────────────────────────────────────────────────────────
   const formatChartData = useCallback((chartData) => {
     if (!chartData || chartData.length === 0) return [];
@@ -88,22 +102,18 @@ const Dashboard = ({
   const formattedChartData = formatChartData(data.chartData.data || []);
 
   // ─────────────────────────────────────────────────────────
-  // RENDER - Composition de composants atomiques
-  // Chaque composant est indépendant et atomique
+  // RENDER
   // ─────────────────────────────────────────────────────────
   return (
     <div className="dashboard-grid">
-      {/* ═══════════════════════════════════════════════════ */}
       {/* LEFT PANEL */}
-      {/* ═══════════════════════════════════════════════════ */}
       <div className="left-panel">
-        {/* Search bar */}
         <CountrySearch 
           onSearchChange={handleSearchChange} 
           resultsCount={filteredCasesCountries.length}
         />
 
-        {/* Total Confirmed - Composant individuel */}
+        {/* Total Confirmed - BACKEND FILTRE PAR PÉRIODE */}
         <QueryStateWrapper 
           query={data.totalCases}
           loadingMessage="Loading total cases..."
@@ -120,13 +130,12 @@ const Dashboard = ({
           )}
         </QueryStateWrapper>
 
-        {/* Admin Level Selector - Composant individuel */}
         <AdminLevelSelector 
           selectedLevel={adminLevel}
           onLevelChange={handleAdminLevelChange}
         />
 
-        {/* Country List - Composant individuel */}
+        {/* Country List - BACKEND FILTRE PAR PÉRIODE */}
         <QueryStateWrapper 
           query={data.totalCasesPerCountry}
           loadingMessage="Loading countries..."
@@ -143,13 +152,10 @@ const Dashboard = ({
           )}
         </QueryStateWrapper>
 
-        {/* Last Updated - Composant individuel */}
         <LastUpdatedDisplay timestamp="4/2/2020 9:02:01 AM" />
       </div>
 
-      {/* ═══════════════════════════════════════════════════ */}
-      {/* CENTER PANEL - Map */}
-      {/* ═══════════════════════════════════════════════════ */}
+      {/* CENTER PANEL - Map - BACKEND FILTRE PAR PÉRIODE */}
       <QueryStateWrapper 
         query={data.totalCasesPerCountry}
         loadingMessage="Loading map data..."
@@ -159,16 +165,11 @@ const Dashboard = ({
         )}
       </QueryStateWrapper>
 
-      {/* ═══════════════════════════════════════════════════ */}
       {/* RIGHT PANEL */}
-      {/* ═══════════════════════════════════════════════════ */}
       <div className="right-panels-container-narrow">
         <div className="right-stats-column">
-          {/* ───────────────────────────────────────────────── */}
-          {/* Deaths Panel */}
-          {/* ───────────────────────────────────────────────── */}
+          {/* Deaths Panel - BACKEND FILTRE PAR PÉRIODE */}
           <div className="right-stat-panel">
-            {/* Total Deaths - Composant individuel */}
             <QueryStateWrapper query={data.totalDeaths}>
               {(totalDeathsData) => (
                 <StatsCard 
@@ -182,7 +183,6 @@ const Dashboard = ({
               )}
             </QueryStateWrapper>
 
-            {/* Deaths Country List - Composant individuel */}
             <QueryStateWrapper query={data.totalDeathsPerCountry}>
               {() => (
                 <CountryList
@@ -195,11 +195,8 @@ const Dashboard = ({
             </QueryStateWrapper>
           </div>
 
-          {/* ───────────────────────────────────────────────── */}
-          {/* Recovered Panel */}
-          {/* ───────────────────────────────────────────────── */}
+          {/* Recovered Panel - BACKEND FILTRE PAR PÉRIODE */}
           <div className="right-stat-panel">
-            {/* Total Recovered - Composant individuel */}
             <QueryStateWrapper query={data.totalRecovered}>
               {(totalRecoveredData) => (
                 <StatsCard 
@@ -210,7 +207,6 @@ const Dashboard = ({
               )}
             </QueryStateWrapper>
 
-            {/* Recovered Country List - Composant individuel */}
             <QueryStateWrapper query={data.totalRecoveredPerCountry}>
               {() => (
                 <CountryList
@@ -224,16 +220,12 @@ const Dashboard = ({
           </div>
         </div>
 
-        {/* ───────────────────────────────────────────────── */}
         {/* Chart Panel avec Timeline */}
-        {/* ───────────────────────────────────────────────── */}
         <div className="chart-panel-with-timeline">
-          {/* Timeline Slider - Composant individuel */}
           <div className="timeline-above-chart">
             <TimelineSlider onPeriodChange={onPeriodChange} />
           </div>
 
-          {/* Chart - Composant individuel */}
           <div className="chart-scrollable-container">
             <QueryStateWrapper 
               query={data.chartData}

@@ -44,6 +44,9 @@
   transition: transform 0.3s ease;
 }
 
+/* ──────────────────────────────────────────────────────────
+   MODAL OVERLAY
+   ────────────────────────────────────────────────────────── */
 .timeline-modal-overlay {
   position: fixed;
   top: 0;
@@ -71,12 +74,15 @@
   }
 }
 
+/* ──────────────────────────────────────────────────────────
+   MODAL (Contient le slider)
+   ────────────────────────────────────────────────────────── */
 .timeline-modal {
   background: linear-gradient(135deg, rgba(26, 47, 63, 0.98) 0%, rgba(16, 32, 48, 0.98) 100%);
   border: 1px solid rgba(42, 74, 95, 0.6);
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  max-width: 380px;
+  max-width: 500px;
   width: 90%;
   overflow: hidden;
   animation: slideUpModal 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -93,6 +99,9 @@
   }
 }
 
+/* ──────────────────────────────────────────────────────────
+   MODAL HEADER
+   ────────────────────────────────────────────────────────── */
 .timeline-modal-header {
   padding: 20px 24px;
   border-bottom: 1px solid rgba(42, 74, 95, 0.4);
@@ -132,96 +141,252 @@
   transform: rotate(90deg);
 }
 
+/* ──────────────────────────────────────────────────────────
+   MODAL CONTENT (Contient le slider)
+   ────────────────────────────────────────────────────────── */
 .timeline-modal-content {
-  padding: 16px 12px;
+  padding: 24px;
+}
+
+.timeline-modal-slider-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 20px;
 }
 
-.timeline-modal-btn {
+/* ──────────────────────────────────────────────────────────
+   SLIDER DISPLAY (Période sélectionnée)
+   ────────────────────────────────────────────────────────── */
+.timeline-slider-display {
   background: rgba(42, 74, 95, 0.4);
   border: 1px solid rgba(58, 90, 122, 0.3);
-  border-radius: 10px;
+  border-radius: 12px;
+  padding: 16px 20px;
+  text-align: center;
+}
+
+.timeline-slider-label {
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.timeline-slider-range {
   color: #b0c4de;
-  cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  padding: 14px 16px;
+  letter-spacing: 0.2px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   SLIDER TRACK CONTAINER
+   ────────────────────────────────────────────────────────── */
+.timeline-slider-track-container {
+  position: relative;
+  padding: 10px 0 30px 0;
+}
+
+/* ──────────────────────────────────────────────────────────
+   RANGE INPUT - Le slider
+   ────────────────────────────────────────────────────────── */
+.timeline-slider-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  background: linear-gradient(90deg, 
+    rgba(33, 150, 243, 0.3) 0%, 
+    rgba(33, 150, 243, 0.5) 50%, 
+    rgba(33, 150, 243, 0.3) 100%);
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.timeline-slider-input:hover {
+  background: linear-gradient(90deg, 
+    rgba(33, 150, 243, 0.4) 0%, 
+    rgba(33, 150, 243, 0.6) 50%, 
+    rgba(33, 150, 243, 0.4) 100%);
+}
+
+/* ──────────────────────────────────────────────────────────
+   SLIDER THUMB (La poignée)
+   ────────────────────────────────────────────────────────── */
+
+/* Webkit */
+.timeline-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.5), 
+              0 0 0 4px rgba(33, 150, 243, 0.2);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timeline-slider-input::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.7), 
+              0 0 0 6px rgba(33, 150, 243, 0.3);
+}
+
+.timeline-slider-input::-webkit-slider-thumb:active {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.8), 
+              0 0 0 8px rgba(33, 150, 243, 0.4);
+}
+
+/* Firefox */
+.timeline-slider-input::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.5), 
+              0 0 0 4px rgba(33, 150, 243, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timeline-slider-input::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.7), 
+              0 0 0 6px rgba(33, 150, 243, 0.3);
+}
+
+.timeline-slider-input::-moz-range-thumb:active {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.8), 
+              0 0 0 8px rgba(33, 150, 243, 0.4);
+}
+
+/* ──────────────────────────────────────────────────────────
+   SLIDER LABELS (Sous le slider)
+   ────────────────────────────────────────────────────────── */
+.timeline-slider-labels {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  text-align: left;
+  margin-top: 12px;
+  padding: 0 4px;
 }
 
-.timeline-modal-btn:hover {
-  background: rgba(58, 90, 122, 0.5);
-  border-color: rgba(58, 90, 122, 0.6);
-  color: #e0e0e0;
-  transform: translateX(4px);
-}
-
-.timeline-modal-btn.active {
-  background: linear-gradient(135deg, rgba(33, 150, 243, 0.35) 0%, rgba(33, 150, 243, 0.15) 100%);
-  border-color: rgba(33, 150, 243, 0.8);
-  color: #ffffff;
+.timeline-slider-label-mark {
+  color: #b0c4de;
+  font-size: 11px;
   font-weight: 600;
-  box-shadow: 0 0 0 1px rgba(33, 150, 243, 0.3), inset 0 0 12px rgba(33, 150, 243, 0.1);
-}
-
-.timeline-modal-btn.active:hover {
-  background: linear-gradient(135deg, rgba(33, 150, 243, 0.45) 0%, rgba(33, 150, 243, 0.25) 100%);
-  border-color: rgba(33, 150, 243, 1);
-}
-
-.timeline-modal-btn-label {
+  text-align: center;
   flex: 1;
+  opacity: 0.7;
+  transition: all 0.2s ease;
 }
 
-.timeline-modal-btn-check {
-  display: inline-block;
-  width: 18px;
-  height: 18px;
-  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-  border-radius: 4px;
-  color: white;
+.timeline-slider-label-mark:hover {
+  opacity: 1;
+  color: #2196f3;
+  transform: translateY(-2px);
+}
+
+/* ──────────────────────────────────────────────────────────
+   INFO MESSAGE (Debouncing)
+   ────────────────────────────────────────────────────────── */
+.timeline-slider-info {
+  background: rgba(255, 152, 0, 0.15);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 8px;
+  color: #ffb74d;
   font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  animation: popIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  padding: 10px 14px;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
 }
 
-@keyframes popIn {
+@keyframes fadeIn {
   from {
-    transform: scale(0.3);
     opacity: 0;
+    transform: translateY(-10px);
   }
   to {
-    transform: scale(1);
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
+/* ──────────────────────────────────────────────────────────
+   DONE BUTTON
+   ────────────────────────────────────────────────────────── */
+.timeline-modal-done-btn {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.35) 0%, rgba(33, 150, 243, 0.15) 100%);
+  border: 1.5px solid rgba(33, 150, 243, 0.6);
+  border-radius: 10px;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 20px;
+  width: 100%;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 8px;
+}
+
+.timeline-modal-done-btn:hover {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.45) 0%, rgba(33, 150, 243, 0.25) 100%);
+  border-color: rgba(33, 150, 243, 0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.3);
+}
+
+.timeline-modal-done-btn:active {
+  transform: translateY(0);
+}
+
+/* ──────────────────────────────────────────────────────────
+   RESPONSIVE
+   ────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .timeline-modal {
     max-width: 90vw;
     border-radius: 12px;
   }
 
-  .timeline-modal-btn {
-    padding: 12px 14px;
-    font-size: 13px;
-  }
-
   .timeline-modal-header {
     padding: 16px 20px;
+  }
+
+  .timeline-modal-content {
+    padding: 20px;
   }
 
   .timeline-compact-btn {
     font-size: 12px;
     padding: 10px 14px;
+  }
+
+  .timeline-slider-label {
+    font-size: 18px;
+  }
+
+  .timeline-slider-range {
+    font-size: 11px;
+  }
+
+  .timeline-slider-input::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .timeline-slider-input::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
   }
 }

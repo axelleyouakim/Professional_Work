@@ -35,6 +35,29 @@ async function fetchGitHubCSV(type) {
   return await response.text();
 }
 
+// ════════════════════════════════════════════════════════════
+// HELPER - Filtre les colonnes de dates par période
+// ════════════════════════════════════════════════════════════
+function getDateColumnsForPeriod(header, period) {
+  if (!period) {
+    // Pas de période = toutes les dates
+    return { startIndex: 4, endIndex: header.length - 1 };
+  }
+
+  const periodDays = parseInt(period);
+  if (isNaN(periodDays)) {
+    return { startIndex: 4, endIndex: header.length - 1 };
+  }
+
+  // Calculer la date de début (X jours avant la dernière date)
+  const endIndex = header.length - 1;
+  const startIndex = Math.max(4, endIndex - periodDays);
+
+  console.log(`📅 Filtering by period: ${periodDays} days (columns ${startIndex} to ${endIndex})`);
+
+  return { startIndex, endIndex };
+}
+
 export const covidService = {
   getAllCovidData: async () => {
     try {
@@ -64,95 +87,163 @@ export const covidService = {
     }
   },
 
-  getTotalCases: async () => {
-    try {
-      const cleanedData = await loadCleanedData('merged_statistics.json');
-      
-      if (!cleanedData) {
-        const data = await fetchGitHubCSV('confirmed');
-        const rows = data.split('\n');
-        const header = rows[0].split(',');
-        const latestDate = header[header.length - 1];
-
-        let globalTotal = 0;
-        for (let i = 1; i < rows.length; i++) {
-          const columns = rows[i].split(',');
-          const countryCases = parseInt(columns[columns.length - 1], 10);
-          if (!isNaN(countryCases)) {
-            globalTotal += countryCases;
-          }
-        }
-        return { total_cases: globalTotal, latest_date: latestDate };
-      }
-
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - getTotalCases avec support période
+  // ════════════════════════════════════════════════════════════
+  getTotalCases: async (period) => {
+  try {
+    const cleanedData = await loadCleanedData('merged_statistics.json');
+    
+    // Pas de période = dernière date (All Time)
+    if (!period && cleanedData) {
       return {
         total_cases: cleanedData.globalStats.totalCases,
         latest_date: cleanedData.lastUpdated
       };
-    } catch (error) {
-      throw new AppError('Failed to fetch total cases', 500);
     }
-  },
 
-  getTotalDeaths: async () => {
-    try {
-      const cleanedData = await loadCleanedData('merged_statistics.json');
+    // Avec période = date passée
+    const data = await fetchGitHubCSV('confirmed');
+    const rows = data.split('\n');
+    const header = rows[0].split(',');
+    
+    const endIndex = header.length - 1;
+    const periodDays = parseInt(period);
+    
+    // ✅ FIX : S'assurer qu'on ne va pas trop loin dans le passé
+    const targetIndex = Math.max(4, endIndex - periodDays);
+    const targetDate = header[targetIndex];
+
+    console.log(`📊 [getTotalCases] Period: ${periodDays} days, Target date: ${targetDate}, Column: ${targetIndex}/${endIndex}`);
+
+    let globalTotal = 0;
+    let countriesProcessed = 0;
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
       
-      if (!cleanedData) {
-        const data = await fetchGitHubCSV('deaths');
-        const rows = data.split('\n');
-        const header = rows[0].split(',');
-        const latestDate = header[header.length - 1];
-
-        let globalTotalDeaths = 0;
-        for (let i = 1; i < rows.length; i++) {
-          const columns = rows[i].split(',');
-          const countryDeaths = parseInt(columns[columns.length - 1], 10);
-          if (!isNaN(countryDeaths)) {
-            globalTotalDeaths += countryDeaths;
-          }
-        }
-        return { total_deaths: globalTotalDeaths, latest_date: latestDate };
+      const columns = rows[i].split(',');
+      
+      // ✅ FIX : Vérifier que la colonne existe
+      if (targetIndex >= columns.length) continue;
+      
+      const casesAtDate = parseInt(columns[targetIndex], 10) || 0;
+      
+      if (casesAtDate > 0) {
+        globalTotal += casesAtDate;
+        countriesProcessed++;
       }
+    }
 
+    console.log(`📊 [getTotalCases] Total: ${globalTotal.toLocaleString()}, Countries: ${countriesProcessed}`);
+
+    return { 
+      total_cases: globalTotal, 
+      reference_date: targetDate,
+      period_days: periodDays,
+      countries_count: countriesProcessed
+    };
+  } catch (error) {
+    console.error('❌ [getTotalCases] Error:', error);
+    throw new AppError('Failed to fetch total cases', 500);
+  }
+},
+
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - getTotalDeaths avec support période
+  // ════════════════════════════════════════════════════════════
+  getTotalDeaths: async (period) => {
+  try {
+    const cleanedData = await loadCleanedData('merged_statistics.json');
+    
+    if (!period && cleanedData) {
       return {
         total_deaths: cleanedData.globalStats.totalDeaths,
         latest_date: cleanedData.lastUpdated
       };
-    } catch (error) {
-      throw new AppError('Failed to fetch total deaths', 500);
     }
-  },
 
-  getTotalRecovered: async () => {
-    try {
-      const cleanedData = await loadCleanedData('merged_statistics.json');
+    const data = await fetchGitHubCSV('deaths');
+    const rows = data.split('\n');
+    const header = rows[0].split(',');
+    
+    const endIndex = header.length - 1;
+    const periodDays = parseInt(period);
+    const targetIndex = Math.max(4, endIndex - periodDays);
+    const targetDate = header[targetIndex];
+
+    let globalTotalDeaths = 0;
+    let countriesProcessed = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
       
-      if (!cleanedData) {
-        const data = await fetchGitHubCSV('recovered');
-        const rows = data.split('\n');
-        const header = rows[0].split(',');
-        const dateColumns = header.slice(4);
-
-        let globalTotalRecovered = 0;
-        for (let i = 1; i < rows.length; i++) {
-          if (!rows[i].trim()) continue;
-          const columns = rows[i].split(',');
-          const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
-          const maxRecovered = Math.max(...recoveredValues);
-          globalTotalRecovered += maxRecovered;
-        }
-        return { total_recovered: globalTotalRecovered };
+      const columns = rows[i].split(',');
+      if (targetIndex >= columns.length) continue;
+      
+      const deathsAtDate = parseInt(columns[targetIndex], 10) || 0;
+      
+      if (deathsAtDate > 0) {
+        globalTotalDeaths += deathsAtDate;
+        countriesProcessed++;
       }
+    }
 
+    console.log(`📊 [getTotalDeaths] Total: ${globalTotalDeaths.toLocaleString()}, Countries: ${countriesProcessed}`);
+
+    return { 
+      total_deaths: globalTotalDeaths, 
+      reference_date: targetDate,
+      period_days: periodDays
+    };
+  } catch (error) {
+    console.error('❌ [getTotalDeaths] Error:', error);
+    throw new AppError('Failed to fetch total deaths', 500);
+  }
+},
+
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - getTotalRecovered avec support période
+  // ════════════════════════════════════════════════════════════
+  getTotalRecovered: async (period) => {
+  try {
+    const cleanedData = await loadCleanedData('merged_statistics.json');
+    
+    // ✅ FIX : Recovered data stopped in Aug 2021
+    // Toujours retourner les données nettoyées, peu importe la période
+    if (cleanedData) {
+      console.log('📊 [getTotalRecovered] Using cleaned data (Recovered stopped in Aug 2021)');
       return {
         total_recovered: cleanedData.globalStats.totalRecovered,
-        latest_date: cleanedData.lastUpdated
+        latest_date: cleanedData.lastUpdated,
+        note: 'Recovered data collection ended in August 2021'
       };
-    } catch (error) {
-      throw new AppError('Failed to fetch total recovered', 500);
     }
-  },
+
+    // Fallback si pas de données nettoyées
+    const data = await fetchGitHubCSV('recovered');
+    const rows = data.split('\n');
+    const header = rows[0].split(',');
+
+    let globalTotalRecovered = 0;
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
+      const columns = rows[i].split(',');
+      const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
+      const maxRecovered = Math.max(...recoveredValues);
+      globalTotalRecovered += maxRecovered;
+    }
+
+    return { 
+      total_recovered: globalTotalRecovered,
+      note: 'Recovered data collection ended in August 2021'
+    };
+  } catch (error) {
+    console.error('❌ [getTotalRecovered] Error:', error);
+    throw new AppError('Failed to fetch total recovered', 500);
+  }
+},
 
   getAllCountryAndDeath: async () => {
     try {
@@ -179,41 +270,14 @@ export const covidService = {
     }
   },
 
-  getTotalCasesPerCountry: async () => {
-    try {
-      const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
-      
-      if (!cleanedData) {
-        const data = await fetchGitHubCSV('confirmed');
-        const rows = data.split('\n');
-        const header = rows[0].split(',');
-        const latestDate = header[header.length - 1];
-
-        const countryTotalCases = {};
-        for (let i = 1; i < rows.length; i++) {
-          const columns = rows[i].split(',');
-          const country = columns[1];
-          const countryCases = parseInt(columns[columns.length - 1], 10);
-
-          if (!isNaN(countryCases)) {
-            if (!countryTotalCases[country]) {
-              countryTotalCases[country] = 0;
-            }
-            countryTotalCases[country] += countryCases;
-          }
-        }
-
-        const formattedResult = Object.keys(countryTotalCases).map(country => ({
-          country: country,
-          total_cases: countryTotalCases[country],
-        }));
-
-        return {
-          data: formattedResult,
-          latest_date: latestDate,
-        };
-      }
-
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - getTotalCasesPerCountry avec support période
+  // ════════════════════════════════════════════════════════════
+  getTotalCasesPerCountry: async (period) => {
+  try {
+    const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
+    
+    if (!period && cleanedData) {
       const formattedData = cleanedData.data.map(country => ({
         country: country.country,
         total_cases: country.totalCases
@@ -223,46 +287,66 @@ export const covidService = {
         data: formattedData,
         latest_date: cleanedData.dateRange.end
       };
-    } catch (error) {
-      throw new AppError('Failed to fetch cases per country', 500);
     }
-  },
 
-  getTotalDeathsPerCountry: async () => {
-    try {
-      const cleanedData = await loadCleanedData('deaths_cleaned.json');
+    const data = await fetchGitHubCSV('confirmed');
+    const rows = data.split('\n');
+    const header = rows[0].split(',');
+    
+    const endIndex = header.length - 1;
+    const periodDays = parseInt(period);
+    const targetIndex = Math.max(4, endIndex - periodDays);
+    const targetDate = header[targetIndex];
+
+    console.log(`📊 [getTotalCasesPerCountry] Period: ${periodDays} days, Column: ${targetIndex}/${endIndex}`);
+
+    const countryCases = {};
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
       
-      if (!cleanedData) {
-        const data = await fetchGitHubCSV('deaths');
-        const rows = data.split('\n');
-        const header = rows[0].split(',');
-        const latestDate = header[header.length - 1];
+      const columns = rows[i].split(',');
+      if (targetIndex >= columns.length) continue;
+      
+      const country = columns[1]?.trim();
+      if (!country) continue;
+      
+      const casesAtDate = parseInt(columns[targetIndex], 10) || 0;
 
-        const countryTotalDeaths = {};
-        for (let i = 1; i < rows.length; i++) {
-          const columns = rows[i].split(',');
-          const country = columns[1];
-          const countryDeaths = parseInt(columns[columns.length - 1], 10);
-
-          if (!isNaN(countryDeaths)) {
-            if (!countryTotalDeaths[country]) {
-              countryTotalDeaths[country] = 0;
-            }
-            countryTotalDeaths[country] += countryDeaths;
-          }
+      if (casesAtDate > 0) {
+        if (!countryCases[country]) {
+          countryCases[country] = 0;
         }
-
-        const formattedResult = Object.keys(countryTotalDeaths).map(country => ({
-          country: country,
-          total_deaths: countryTotalDeaths[country],
-        }));
-
-        return {
-          data: formattedResult,
-          latest_date: latestDate,
-        };
+        countryCases[country] += casesAtDate;
       }
+    }
 
+    const formattedResult = Object.keys(countryCases)
+      .map(country => ({
+        country: country,
+        total_cases: countryCases[country],
+      }))
+      .filter(c => c.total_cases > 0)
+      .sort((a, b) => b.total_cases - a.total_cases);
+
+    console.log(`📊 [getTotalCasesPerCountry] Countries: ${formattedResult.length}`);
+
+    return {
+      data: formattedResult,
+      reference_date: targetDate,
+      period_days: periodDays
+    };
+  } catch (error) {
+    console.error('❌ [getTotalCasesPerCountry] Error:', error);
+    throw new AppError('Failed to fetch cases per country', 500);
+  }
+},
+
+  getTotalDeathsPerCountry: async (period) => {
+  try {
+    const cleanedData = await loadCleanedData('deaths_cleaned.json');
+    
+    if (!period && cleanedData) {
       const formattedData = cleanedData.data.map(country => ({
         country: country.country,
         total_deaths: country.totalDeaths
@@ -272,43 +356,66 @@ export const covidService = {
         data: formattedData,
         latest_date: cleanedData.dateRange.end
       };
-    } catch (error) {
-      throw new AppError('Failed to fetch deaths per country', 500);
     }
-  },
 
-  getTotalRecoveredPerCountry: async () => {
-    try {
-      const cleanedData = await loadCleanedData('recovered_cleaned.json');
+    const data = await fetchGitHubCSV('deaths');
+    const rows = data.split('\n');
+    const header = rows[0].split(',');
+    
+    const endIndex = header.length - 1;
+    const periodDays = parseInt(period);
+    const targetIndex = Math.max(4, endIndex - periodDays);
+    const targetDate = header[targetIndex];
+
+    const countryDeaths = {};
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
       
-      if (!cleanedData) {
-        const data = await fetchGitHubCSV('recovered');
-        const rows = data.split('\n');
-        const header = rows[0].split(',');
-        const dateColumns = header.slice(4);
+      const columns = rows[i].split(',');
+      if (targetIndex >= columns.length) continue;
+      
+      const country = columns[1]?.trim();
+      if (!country) continue;
+      
+      const deathsAtDate = parseInt(columns[targetIndex], 10) || 0;
 
-        const countryTotalRecovered = {};
-        for (let i = 1; i < rows.length; i++) {
-          if (!rows[i].trim()) continue;
-          const columns = rows[i].split(',');
-          const country = columns[1];
-          const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
-          const maxRecovered = Math.max(...recoveredValues);
-
-          if (!countryTotalRecovered[country]) {
-            countryTotalRecovered[country] = 0;
-          }
-          countryTotalRecovered[country] += maxRecovered;
+      if (deathsAtDate > 0) {
+        if (!countryDeaths[country]) {
+          countryDeaths[country] = 0;
         }
-
-        const formattedResult = Object.keys(countryTotalRecovered).map(country => ({
-          country: country,
-          total_recovered: countryTotalRecovered[country],
-        }));
-
-        return { data: formattedResult };
+        countryDeaths[country] += deathsAtDate;
       }
+    }
 
+    const formattedResult = Object.keys(countryDeaths)
+      .map(country => ({
+        country: country,
+        total_deaths: countryDeaths[country],
+      }))
+      .filter(c => c.total_deaths > 0)
+      .sort((a, b) => b.total_deaths - a.total_deaths);
+
+    return {
+      data: formattedResult,
+      reference_date: targetDate,
+      period_days: periodDays
+    };
+  } catch (error) {
+    console.error('❌ [getTotalDeathsPerCountry] Error:', error);
+    throw new AppError('Failed to fetch deaths per country', 500);
+  }
+},
+
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - getTotalRecoveredPerCountry avec support période
+  // ════════════════════════════════════════════════════════════
+  getTotalRecoveredPerCountry: async (period) => {
+  try {
+    const cleanedData = await loadCleanedData('recovered_cleaned.json');
+    
+    // ✅ FIX : Toujours utiliser les données nettoyées pour Recovered
+    if (cleanedData) {
       const formattedData = cleanedData.data.map(country => ({
         country: country.country,
         total_recovered: country.totalRecovered
@@ -316,12 +423,50 @@ export const covidService = {
 
       return {
         data: formattedData,
-        latest_date: cleanedData.dateRange.end
+        latest_date: cleanedData.dateRange.end,
+        note: 'Recovered data collection ended in August 2021'
       };
-    } catch (error) {
-      throw new AppError('Failed to fetch recovered per country', 500);
     }
-  },
+
+    // Fallback
+    const data = await fetchGitHubCSV('recovered');
+    const rows = data.split('\n');
+    const countryRecovered = {};
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
+      const columns = rows[i].split(',');
+      const country = columns[1]?.trim();
+      if (!country) continue;
+      
+      const recoveredValues = columns.slice(4).map(val => parseInt(val, 10) || 0);
+      const maxRecovered = Math.max(...recoveredValues);
+
+      if (maxRecovered > 0) {
+        if (!countryRecovered[country]) {
+          countryRecovered[country] = 0;
+        }
+        countryRecovered[country] += maxRecovered;
+      }
+    }
+
+    const formattedResult = Object.keys(countryRecovered)
+      .map(country => ({
+        country: country,
+        total_recovered: countryRecovered[country],
+      }))
+      .filter(c => c.total_recovered > 0)
+      .sort((a, b) => b.total_recovered - a.total_recovered);
+
+    return { 
+      data: formattedResult,
+      note: 'Recovered data collection ended in August 2021'
+    };
+  } catch (error) {
+    console.error('❌ [getTotalRecoveredPerCountry] Error:', error);
+    throw new AppError('Failed to fetch recovered per country', 500);
+  }
+},
 
   getCasesTimeSeries: async (period) => {
     try {

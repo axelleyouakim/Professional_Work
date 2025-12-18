@@ -26,15 +26,44 @@ export const api = {
   getCountries: () => fetchAPI('/get_country'),
   getDeathByCountry: (country) => fetchAPI(`/get_death_by_country?country=${encodeURIComponent(country)}`),
 
-  getTotalCases: () => fetchAPI('/get_total_cases'),
-  getTotalDeaths: () => fetchAPI('/get_total_deaths'),
-  getTotalRecovered: () => fetchAPI('/get_total_recovered'),
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - Accepte maintenant period
+  // ════════════════════════════════════════════════════════════
+  getTotalCases: (period) => {
+    const url = period ? `/get_total_cases?period=${period}` : '/get_total_cases';
+    return fetchAPI(url);
+  },
+
+  getTotalDeaths: (period) => {
+    const url = period ? `/get_total_deaths?period=${period}` : '/get_total_deaths';
+    return fetchAPI(url);
+  },
+
+  getTotalRecovered: (period) => {
+    const url = period ? `/get_total_recovered?period=${period}` : '/get_total_recovered';
+    return fetchAPI(url);
+  },
 
   getAllCountryAndDeath: () => fetchAPI('/get_all_country_and_death'),
   getCountryDeathAndCases: () => fetchAPI('/get_country_death_and_cases'),
-  getTotalCasesPerCountry: () => fetchAPI('/get_total_cases_per_country'),
-  getTotalDeathsPerCountry: () => fetchAPI('/get_total_deaths_per_country'),
-  getTotalRecoveredPerCountry: () => fetchAPI('/get_total_recovered_per_country'),
+
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - Accepte maintenant period
+  // ════════════════════════════════════════════════════════════
+  getTotalCasesPerCountry: (period) => {
+    const url = period ? `/get_total_cases_per_country?period=${period}` : '/get_total_cases_per_country';
+    return fetchAPI(url);
+  },
+
+  getTotalDeathsPerCountry: (period) => {
+    const url = period ? `/get_total_deaths_per_country?period=${period}` : '/get_total_deaths_per_country';
+    return fetchAPI(url);
+  },
+
+  getTotalRecoveredPerCountry: (period) => {
+    const url = period ? `/get_total_recovered_per_country?period=${period}` : '/get_total_recovered_per_country';
+    return fetchAPI(url);
+  },
 
   getCasesTimeSeries: (period) => {
     const url = period ? `/get_cases_time_series?period=${period}` : '/get_cases_time_series';
@@ -59,6 +88,7 @@ export const api = {
   getCovidData: () => fetchAPI('/covid-data'),
 };
 
+// Exports pour compatibilité
 export const getCountries = api.getCountries;
 export const getTotalCases = api.getTotalCases;
 export const getTotalDeaths = api.getTotalDeaths;

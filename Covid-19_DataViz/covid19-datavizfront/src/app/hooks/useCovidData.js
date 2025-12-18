@@ -3,15 +3,15 @@ import * as api from '../../services/api';
 
 export const covidKeys = {
   all: ['covid'],
-  globalStats: () => [...covidKeys.all, 'global'],
-  totalCases: () => [...covidKeys.globalStats(), 'total-cases'],
-  totalDeaths: () => [...covidKeys.globalStats(), 'total-deaths'],
-  totalRecovered: () => [...covidKeys.globalStats(), 'total-recovered'],
+  globalStats: (period) => period ? [...covidKeys.all, 'global', period] : [...covidKeys.all, 'global'],
+  totalCases: (period) => [...covidKeys.globalStats(period), 'total-cases'],
+  totalDeaths: (period) => [...covidKeys.globalStats(period), 'total-deaths'],
+  totalRecovered: (period) => [...covidKeys.globalStats(period), 'total-recovered'],
   
-  perCountry: () => [...covidKeys.all, 'per-country'],
-  casesPerCountry: () => [...covidKeys.perCountry(), 'cases'],
-  deathsPerCountry: () => [...covidKeys.perCountry(), 'deaths'],
-  recoveredPerCountry: () => [...covidKeys.perCountry(), 'recovered'],
+  perCountry: (period) => period ? [...covidKeys.all, 'per-country', period] : [...covidKeys.all, 'per-country'],
+  casesPerCountry: (period) => [...covidKeys.perCountry(period), 'cases'],
+  deathsPerCountry: (period) => [...covidKeys.perCountry(period), 'deaths'],
+  recoveredPerCountry: (period) => [...covidKeys.perCountry(period), 'recovered'],
   
   period28Days: () => [...covidKeys.all, '28-days'],
   cases28Day: () => [...covidKeys.period28Days(), 'cases'],
@@ -28,31 +28,34 @@ export const covidKeys = {
   casesTimeSeries: (period) => period ? [...covidKeys.timeSeries(), 'cases', period] : [...covidKeys.timeSeries(), 'cases'],
 };
 
-export const useGlobalTotalCases = () => {
+// ════════════════════════════════════════════════════════════
+// MODIFIÉ - Hooks avec support période
+// ════════════════════════════════════════════════════════════
+export const useGlobalTotalCases = (period = null) => {
   return useQuery({
-    queryKey: covidKeys.totalCases(),
+    queryKey: covidKeys.totalCases(period),
     queryFn: async () => {
-      const data = await api.getGlobalTotalCases();
+      const data = await api.getGlobalTotalCases(period);
       return data.total_cases;
     },
   });
 };
 
-export const useGlobalTotalDeaths = () => {
+export const useGlobalTotalDeaths = (period = null) => {
   return useQuery({
-    queryKey: covidKeys.totalDeaths(),
+    queryKey: covidKeys.totalDeaths(period),
     queryFn: async () => {
-      const data = await api.getGlobalTotalDeaths();
+      const data = await api.getGlobalTotalDeaths(period);
       return data.total_deaths;
     },
   });
 };
 
-export const useGlobalTotalRecovered = () => {
+export const useGlobalTotalRecovered = (period = null) => {
   return useQuery({
-    queryKey: covidKeys.totalRecovered(),
+    queryKey: covidKeys.totalRecovered(period),
     queryFn: async () => {
-      const data = await api.getGlobalTotalRecovered();
+      const data = await api.getGlobalTotalRecovered(period);
       return data.total_recovered;
     },
   });
@@ -78,31 +81,31 @@ export const use28DayDeaths = () => {
   });
 };
 
-export const useTotalCasesPerCountry = () => {
+export const useTotalCasesPerCountry = (period = null) => {
   return useQuery({
-    queryKey: covidKeys.casesPerCountry(),
+    queryKey: covidKeys.casesPerCountry(period),
     queryFn: async () => {
-      const data = await api.getTotalCasesPerCountry();
+      const data = await api.getTotalCasesPerCountry(period);
       return data?.data || [];
     },
   });
 };
 
-export const useTotalDeathsPerCountry = () => {
+export const useTotalDeathsPerCountry = (period = null) => {
   return useQuery({
-    queryKey: covidKeys.deathsPerCountry(),
+    queryKey: covidKeys.deathsPerCountry(period),
     queryFn: async () => {
-      const data = await api.getTotalDeathsPerCountry();
+      const data = await api.getTotalDeathsPerCountry(period);
       return data?.data || [];
     },
   });
 };
 
-export const useTotalRecoveredPerCountry = () => {
+export const useTotalRecoveredPerCountry = (period = null) => {
   return useQuery({
-    queryKey: covidKeys.recoveredPerCountry(),
+    queryKey: covidKeys.recoveredPerCountry(period),
     queryFn: async () => {
-      const data = await api.getTotalRecoveredPerCountry();
+      const data = await api.getTotalRecoveredPerCountry(period);
       return data?.data || [];
     },
   });
@@ -163,23 +166,25 @@ export const useCasesTimeSeries = (period = null) => {
     queryKey: covidKeys.casesTimeSeries(period),
     queryFn: async () => {
       const response = await api.getCasesTimeSeries(period);
-      
       return response?.data || [];
     },
   });
 };
 
+// ════════════════════════════════════════════════════════════
+// HOOK PRINCIPAL - Passe la période à TOUS les hooks
+// ════════════════════════════════════════════════════════════
 export const useCovidDashboardData = (period = null) => {
-  const totalCases = useGlobalTotalCases();
-  const totalDeaths = useGlobalTotalDeaths();
-  const totalRecovered = useGlobalTotalRecovered();
+  const totalCases = useGlobalTotalCases(period);
+  const totalDeaths = useGlobalTotalDeaths(period);
+  const totalRecovered = useGlobalTotalRecovered(period);
   
   const cases28Day = use28DayCases();
   const deaths28Day = use28DayDeaths();
   
-  const totalCasesPerCountry = useTotalCasesPerCountry();
-  const totalDeathsPerCountry = useTotalDeathsPerCountry();
-  const totalRecoveredPerCountry = useTotalRecoveredPerCountry();
+  const totalCasesPerCountry = useTotalCasesPerCountry(period);
+  const totalDeathsPerCountry = useTotalDeathsPerCountry(period);
+  const totalRecoveredPerCountry = useTotalRecoveredPerCountry(period);
   
   const cases28DayPerCountry = use28DayCasesPerCountry();
   const deaths28DayPerCountry = use28DayDeathsPerCountry();

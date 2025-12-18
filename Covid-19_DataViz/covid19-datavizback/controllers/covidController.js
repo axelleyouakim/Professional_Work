@@ -34,27 +34,39 @@ export const covidController = {
     }
   },
 
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - Accepte maintenant ?period=X
+  // ════════════════════════════════════════════════════════════
   getTotalCases: async (req, res, next) => {
     try {
-      const data = await covidService.getTotalCases();
+      const { period } = req.query; // ✅ NOUVEAU
+      const data = await covidService.getTotalCases(period);
       res.json(data);
     } catch (error) {
       next(error);
     }
   },
 
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - Accepte maintenant ?period=X
+  // ════════════════════════════════════════════════════════════
   getTotalDeaths: async (req, res, next) => {
     try {
-      const data = await covidService.getTotalDeaths();
+      const { period } = req.query; // ✅ NOUVEAU
+      const data = await covidService.getTotalDeaths(period);
       res.json(data);
     } catch (error) {
       next(error);
     }
   },
 
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - Accepte maintenant ?period=X
+  // ════════════════════════════════════════════════════════════
   getTotalRecovered: async (req, res, next) => {
     try {
-      const data = await covidService.getTotalRecovered();
+      const { period } = req.query; // ✅ NOUVEAU
+      const data = await covidService.getTotalRecovered(period);
       res.json(data);
     } catch (error) {
       next(error);
@@ -79,27 +91,39 @@ export const covidController = {
     }
   },
 
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - Accepte maintenant ?period=X
+  // ════════════════════════════════════════════════════════════
   getTotalCasesPerCountry: async (req, res, next) => {
     try {
-      const data = await covidService.getTotalCasesPerCountry();
+      const { period } = req.query; // ✅ NOUVEAU
+      const data = await covidService.getTotalCasesPerCountry(period);
       res.json(data);
     } catch (error) {
       next(error);
     }
   },
 
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - Accepte maintenant ?period=X
+  // ════════════════════════════════════════════════════════════
   getTotalDeathsPerCountry: async (req, res, next) => {
     try {
-      const data = await covidService.getTotalDeathsPerCountry();
+      const { period } = req.query; // ✅ NOUVEAU
+      const data = await covidService.getTotalDeathsPerCountry(period);
       res.json(data);
     } catch (error) {
       next(error);
     }
   },
 
+  // ════════════════════════════════════════════════════════════
+  // MODIFIÉ - Accepte maintenant ?period=X
+  // ════════════════════════════════════════════════════════════
   getTotalRecoveredPerCountry: async (req, res, next) => {
     try {
-      const data = await covidService.getTotalRecoveredPerCountry();
+      const { period } = req.query; // ✅ NOUVEAU
+      const data = await covidService.getTotalRecoveredPerCountry(period);
       res.json(data);
     } catch (error) {
       next(error);
@@ -108,7 +132,7 @@ export const covidController = {
 
   getCasesTimeSeries: async (req, res, next) => {
     try {
-      const { period } = req.query; // Récupérer period (optionnel)
+      const { period } = req.query;
       const data = await covidService.getCasesTimeSeries(period);
       res.json(data);
     } catch (error) {
