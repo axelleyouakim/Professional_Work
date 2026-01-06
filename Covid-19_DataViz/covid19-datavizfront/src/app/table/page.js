@@ -1,48 +1,22 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import { getTotalCasesPerCountry, getTotalDeathsPerCountry, getTotalRecoveredPerCountry } from '../../services/api';
+import { MultiQueryWrapper } from '../components/QueryStateWrapper';
+import { 
+  useTotalCasesPerCountry, 
+  useTotalDeathsPerCountry, 
+  useTotalRecoveredPerCountry 
+} from '../hooks/useCovidData';
 import './table.css';
 
 const TablePage = () => {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const cases = await getTotalCasesPerCountry();
-        const deaths = await getTotalDeathsPerCountry();
-        const recovered = await getTotalRecoveredPerCountry();
-        
-        const combinedData = cases.data.map(country => {
-          const deathData = deaths.data.find(d => d.country === country.country);
-          const recoveredData = recovered.data.find(r => r.country === country.country);
-          
-          return {
-            country: country.country,
-            cases: country.total_cases,
-            deaths: deathData?.total_deaths || 0,
-            recovered: recoveredData?.total_recovered || 0
-          };
-        });
-        
-        setData(combinedData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
-
-  const filteredData = data.filter(item =>
-    item.country.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ✅ APPEL TANSTACK QUERY
+  const casesQuery = useTotalCasesPerCountry();
+  const deathsQuery = useTotalDeathsPerCountry();
+  const recoveredQuery = useTotalRecoveredPerCountry();
 
   return (
     <div>
@@ -59,30 +33,63 @@ const TablePage = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         
-        {loading ? (
-          <div className="loading">Loading data...</div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Country</th>
-                <th>Total Cases</th>
-                <th>Total Deaths</th>
-                <th>Total Recovered</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredData.map((item, index) => (
-                <tr key={index}>
-                  <td>{item.country}</td>
-                  <td className="cases">{item.cases?.toLocaleString() || 'N/A'}</td>
-                  <td className="deaths">{item.deaths?.toLocaleString() || 'N/A'}</td>
-                  <td className="recovered">{item.recovered?.toLocaleString() || 'N/A'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <MultiQueryWrapper 
+          queries={[casesQuery, deathsQuery, recoveredQuery]}
+          loadingMessage="Loading data..."
+          errorMessage="Failed to load data"
+        >
+          {(casesData, deathsData, recoveredData) => {
+            // ✅ LOGIC MOVED INSIDE MultiQueryWrapper
+            const combinedData = casesData.map(country => {
+              const deathData = deathsData.find(d => d.country === country.country);
+              const recoveredDataItem = recoveredData.find(r => r.country === country.country);
+              
+              return {
+                country: country.country,
+                cases: country.total_cases,
+                deaths: deathData?.total_deaths || 0,
+                recovered: recoveredDataItem?.total_recovered || 0
+              };
+            });
+
+            const filteredData = searchTerm
+              ? combinedData.filter(item =>
+                  item.country.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+              : combinedData;
+
+            return (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Country</th>
+                    <th>Total Cases</th>
+                    <th>Total Deaths</th>
+                    <th>Total Recovered</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredData.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                        {searchTerm ? 'No countries found' : 'No data available'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredData.map((item, index) => (
+                      <tr key={index}>
+                        <td>{item.country}</td>
+                        <td className="cases">{item.cases?.toLocaleString() || 'N/A'}</td>
+                        <td className="deaths">{item.deaths?.toLocaleString() || 'N/A'}</td>
+                        <td className="recovered">{item.recovered?.toLocaleString() || 'N/A'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            );
+          }}
+        </MultiQueryWrapper>
       </div>
     </div>
   );

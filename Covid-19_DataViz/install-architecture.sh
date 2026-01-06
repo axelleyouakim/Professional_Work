@@ -1,12 +1,17 @@
 #!/bin/bash
 
-echo "🚀 Installation complète de l’architecture Covid-19 DataViz..."
+echo "🚀 Installation complète de l'architecture Covid-19 DataViz..."
 
 echo "📦 Installation des dépendances backend..."
 cd covid19-datavizback && npm install
+cd ..
 
 echo "📦 Installation des dépendances frontend..."
-cd ../covid19-datavizfront && npm install
+cd covid19-datavizfront
+
+# ✅ FIX: Supprime l'ancien lock et réinstalle proprement
+rm -rf node_modules package-lock.json
+npm install --legacy-peer-deps
 
 cd ..
 
@@ -14,7 +19,7 @@ echo "🐳 Construction et lancement des conteneurs..."
 chmod +x start.sh
 ./start.sh
 
-echo "📊 LANCEMENT AUTOMATIQUE DE L’ANALYSE DES DONNÉES..."
+echo "📊 LANCEMENT AUTOMATIQUE DE L'ANALYSE DES DONNÉES..."
 chmod +x data-processing.sh
 ./data-processing.sh
 

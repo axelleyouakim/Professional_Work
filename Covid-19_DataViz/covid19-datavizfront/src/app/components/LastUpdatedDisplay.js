@@ -1,3 +1,4 @@
+// pas de refactorisation, affichage de la dernière mise à jour avec timestamp par défaut, affichage statique
 import React from 'react';
 import './Dashboard.css';
 

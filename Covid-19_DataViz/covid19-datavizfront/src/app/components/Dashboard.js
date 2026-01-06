@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useTotalCasesPerCountry, useCasesTimeSeries } from '../hooks/useCovidData';
 import QueryStateWrapper from './QueryStateWrapper';
 import StatsCard from './StatsCard';
 import CountryList from './CountryList';
@@ -14,25 +15,30 @@ import "./Dashboard.css";
 
 /**
  * ════════════════════════════════════════════════════════════
- * DASHBOARD - Backend filtre maintenant par période
+ * DASHBOARD - SIMPLIFIÉ - Chaque composant fait ses propres appels
  * ════════════════════════════════════════════════════════════
  * 
- * ✅ TOUS les composants changent quand on slide :
- * - Total Confirmed (backend filtre)
- * - Total Deaths (backend filtre)
- * - Total Recovered (backend filtre)
- * - Country Lists (backend filtre)
- * - Map (backend filtre)
- * - Chart (backend filtre)
+ * ✅ Dashboard fait seulement 2 appels TanStack Query (pour données partagées) :
+ *    - useTotalCasesPerCountry (pour Map + recherche)
+ *    - useCasesTimeSeries (pour Chart)
+ * 
+ * ✅ TOUS les autres composants font leurs propres appels :
+ *    - StatsCard : useGlobalTotalCases/Deaths/Recovered
+ *    - CountryList : useTotalCasesPerCountry/Deaths/Recovered
  */
 const Dashboard = ({ 
-  data,
   selectedPeriod,
   onPeriodChange
 }) => {
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [searchTerm, setSearchTerm] = useState('');
+
+  // ─────────────────────────────────────────────────────────
+  // 🔥 APPELS TANSTACK QUERY (uniquement pour données partagées)
+  // ─────────────────────────────────────────────────────────
+  const totalCasesPerCountry = useTotalCasesPerCountry(selectedPeriod?.days);
+  const chartData = useCasesTimeSeries(selectedPeriod?.days);
 
   // ─────────────────────────────────────────────────────────
   // HANDLERS
@@ -50,35 +56,12 @@ const Dashboard = ({
   }, []);
 
   // ─────────────────────────────────────────────────────────
-  // FILTRE PAR RECHERCHE (client-side uniquement)
-  // ─────────────────────────────────────────────────────────
-  const filterCountriesBySearch = useCallback((countries, term) => {
-    if (!term || !countries) return countries;
-    const searchLower = term.toLowerCase().trim();
-    return countries.filter((c) =>
-      c.country.toLowerCase().includes(searchLower)
-    );
-  }, []);
-
-  const filteredCasesCountries = useMemo(() => {
-    return filterCountriesBySearch(data.totalCasesPerCountry.data || [], searchTerm);
-  }, [data.totalCasesPerCountry.data, searchTerm, filterCountriesBySearch]);
-
-  const filteredDeathsCountries = useMemo(() => {
-    return filterCountriesBySearch(data.totalDeathsPerCountry.data || [], searchTerm);
-  }, [data.totalDeathsPerCountry.data, searchTerm, filterCountriesBySearch]);
-
-  const filteredRecoveredCountries = useMemo(() => {
-    return filterCountriesBySearch(data.totalRecoveredPerCountry.data || [], searchTerm);
-  }, [data.totalRecoveredPerCountry.data, searchTerm, filterCountriesBySearch]);
-
-  // ─────────────────────────────────────────────────────────
   // FORMAT CHART DATA
   // ─────────────────────────────────────────────────────────
-  const formatChartData = useCallback((chartData) => {
-    if (!chartData || chartData.length === 0) return [];
+  const formatChartData = useCallback((rawChartData) => {
+    if (!rawChartData || rawChartData.length === 0) return [];
     
-    return chartData.map(item => {
+    return rawChartData.map(item => {
       const parts = item.date.split("/");
       if (parts.length === 3) {
         const month = parseInt(parts[0], 10);
@@ -99,8 +82,6 @@ const Dashboard = ({
     });
   }, []);
 
-  const formattedChartData = formatChartData(data.chartData.data || []);
-
   // ─────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────
@@ -110,113 +91,89 @@ const Dashboard = ({
       <div className="left-panel">
         <CountrySearch 
           onSearchChange={handleSearchChange} 
-          resultsCount={filteredCasesCountries.length}
+          resultsCount={0}
         />
 
-        {/* Total Confirmed - BACKEND FILTRE PAR PÉRIODE */}
-        <QueryStateWrapper 
-          query={data.totalCases}
-          loadingMessage="Loading total cases..."
-        >
-          {(totalCasesData) => (
-            <StatsCard 
-              label="Total Confirmed"
-              value={selectedCountry 
-                ? filteredCasesCountries.find(c => c.country === selectedCountry)?.total_cases 
-                : totalCasesData
-              }
-              colorClass="red-text"
-            />
-          )}
-        </QueryStateWrapper>
+        {/* 🔥 StatsCard fait maintenant son propre appel TanStack Query */}
+        <StatsCard 
+          label="Total Confirmed"
+          type="cases"
+          period={selectedPeriod?.days}
+          selectedCountry={selectedCountry}
+          colorClass="red-text"
+        />
 
         <AdminLevelSelector 
           selectedLevel={adminLevel}
           onLevelChange={handleAdminLevelChange}
         />
 
-        {/* Country List - BACKEND FILTRE PAR PÉRIODE */}
-        <QueryStateWrapper 
-          query={data.totalCasesPerCountry}
-          loadingMessage="Loading countries..."
-        >
-          {() => (
-            <CountryList
-              title="Confirmed Cases by Country/Region/Sovereignty"
-              countries={filteredCasesCountries}
-              selectedCountry={selectedCountry}
-              onCountryClick={handleCountryClick}
-              dataKey="total_cases"
-              colorClass="red-text"
-            />
-          )}
-        </QueryStateWrapper>
+        {/* 🔥 CountryList fait maintenant son propre appel TanStack Query */}
+        <CountryList
+          title="Confirmed Cases by Country/Region/Sovereignty"
+          type="cases"
+          period={selectedPeriod?.days}
+          searchTerm={searchTerm}
+          selectedCountry={selectedCountry}
+          onCountryClick={handleCountryClick}
+          colorClass="red-text"
+        />
 
         <LastUpdatedDisplay timestamp="4/2/2020 9:02:01 AM" />
       </div>
 
-      {/* CENTER PANEL - Map - BACKEND FILTRE PAR PÉRIODE */}
+      {/* CENTER PANEL - Map */}
       <QueryStateWrapper 
-        query={data.totalCasesPerCountry}
+        query={totalCasesPerCountry}
         loadingMessage="Loading map data..."
       >
-        {() => (
-          <MapComponent casesData={filteredCasesCountries} />
+        {(casesData) => (
+          <MapComponent 
+            casesData={casesData.filter(c => 
+              !searchTerm || c.country.toLowerCase().includes(searchTerm.toLowerCase())
+            )} 
+          />
         )}
       </QueryStateWrapper>
 
       {/* RIGHT PANEL */}
       <div className="right-panels-container-narrow">
         <div className="right-stats-column">
-          {/* Deaths Panel - BACKEND FILTRE PAR PÉRIODE */}
+          {/* Deaths Panel - 🔥 Composants font leurs propres appels */}
           <div className="right-stat-panel">
-            <QueryStateWrapper query={data.totalDeaths}>
-              {(totalDeathsData) => (
-                <StatsCard 
-                  label="Total Deaths"
-                  value={selectedCountry 
-                    ? filteredDeathsCountries.find(c => c.country === selectedCountry)?.total_deaths 
-                    : totalDeathsData
-                  }
-                  colorClass="white-text"
-                />
-              )}
-            </QueryStateWrapper>
+            <StatsCard 
+              label="Total Deaths"
+              type="deaths"
+              period={selectedPeriod?.days}
+              selectedCountry={selectedCountry}
+              colorClass="white-text"
+            />
 
-            <QueryStateWrapper query={data.totalDeathsPerCountry}>
-              {() => (
-                <CountryList
-                  countries={filteredDeathsCountries}
-                  dataKey="total_deaths"
-                  labelSuffix="deaths"
-                  colorClass="white-text"
-                />
-              )}
-            </QueryStateWrapper>
+            <CountryList
+              type="deaths"
+              period={selectedPeriod?.days}
+              searchTerm={searchTerm}
+              labelSuffix="deaths"
+              colorClass="white-text"
+            />
           </div>
 
-          {/* Recovered Panel - BACKEND FILTRE PAR PÉRIODE */}
+          {/* Recovered Panel - 🔥 Composants font leurs propres appels */}
           <div className="right-stat-panel">
-            <QueryStateWrapper query={data.totalRecovered}>
-              {(totalRecoveredData) => (
-                <StatsCard 
-                  label="Total Recovered"
-                  value={totalRecoveredData}
-                  colorClass="green-text"
-                />
-              )}
-            </QueryStateWrapper>
+            <StatsCard 
+              label="Total Recovered"
+              type="recovered"
+              period={selectedPeriod?.days}
+              colorClass="green-text"
+            />
 
-            <QueryStateWrapper query={data.totalRecoveredPerCountry}>
-              {() => (
-                <CountryList
-                  countries={filteredRecoveredCountries}
-                  dataKey="total_recovered"
-                  labelSuffix="recovered"
-                  colorClass="green-text"
-                />
-              )}
-            </QueryStateWrapper>
+            <CountryList
+              type="recovered"
+              period={selectedPeriod?.days}
+              searchTerm={searchTerm}
+              labelSuffix="recovered"
+              colorClass="green-text"
+            />
           </div>
         </div>
 
@@ -228,11 +185,11 @@ const Dashboard = ({
 
           <div className="chart-scrollable-container">
             <QueryStateWrapper 
-              query={data.chartData}
+              query={chartData}
               loadingMessage="Loading chart data..."
             >
-              {() => (
-                <ChartComponent data={formattedChartData} />
+              {(rawChartData) => (
+                <ChartComponent data={formatChartData(rawChartData)} />
               )}
             </QueryStateWrapper>
           </div>

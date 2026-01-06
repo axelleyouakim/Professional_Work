@@ -1,3 +1,4 @@
+// pas de refactorisation, fonctions utilitaires de filtrage des données et pas d'api
 /**
  * Filtre les pays par terme de recherche
  * @param {Array} countries - Liste des pays [{country, total_cases, ...}, ...]

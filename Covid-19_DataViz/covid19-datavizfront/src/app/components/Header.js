@@ -1,3 +1,4 @@
+// pas de refactorisation, gestion du menu burger et affichage header, navigation statique
 import React, { useState, useRef, useEffect } from 'react';
 import './Header.css';
 import Image from 'next/image';

@@ -1,3 +1,4 @@
+// pas de refactorisation, composant de sélection du niveau administratif avec boutons
 import React from 'react';
 import './Dashboard.css';
 

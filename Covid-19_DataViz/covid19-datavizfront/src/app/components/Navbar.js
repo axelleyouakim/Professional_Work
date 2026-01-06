@@ -1,3 +1,4 @@
+// pas de refactorisation, gestion de la navbar avec liens actifs, navigation statique
 "use client";
 import React from 'react';
 import Link from 'next/link';

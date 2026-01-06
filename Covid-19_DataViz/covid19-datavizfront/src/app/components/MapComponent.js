@@ -1,36 +1,34 @@
+'use client';
+
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 import * as topojson from "topojson-client";
+import { useWorldAtlas } from '../hooks/useCovidData';
+import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
 
 const MapComponent = ({ casesData }) => {
   const canvasRef = useRef(null);
-  const [worldData, setWorldData] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  useEffect(() => {
-    fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
-      .then((response) => response.json())
-      .then((topology) => {
-        const countries = topojson.feature(topology, topology.objects.countries);
-        countries.features.forEach((feature) => {
-          const centroid = d3.geoCentroid(feature);
-          feature.properties.centroid = centroid;
-        });
-        setWorldData(countries);
-      })
-      .catch((err) => console.error("Error loading map:", err));
-  }, []);
+  // ✅ APPEL TANSTACK QUERY
+  const worldAtlasQuery = useWorldAtlas();
 
+  // ✅ FIX: useEffect SORTI du callback QueryStateWrapper
   useEffect(() => {
-    if (!worldData) return;
+    if (!worldAtlasQuery.data || !canvasRef.current) return;
 
+    const topology = worldAtlasQuery.data;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
     const context = canvas.getContext("2d");
     const width = (canvas.width = canvas.offsetWidth);
     const height = (canvas.height = canvas.offsetHeight);
+
+    const countries = topojson.feature(topology, topology.objects.countries);
+    countries.features.forEach((feature) => {
+      const centroid = d3.geoCentroid(feature);
+      feature.properties.centroid = centroid;
+    });
 
     const projection = d3
       .geoMercator()
@@ -71,14 +69,14 @@ const MapComponent = ({ casesData }) => {
       context.strokeStyle = "#2a4a5f";
       context.lineWidth = 0.5 / currentTransform.k;
 
-      worldData.features.forEach((feature) => {
+      countries.features.forEach((feature) => {
         context.beginPath();
         path(feature);
         context.fill();
         context.stroke();
       });
 
-      drawCasesCircles(context, projection, currentTransform.k);
+      drawCasesCircles(context, projection, currentTransform.k, countries);
 
       const k = currentTransform.k;
 
@@ -86,13 +84,13 @@ const MapComponent = ({ casesData }) => {
         drawLabels(context, oceanLabels, projection, k, "#3a5a7a", 14, 0.7, "italic");
         drawLabels(context, continentLabels, projection, k, "#e0e0e0", 13, 0.9, "bold");
       } else {
-        drawCountryLabels(context, projection, k);
+        drawCountryLabels(context, projection, k, countries);
       }
 
       context.restore();
     };
 
-    const drawCasesCircles = (ctx, proj, zoom) => {
+    const drawCasesCircles = (ctx, proj, zoom, worldData) => {
       if (!casesData || casesData.length === 0) return;
 
       const maxCases = Math.max(...casesData.map((c) => c.total_cases || 0));
@@ -134,7 +132,7 @@ const MapComponent = ({ casesData }) => {
       });
     };
 
-    const drawCountryLabels = (ctx, proj, zoom) => {
+    const drawCountryLabels = (ctx, proj, zoom, worldData) => {
       const minArea = 1000 / (zoom * zoom);
 
       ctx.font = `${10 / zoom}px Arial`;
@@ -219,7 +217,7 @@ const MapComponent = ({ casesData }) => {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [worldData, casesData]);
+  }, [worldAtlasQuery.data, casesData]); // ✅ FIX: Dépendances correctes
 
   const handleZoomIn = () => {
     const canvas = canvasRef.current;
@@ -232,40 +230,48 @@ const MapComponent = ({ casesData }) => {
   };
 
   return (
-    <div className="map-panel">
-      <div className="view-toggle-buttons">
-        <button className="view-toggle-btn" title="Bookmark">…</button>
-        <button className="view-toggle-btn" title="List view">…</button>
-        <button className="view-toggle-btn" title="Grid view">…</button>
-      </div>
+    <QueryStateWrapper 
+      query={worldAtlasQuery}
+      loadingMessage="Loading world map..."
+      errorMessage="Failed to load world map"
+    >
+      {() => (
+        <div className="map-panel">
+          <div className="view-toggle-buttons">
+            <button className="view-toggle-btn" title="Bookmark">…</button>
+            <button className="view-toggle-btn" title="List view">…</button>
+            <button className="view-toggle-btn" title="Grid view">…</button>
+          </div>
 
-      <canvas ref={canvasRef} className="map-container" />
+          <canvas ref={canvasRef} className="map-container" />
 
-      <div className="zoom-controls">
-        <button className="zoom-btn" onClick={handleZoomIn} title="Zoom in">+</button>
-        <button className="zoom-btn" onClick={handleZoomOut} title="Zoom out">−</button>
-      </div>
+          <div className="zoom-controls">
+            <button className="zoom-btn" onClick={handleZoomIn} title="Zoom in">+</button>
+            <button className="zoom-btn" onClick={handleZoomOut} title="Zoom out">−</button>
+          </div>
 
-      <div className="map-tabs">
-        <button className="map-tab active">Cumulative Confirmed Cases</button>
-        <button className="map-tab">Active Cases</button>
-      </div>
+          <div className="map-tabs">
+            <button className="map-tab active">Cumulative Confirmed Cases</button>
+            <button className="map-tab">Active Cases</button>
+          </div>
 
-      <div className="info-bar">
-        <div className="info-section">
-          <span className="info-label">{casesData?.length || 0}</span>
-          <span className="info-sublabel">countries/regions</span>
+          <div className="info-bar">
+            <div className="info-section">
+              <span className="info-label">{casesData?.length || 0}</span>
+              <span className="info-sublabel">countries/regions</span>
+            </div>
+            <div className="info-text">
+              <strong>Lancet Inf Dis</strong> Article: <a href="#">Here</a>. Mobile Version: <a href="#">Here</a>.
+              Visualization: <a href="#">JHU CSSE</a>. Automation Support: <a href="#">Esri Living Atlas team</a> and{" "}
+              <a href="#">JHU APL</a>. <a href="#">Contact Us</a>. <a href="#">FAQ</a>.<br />
+              Data sources: WHO, CDC, ECDC, NHC, DXY, 1point3acres, Worldometers.info, BNO, state and national
+              government health departments, and local media reports. Read more in <a href="#">this blog</a>.<br />
+              Downloadable database: GitHub: <a href="#">Here</a>. Feature layer: <a href="#">Here</a>.
+            </div>
+          </div>
         </div>
-        <div className="info-text">
-          <strong>Lancet Inf Dis</strong> Article: <a href="#">Here</a>. Mobile Version: <a href="#">Here</a>.
-          Visualization: <a href="#">JHU CSSE</a>. Automation Support: <a href="#">Esri Living Atlas team</a> and{" "}
-          <a href="#">JHU APL</a>. <a href="#">Contact Us</a>. <a href="#">FAQ</a>.<br />
-          Data sources: WHO, CDC, ECDC, NHC, DXY, 1point3acres, Worldometers.info, BNO, state and national
-          government health departments, and local media reports. Read more in <a href="#">this blog</a>.<br />
-          Downloadable database: GitHub: <a href="#">Here</a>. Feature layer: <a href="#">Here</a>.
-        </div>
-      </div>
-    </div>
+      )}
+    </QueryStateWrapper>
   );
 };
 

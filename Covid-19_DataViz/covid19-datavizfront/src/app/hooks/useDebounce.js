@@ -1,3 +1,4 @@
+// pas de refactorisation, hook utilitaire simple et pas d'api
 import { useState, useEffect } from 'react';
 
 /**

@@ -1,3 +1,4 @@
+// pas de refactorisation, pas d'api et contenu statique
 "use client";
 import React from 'react';
 import Header from '../components/Header';

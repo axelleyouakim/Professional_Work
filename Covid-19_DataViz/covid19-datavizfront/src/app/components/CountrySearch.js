@@ -1,3 +1,4 @@
+// pas de refactorisation, composant de recherche avec debounce et affichage du nombre de résultats
 import React, { useState, useEffect } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import './CountrySearch.css';

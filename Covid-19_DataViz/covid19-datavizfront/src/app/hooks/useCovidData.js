@@ -26,11 +26,25 @@ export const covidKeys = {
   
   timeSeries: () => [...covidKeys.all, 'time-series'],
   casesTimeSeries: (period) => period ? [...covidKeys.timeSeries(), 'cases', period] : [...covidKeys.timeSeries(), 'cases'],
+  
+  worldAtlas: () => ['world-atlas'],
 };
 
-// ════════════════════════════════════════════════════════════
-// MODIFIÉ - Hooks avec support période
-// ════════════════════════════════════════════════════════════
+// ✅ HOOK TANSTACK QUERY - World Atlas
+export const useWorldAtlas = () => {
+  return useQuery({
+    queryKey: covidKeys.worldAtlas(),
+    queryFn: async () => {
+      const response = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
+      if (!response.ok) throw new Error('Failed to load world atlas');
+      return response.json();
+    },
+    staleTime: Infinity,
+    cacheTime: Infinity,
+  });
+};
+
+// ✅ HOOK TANSTACK QUERY - Global Total Cases
 export const useGlobalTotalCases = (period = null) => {
   return useQuery({
     queryKey: covidKeys.totalCases(period),
@@ -41,6 +55,7 @@ export const useGlobalTotalCases = (period = null) => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - Global Total Deaths
 export const useGlobalTotalDeaths = (period = null) => {
   return useQuery({
     queryKey: covidKeys.totalDeaths(period),
@@ -51,6 +66,7 @@ export const useGlobalTotalDeaths = (period = null) => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - Global Total Recovered
 export const useGlobalTotalRecovered = (period = null) => {
   return useQuery({
     queryKey: covidKeys.totalRecovered(period),
@@ -61,6 +77,7 @@ export const useGlobalTotalRecovered = (period = null) => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - 28 Day Cases
 export const use28DayCases = () => {
   return useQuery({
     queryKey: covidKeys.cases28Day(),
@@ -71,6 +88,7 @@ export const use28DayCases = () => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - 28 Day Deaths
 export const use28DayDeaths = () => {
   return useQuery({
     queryKey: covidKeys.deaths28Day(),
@@ -81,6 +99,7 @@ export const use28DayDeaths = () => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - Total Cases Per Country
 export const useTotalCasesPerCountry = (period = null) => {
   return useQuery({
     queryKey: covidKeys.casesPerCountry(period),
@@ -91,6 +110,7 @@ export const useTotalCasesPerCountry = (period = null) => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - Total Deaths Per Country
 export const useTotalDeathsPerCountry = (period = null) => {
   return useQuery({
     queryKey: covidKeys.deathsPerCountry(period),
@@ -101,6 +121,7 @@ export const useTotalDeathsPerCountry = (period = null) => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - Total Recovered Per Country
 export const useTotalRecoveredPerCountry = (period = null) => {
   return useQuery({
     queryKey: covidKeys.recoveredPerCountry(period),
@@ -111,6 +132,7 @@ export const useTotalRecoveredPerCountry = (period = null) => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - 28 Day Cases Per Country
 export const use28DayCasesPerCountry = () => {
   return useQuery({
     queryKey: covidKeys.cases28DayPerCountry(),
@@ -121,6 +143,7 @@ export const use28DayCasesPerCountry = () => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - 28 Day Deaths Per Country
 export const use28DayDeathsPerCountry = () => {
   return useQuery({
     queryKey: covidKeys.deaths28DayPerCountry(),
@@ -131,6 +154,7 @@ export const use28DayDeathsPerCountry = () => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - Total Vaccine Doses
 export const useTotalVaccineDoses = () => {
   return useQuery({
     queryKey: covidKeys.totalVaccines(),
@@ -141,6 +165,7 @@ export const useTotalVaccineDoses = () => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - 28 Day Vaccine Doses
 export const use28DayVaccineDoses = () => {
   return useQuery({
     queryKey: covidKeys.vaccines28Day(),
@@ -151,6 +176,7 @@ export const use28DayVaccineDoses = () => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - 28 Day Vaccine Doses Per Country
 export const use28DayVaccineDosesPerCountry = () => {
   return useQuery({
     queryKey: covidKeys.vaccines28DayPerCountry(),
@@ -161,6 +187,7 @@ export const use28DayVaccineDosesPerCountry = () => {
   });
 };
 
+// ✅ HOOK TANSTACK QUERY - Cases Time Series
 export const useCasesTimeSeries = (period = null) => {
   return useQuery({
     queryKey: covidKeys.casesTimeSeries(period),
@@ -171,9 +198,7 @@ export const useCasesTimeSeries = (period = null) => {
   });
 };
 
-// ════════════════════════════════════════════════════════════
-// HOOK PRINCIPAL - Passe la période à TOUS les hooks
-// ════════════════════════════════════════════════════════════
+// ✅ HOOK TANSTACK QUERY - Dashboard Combined Data
 export const useCovidDashboardData = (period = null) => {
   const totalCases = useGlobalTotalCases(period);
   const totalDeaths = useGlobalTotalDeaths(period);
@@ -199,21 +224,16 @@ export const useCovidDashboardData = (period = null) => {
     totalCases,
     totalDeaths,
     totalRecovered,
-    
     cases28Day,
     deaths28Day,
-    
     totalCasesPerCountry,
     totalDeathsPerCountry,
     totalRecoveredPerCountry,
-    
     cases28DayPerCountry,
     deaths28DayPerCountry,
-    
     totalVaccineDoses,
     vaccines28Day,
     vaccines28DayPerCountry,
-    
     chartData,
   };
 };

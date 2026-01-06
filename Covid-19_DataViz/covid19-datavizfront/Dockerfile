@@ -4,7 +4,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --legacy-peer-deps
+# ✅ FIX: Utilise npm install au lieu de npm ci (pas de package-lock.json garanti)
+RUN npm install --legacy-peer-deps
 
 COPY . .
 

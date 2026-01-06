@@ -1,3 +1,4 @@
+// pas de refactorisation, recoit data en props
 import React, { useCallback } from 'react';
 import {
   LineChart,

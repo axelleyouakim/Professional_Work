@@ -1,10 +1,12 @@
+'use client';
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import './TimelineSlider.css';
 
 const TimelineSlider = ({ onPeriodChange }) => {
-  // ✅ AJOUT : Date réelle de fin des données
-  const LAST_DATA_DATE = new Date('2023-03-09');
+  // ✅ FIX: LAST_DATA_DATE déplacé HORS de useMemo
+  const LAST_DATA_DATE = useMemo(() => new Date('2023-03-09'), []);
 
   const periods = useMemo(() => [
     { id: 0, label: 'All Time', days: null, shortLabel: 'All' },
@@ -51,7 +53,7 @@ const TimelineSlider = ({ onPeriodChange }) => {
     return periods[sliderValue];
   }, [sliderValue, periods]);
 
-  // ✅ MODIFICATION : Utilise LAST_DATA_DATE au lieu de Date.now()
+  // ✅ FIX: LAST_DATA_DATE maintenant dans les dépendances useMemo
   const getDateRange = useMemo(() => {
     if (!getCurrentPeriod.days) {
       return 'Jan 22, 2020 → Mar 9, 2023';
