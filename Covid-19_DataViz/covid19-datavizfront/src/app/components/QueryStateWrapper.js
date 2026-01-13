@@ -1,117 +1,55 @@
 'use client';
 
 import React from 'react';
+import './Dashboard.css';
 
 /**
  * ════════════════════════════════════════════════════════════
- * QUERY STATE WRAPPER - Pattern recommandé par ton prof
+ * QUERY STATE WRAPPER - Pattern 3 États (Loading, Error, Success)
  * ════════════════════════════════════════════════════════════
+ * 
+ * ✅ Wrapper réutilisable pour gérer les 3 états de TanStack Query
+ * ✅ Prend un objet query (résultat de useQuery)
+ * ✅ Affiche Loading, Error, ou Success automatiquement
+ * 
+ * USAGE:
+ * <QueryStateWrapper query={myQuery}>
+ *   {(data) => <div>{data}</div>}
+ * </QueryStateWrapper>
  */
 const QueryStateWrapper = ({ 
   query, 
-  loadingMessage = "Loading...",
-  errorMessage = "Error loading data",
+  loadingMessage = 'Loading...', 
+  errorMessage = 'An error occurred',
   children 
 }) => {
+  // ✅ ÉTAT 1 : LOADING
   if (query.isLoading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '2rem',
-        color: '#fff'
-      }}>
-        <div>⏳ {loadingMessage}</div>
-      </div>
-    );
-  }
-
-  if (query.isError) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '2rem',
-        color: '#f44336'
-      }}>
-        <div>
-          ❌ {errorMessage}
-          <br />
-          <small>{query.error?.message || 'Unknown error'}</small>
+      <div className="query-state-container">
+        <div className="query-loading">
+          <div className="spinner"></div>
+          <p>{loadingMessage}</p>
         </div>
       </div>
     );
   }
 
-  if (query.isSuccess && query.data) {
-    return children(query.data);
-  }
-
-  return null;
-};
-
-/**
- * ════════════════════════════════════════════════════════════
- * MULTI QUERY WRAPPER - Pour gérer plusieurs queries
- * ════════════════════════════════════════════════════════════
- */
-export const MultiQueryWrapper = ({ 
-  queries = [], 
-  loadingMessage = "Loading...",
-  errorMessage = "Error loading data",
-  children 
-}) => {
-  // Vérifie si au moins une query est en loading
-  const isLoading = queries.some(q => q.isLoading);
-  
-  // Vérifie si au moins une query a une erreur
-  const hasError = queries.some(q => q.isError);
-  const errorQuery = queries.find(q => q.isError);
-  
-  // Vérifie si toutes les queries ont réussi
-  const allSuccess = queries.every(q => q.isSuccess && q.data);
-
-  if (isLoading) {
+  // ✅ ÉTAT 2 : ERROR
+  if (query.error) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '2rem',
-        color: '#fff'
-      }}>
-        <div>⏳ {loadingMessage}</div>
-      </div>
-    );
-  }
-
-  if (hasError) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '2rem',
-        color: '#f44336'
-      }}>
-        <div>
-          ❌ {errorMessage}
-          <br />
-          <small>{errorQuery?.error?.message || 'Unknown error'}</small>
+      <div className="query-state-container">
+        <div className="query-error">
+          <span className="error-icon">⚠️</span>
+          <p>{errorMessage}</p>
+          <p className="error-details">{query.error.message}</p>
         </div>
       </div>
     );
   }
 
-  if (allSuccess) {
-    // Retourne les data de toutes les queries
-    const allData = queries.map(q => q.data);
-    return children(...allData);
-  }
-
-  return null;
+  // ✅ ÉTAT 3 : SUCCESS
+  return children(query.data);
 };
 
 export default QueryStateWrapper;

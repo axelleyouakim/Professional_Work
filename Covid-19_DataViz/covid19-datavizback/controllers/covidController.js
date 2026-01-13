@@ -1,9 +1,41 @@
 import { covidService } from '../services/covidService.js';
 import { AppError } from '../middleware/errorMiddleware.js';
+import { invalidateCache, getCacheStats } from '../middleware/cacheMiddleware.js';
 
 export const covidController = {
   healthCheck: (req, res) => {
     res.json({ status: 'OK', message: 'COVID-19 API is running' });
+  },
+
+  // ════════════════════════════════════════════════════════════
+  // NOUVEAU - Invalider le cache manuellement
+  // ════════════════════════════════════════════════════════════
+  invalidateCache: async (req, res, next) => {
+    try {
+      const { pattern } = req.query;
+      const invalidatedCount = await invalidateCache(pattern || 'covid:cache:*');
+      
+      res.json({
+        success: true,
+        message: 'Cache invalidated',
+        invalidated_keys: invalidatedCount,
+        pattern: pattern || 'covid:cache:*'
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // ════════════════════════════════════════════════════════════
+  // NOUVEAU - Voir les stats du cache
+  // ════════════════════════════════════════════════════════════
+  getCacheStats: async (req, res, next) => {
+    try {
+      const stats = await getCacheStats();
+      res.json(stats || { message: 'Redis not available' });
+    } catch (error) {
+      next(error);
+    }
   },
 
   getAllCovidData: async (req, res, next) => {
@@ -34,12 +66,9 @@ export const covidController = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - Accepte maintenant ?period=X
-  // ════════════════════════════════════════════════════════════
   getTotalCases: async (req, res, next) => {
     try {
-      const { period } = req.query; // ✅ NOUVEAU
+      const { period } = req.query;
       const data = await covidService.getTotalCases(period);
       res.json(data);
     } catch (error) {
@@ -47,12 +76,9 @@ export const covidController = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - Accepte maintenant ?period=X
-  // ════════════════════════════════════════════════════════════
   getTotalDeaths: async (req, res, next) => {
     try {
-      const { period } = req.query; // ✅ NOUVEAU
+      const { period } = req.query;
       const data = await covidService.getTotalDeaths(period);
       res.json(data);
     } catch (error) {
@@ -60,12 +86,9 @@ export const covidController = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - Accepte maintenant ?period=X
-  // ════════════════════════════════════════════════════════════
   getTotalRecovered: async (req, res, next) => {
     try {
-      const { period } = req.query; // ✅ NOUVEAU
+      const { period } = req.query;
       const data = await covidService.getTotalRecovered(period);
       res.json(data);
     } catch (error) {
@@ -91,12 +114,9 @@ export const covidController = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - Accepte maintenant ?period=X
-  // ════════════════════════════════════════════════════════════
   getTotalCasesPerCountry: async (req, res, next) => {
     try {
-      const { period } = req.query; // ✅ NOUVEAU
+      const { period } = req.query;
       const data = await covidService.getTotalCasesPerCountry(period);
       res.json(data);
     } catch (error) {
@@ -104,12 +124,9 @@ export const covidController = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - Accepte maintenant ?period=X
-  // ════════════════════════════════════════════════════════════
   getTotalDeathsPerCountry: async (req, res, next) => {
     try {
-      const { period } = req.query; // ✅ NOUVEAU
+      const { period } = req.query;
       const data = await covidService.getTotalDeathsPerCountry(period);
       res.json(data);
     } catch (error) {
@@ -117,12 +134,9 @@ export const covidController = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - Accepte maintenant ?period=X
-  // ════════════════════════════════════════════════════════════
   getTotalRecoveredPerCountry: async (req, res, next) => {
     try {
-      const { period } = req.query; // ✅ NOUVEAU
+      const { period } = req.query;
       const data = await covidService.getTotalRecoveredPerCountry(period);
       res.json(data);
     } catch (error) {

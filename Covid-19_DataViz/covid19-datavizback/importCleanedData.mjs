@@ -10,18 +10,15 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected for import'))
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
-    process.exit(1);
-  });
-
-
+// ✅ FIX: Ne pas importer cacheMiddleware avant d'avoir connecté Redis
 async function importCleanedDataToMongoDB() {
   console.log('🚀 Starting import of cleaned data to MongoDB...\n');
 
   try {
+    // Connect MongoDB
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ MongoDB connected for import\n');
+
     console.log('🗑️  Clearing existing data...');
     const deleteResult = await CovidData.deleteMany({});
     console.log(`   Deleted ${deleteResult.deletedCount} existing documents\n`);
@@ -130,6 +127,18 @@ async function importCleanedDataToMongoDB() {
     console.log('='.repeat(60));
     console.log(`\nCountries (first 20): ${distinctCountries.slice(0, 20).join(', ')}...`);
     console.log('\n✨ MongoDB now contains cleaned, aggregated data!');
+
+    // ✅ CACHE INVALIDATION (après import réussi)
+    console.log('\n🗑️  Invalidating cache...');
+    try {
+      // Importe dynamiquement pour éviter les erreurs si Redis est down
+      const { invalidateCache } = await import('./middleware/cacheMiddleware.js');
+      const invalidated = await invalidateCache('covid:cache:*');
+      console.log(`✅ Invalidated ${invalidated} cache entries`);
+    } catch (error) {
+      console.log(`⚠️  Cache invalidation skipped: ${error.message}`);
+      console.log('   (This is OK if Redis is not running)');
+    }
 
   } catch (error) {
     console.error('\n❌ Import failed:', error.message);
