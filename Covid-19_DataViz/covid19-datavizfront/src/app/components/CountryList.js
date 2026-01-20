@@ -9,18 +9,9 @@ import {
 import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
 
-/**
- * ════════════════════════════════════════════════════════════
- * COUNTRY LIST - Fait maintenant ses propres appels TanStack Query
- * ════════════════════════════════════════════════════════════
- * 
- * ✅ Plus besoin de recevoir `countries` en props
- * ✅ Fait l'appel API directement selon le `type`
- * ✅ Filtre par searchTerm en client-side
- */
 const CountryList = ({ 
   title, 
-  type = 'cases', // 'cases' | 'deaths' | 'recovered'
+  type = 'cases',
   period = null,
   searchTerm = '',
   selectedCountry, 
@@ -28,30 +19,22 @@ const CountryList = ({
   labelSuffix = '',
   colorClass = 'red-text'
 }) => {
-  // ─────────────────────────────────────────────────────────
-  // 🔥 APPEL TANSTACK QUERY SELON LE TYPE
-  // ─────────────────────────────────────────────────────────
   const casesQuery = useTotalCasesPerCountry(period);
   const deathsQuery = useTotalDeathsPerCountry(period);
   const recoveredQuery = useTotalRecoveredPerCountry(period);
 
-  // Sélectionner la bonne query selon le type
   const query = type === 'deaths' 
     ? deathsQuery 
     : type === 'recovered' 
     ? recoveredQuery 
     : casesQuery;
 
-  // Déterminer la clé de données
   const dataKey = type === 'deaths' 
     ? 'total_deaths' 
     : type === 'recovered' 
     ? 'total_recovered' 
     : 'total_cases';
 
-  // ─────────────────────────────────────────────────────────
-  // FILTRE PAR RECHERCHE (client-side)
-  // ─────────────────────────────────────────────────────────
   const filteredCountries = useMemo(() => {
     const countries = query.data || [];
     if (!searchTerm) return countries;
@@ -62,9 +45,6 @@ const CountryList = ({
     );
   }, [query.data, searchTerm]);
 
-  // ─────────────────────────────────────────────────────────
-  // RENDER AVEC QUERYWRAPPER
-  // ─────────────────────────────────────────────────────────
   return (
     <QueryStateWrapper 
       query={query}

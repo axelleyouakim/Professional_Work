@@ -5,7 +5,6 @@ import { useDebounce } from '../hooks/useDebounce';
 import './TimelineSlider.css';
 
 const TimelineSlider = ({ onPeriodChange }) => {
-  // ✅ FIX: LAST_DATA_DATE déplacé HORS de useMemo
   const LAST_DATA_DATE = useMemo(() => new Date('2023-03-09'), []);
 
   const periods = useMemo(() => [
@@ -53,7 +52,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
     return periods[sliderValue];
   }, [sliderValue, periods]);
 
-  // ✅ FIX: LAST_DATA_DATE maintenant dans les dépendances useMemo
   const getDateRange = useMemo(() => {
     if (!getCurrentPeriod.days) {
       return 'Jan 22, 2020 → Mar 9, 2023';

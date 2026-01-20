@@ -3,7 +3,6 @@ import React, { useMemo } from 'react';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import QueryStateWrapper from '../components/QueryStateWrapper';
-// ✅ IMPORT TANSTACK QUERY HOOK
 import { useCasesTimeSeries } from '../hooks/useCovidData';
 import {
   LineChart,
@@ -18,7 +17,6 @@ import {
 import './charts.css';
 
 const ChartsPage = () => {
-  // ✅ APPEL TANSTACK QUERY - VISIBLE DÈS LE DÉBUT
   const chartDataQuery = useCasesTimeSeries();
 
   const formattedChartData = useMemo(() => {

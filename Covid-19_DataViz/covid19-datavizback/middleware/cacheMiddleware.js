@@ -1,6 +1,5 @@
 import redis from 'redis';
 
-// ✅ FIX: Détecte si on est dans Docker ou en local
 const REDIS_URL = process.env.REDIS_URL || 
   (process.env.NODE_ENV === 'production' ? 'redis://redis:6379' : 'redis://localhost:6379');
 
@@ -8,15 +7,12 @@ const redisClient = redis.createClient({
   url: REDIS_URL
 });
 
-// ✅ FIX: Gère les erreurs sans crasher
 redisClient.on('error', (err) => {
   console.error('❌ Redis Error:', err.message);
-  // Ne pas crasher l'app si Redis est down
 });
 
 redisClient.on('connect', () => console.log('✅ Redis connected'));
 
-// ✅ FIX: Connect avec try/catch
 let isRedisConnected = false;
 
 try {
@@ -29,12 +25,8 @@ try {
   isRedisConnected = false;
 }
 
-// ════════════════════════════════════════════════════════════
-// CACHE MIDDLEWARE
-// ════════════════════════════════════════════════════════════
 export const cacheMiddleware = (duration = 300) => {
   return async (req, res, next) => {
-    // ✅ Skip si Redis pas connecté
     if (!isRedisConnected || !redisClient.isOpen) {
       return next();
     }
@@ -71,9 +63,6 @@ export const cacheMiddleware = (duration = 300) => {
   };
 };
 
-// ════════════════════════════════════════════════════════════
-// CACHE INVALIDATION - ✅ FIXED
-// ════════════════════════════════════════════════════════════
 export const invalidateCache = async (pattern = 'covid:cache:*') => {
   try {
     if (!isRedisConnected || !redisClient.isOpen) {
@@ -82,22 +71,18 @@ export const invalidateCache = async (pattern = 'covid:cache:*') => {
     }
 
     const keys = [];
-    let cursor = '0'; // ✅ FIX: String au lieu de number
+    let cursor = '0';
 
     do {
-      // ✅ FIX: Utilise scanIterator pour éviter les problèmes de type
       const scanResult = await redisClient.scan(cursor, {
         MATCH: pattern,
         COUNT: 100
       });
       
-      // ✅ FIX: Gère les deux formats possibles de retour
       if (typeof scanResult === 'object' && scanResult.cursor !== undefined) {
-        // Format: { cursor: '0', keys: [...] }
         cursor = String(scanResult.cursor);
         keys.push(...scanResult.keys);
       } else if (Array.isArray(scanResult)) {
-        // Format: ['0', [...keys]]
         cursor = String(scanResult[0]);
         keys.push(...scanResult[1]);
       } else {
@@ -107,7 +92,6 @@ export const invalidateCache = async (pattern = 'covid:cache:*') => {
     } while (cursor !== '0');
 
     if (keys.length > 0) {
-      // ✅ FIX: Delete en batch pour performance
       await redisClient.del(keys);
       console.log(`🗑️  Invalidated ${keys.length} cache keys matching "${pattern}"`);
     } else {
@@ -122,9 +106,6 @@ export const invalidateCache = async (pattern = 'covid:cache:*') => {
   }
 };
 
-// ════════════════════════════════════════════════════════════
-// CACHE STATS
-// ════════════════════════════════════════════════════════════
 export const getCacheStats = async () => {
   try {
     if (!isRedisConnected || !redisClient.isOpen) {
@@ -132,7 +113,7 @@ export const getCacheStats = async () => {
     }
 
     const keys = [];
-    let cursor = '0'; // ✅ FIX: String
+    let cursor = '0';
 
     do {
       const scanResult = await redisClient.scan(cursor, {
@@ -140,7 +121,6 @@ export const getCacheStats = async () => {
         COUNT: 100
       });
       
-      // ✅ FIX: Même logique que invalidateCache
       if (typeof scanResult === 'object' && scanResult.cursor !== undefined) {
         cursor = String(scanResult.cursor);
         keys.push(...scanResult.keys);

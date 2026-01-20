@@ -11,7 +11,6 @@ import './map.css';
 const MapPage = () => {
   const canvasRef = useRef(null);
 
-  // ✅ APPEL TANSTACK QUERY
   const worldAtlasQuery = useWorldAtlas();
   const totalCasesQuery = useTotalCasesPerCountry();
 
@@ -28,7 +27,6 @@ const MapPage = () => {
           errorMessage="Failed to load map data"
         >
           {(worldAtlasData, casesData) => {
-            // ✅ LOGIC MOVED INSIDE MultiQueryWrapper
             const MapCanvas = () => {
               const worldData = useMemo(() => {
                 const countries = topojson.feature(worldAtlasData, worldAtlasData.objects.countries);

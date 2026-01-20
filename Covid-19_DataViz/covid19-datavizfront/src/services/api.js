@@ -26,9 +26,6 @@ export const api = {
   getCountries: () => fetchAPI('/get_country'),
   getDeathByCountry: (country) => fetchAPI(`/get_death_by_country?country=${encodeURIComponent(country)}`),
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - Accepte maintenant period
-  // ════════════════════════════════════════════════════════════
   getTotalCases: (period) => {
     const url = period ? `/get_total_cases?period=${period}` : '/get_total_cases';
     return fetchAPI(url);
@@ -47,9 +44,6 @@ export const api = {
   getAllCountryAndDeath: () => fetchAPI('/get_all_country_and_death'),
   getCountryDeathAndCases: () => fetchAPI('/get_country_death_and_cases'),
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - Accepte maintenant period
-  // ════════════════════════════════════════════════════════════
   getTotalCasesPerCountry: (period) => {
     const url = period ? `/get_total_cases_per_country?period=${period}` : '/get_total_cases_per_country';
     return fetchAPI(url);
@@ -67,6 +61,14 @@ export const api = {
 
   getCasesTimeSeries: (period) => {
     const url = period ? `/get_cases_time_series?period=${period}` : '/get_cases_time_series';
+    return fetchAPI(url);
+  },
+
+  // ✅ NOUVEAU - Time series par pays
+  getCasesTimeSeriesByCountry: (country, period) => {
+    const url = period 
+      ? `/get_cases_time_series/${encodeURIComponent(country)}?period=${period}` 
+      : `/get_cases_time_series/${encodeURIComponent(country)}`;
     return fetchAPI(url);
   },
 
@@ -88,7 +90,6 @@ export const api = {
   getCovidData: () => fetchAPI('/covid-data'),
 };
 
-// Exports pour compatibilité
 export const getCountries = api.getCountries;
 export const getTotalCases = api.getTotalCases;
 export const getTotalDeaths = api.getTotalDeaths;
@@ -108,5 +109,7 @@ export const get28DayVaccineDosesPerCountry = api.get28DayVaccineDosesPerCountry
 export const getGlobalTotalCases = api.getTotalCases;
 export const getGlobalTotalDeaths = api.getTotalDeaths;
 export const getGlobalTotalRecovered = api.getTotalRecovered;
+
+export const getCasesTimeSeriesByCountry = api.getCasesTimeSeriesByCountry;
 
 export default api;

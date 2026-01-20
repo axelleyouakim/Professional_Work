@@ -7,14 +7,13 @@ import { useWorldAtlas } from '../hooks/useCovidData';
 import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
 
-const MapComponent = ({ casesData }) => {
+const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
   const canvasRef = useRef(null);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [hoveredCountry, setHoveredCountry] = useState(null);
 
-  // ✅ APPEL TANSTACK QUERY
   const worldAtlasQuery = useWorldAtlas();
 
-  // ✅ FIX: useEffect SORTI du callback QueryStateWrapper
   useEffect(() => {
     if (!worldAtlasQuery.data || !canvasRef.current) return;
 
@@ -65,11 +64,16 @@ const MapComponent = ({ casesData }) => {
       context.fillStyle = "#0a1929";
       context.fillRect(-width * 2, -height * 2, width * 5, height * 5);
 
-      context.fillStyle = "#1a2f3f";
-      context.strokeStyle = "#2a4a5f";
-      context.lineWidth = 0.5 / currentTransform.k;
-
+      // Dessiner les pays
       countries.features.forEach((feature) => {
+        const countryName = feature.properties.name || feature.properties.NAME || feature.properties.admin || feature.properties.ADMIN || "";
+        const isSelected = selectedCountry && countryName.toLowerCase() === selectedCountry.toLowerCase();
+        const isHovered = hoveredCountry && countryName.toLowerCase() === hoveredCountry.toLowerCase();
+
+        context.fillStyle = isSelected ? "#2a4a7f" : "#1a2f3f";
+        context.strokeStyle = isSelected ? "#5a8aff" : isHovered ? "#4a6a8f" : "#2a4a5f";
+        context.lineWidth = (isSelected ? 1.5 : 0.5) / currentTransform.k;
+
         context.beginPath();
         path(feature);
         context.fill();
@@ -116,15 +120,17 @@ const MapComponent = ({ casesData }) => {
             const baseRadius = Math.sqrt(countryData.total_cases / maxCases) * 40;
             const radius = Math.max(3, baseRadius / zoom);
 
-            ctx.shadowColor = "rgba(255, 0, 0, 0.8)";
-            ctx.shadowBlur = 10 / zoom;
-            ctx.fillStyle = "rgba(255, 0, 0, 0.6)";
+            const isSelected = selectedCountry && countryData.country.toLowerCase() === selectedCountry.toLowerCase();
+            
+            ctx.shadowColor = isSelected ? "rgba(255, 255, 0, 0.8)" : "rgba(255, 0, 0, 0.8)";
+            ctx.shadowBlur = isSelected ? 15 / zoom : 10 / zoom;
+            ctx.fillStyle = isSelected ? "rgba(255, 255, 0, 0.7)" : "rgba(255, 0, 0, 0.6)";
             ctx.beginPath();
             ctx.arc(coords[0], coords[1], radius, 0, 2 * Math.PI);
             ctx.fill();
 
-            ctx.strokeStyle = "rgba(255, 100, 100, 0.8)";
-            ctx.lineWidth = 1 / zoom;
+            ctx.strokeStyle = isSelected ? "rgba(255, 255, 100, 1)" : "rgba(255, 100, 100, 0.8)";
+            ctx.lineWidth = isSelected ? 2 / zoom : 1 / zoom;
             ctx.stroke();
             ctx.shadowBlur = 0;
           }
@@ -190,8 +196,106 @@ const MapComponent = ({ casesData }) => {
       ctx.globalAlpha = 1;
     };
 
+    // ✅ FONCTION HELPER : Trouver le pays cliqué
+    const findClickedCountry = (x, y) => {
+      console.log('🔍 Searching for country at:', { x, y });
+      
+      // Méthode 1: Chercher dans les cercles rouges (plus précis)
+      if (casesData && casesData.length > 0) {
+        const maxCases = Math.max(...casesData.map((c) => c.total_cases || 0));
+        
+        for (const countryData of casesData) {
+          const feature = countries.features.find((f) => {
+            const name = f.properties.name || f.properties.NAME || f.properties.admin || f.properties.ADMIN || "";
+            return name.toLowerCase() === countryData.country.toLowerCase();
+          });
+
+          if (feature && feature.properties.centroid) {
+            const coords = projection(feature.properties.centroid);
+            if (coords) {
+              const baseRadius = Math.sqrt(countryData.total_cases / maxCases) * 40;
+              const radius = Math.max(3, baseRadius / currentTransform.k);
+              const distance = Math.sqrt(Math.pow(x - coords[0], 2) + Math.pow(y - coords[1], 2));
+              
+              if (distance <= radius) {
+                console.log('✅ Found in circle:', countryData.country);
+                return countryData.country;
+              }
+            }
+          }
+        }
+      }
+
+      // Méthode 2: Chercher dans les polygones de pays (fallback)
+      const point = projection.invert([x, y]);
+      if (point) {
+        for (const feature of countries.features) {
+          const countryName = feature.properties.name || feature.properties.NAME || feature.properties.admin || feature.properties.ADMIN || "";
+          
+          if (!countryName) continue;
+
+          if (d3.geoContains(feature, point)) {
+            console.log('✅ Found in polygon:', countryName);
+            return countryName;
+          }
+        }
+      }
+
+      console.log('❌ No country found');
+      return null;
+    };
+
+    // ✅ HANDLER DE CLIC - FIXED VERSION
+    const handleCanvasClick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const rect = canvas.getBoundingClientRect();
+      const x = (event.clientX - rect.left - currentTransform.x) / currentTransform.k;
+      const y = (event.clientY - rect.top - currentTransform.y) / currentTransform.k;
+
+      console.log('🖱️ Canvas clicked at:', { 
+        clientX: event.clientX, 
+        clientY: event.clientY,
+        x, 
+        y, 
+        zoom: currentTransform.k 
+      });
+
+      const clickedCountry = findClickedCountry(x, y);
+
+      if (clickedCountry) {
+        console.log('🗺️ Country clicked:', clickedCountry);
+        if (onCountryClick) {
+          onCountryClick(clickedCountry);
+        } else {
+          console.error('❌ onCountryClick is not defined!');
+        }
+      }
+    };
+
+    // ✅ HANDLER DE HOVER
+    const handleCanvasMove = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (event.clientX - rect.left - currentTransform.x) / currentTransform.k;
+      const y = (event.clientY - rect.top - currentTransform.y) / currentTransform.k;
+
+      const country = findClickedCountry(x, y);
+      
+      if (country !== hoveredCountry) {
+        setHoveredCountry(country);
+        canvas.style.cursor = country ? 'pointer' : 'default';
+      }
+    };
+
+    // ✅ SETUP ZOOM avec filter pour ne pas bloquer les clics
     const zoom = d3
       .zoom()
+      .filter((event) => {
+        // Permettre le zoom avec molette SEULEMENT
+        // Bloquer le drag avec souris (qui interfère avec les clics)
+        return event.type === 'wheel';
+      })
       .scaleExtent([1, 8])
       .on("zoom", (event) => {
         currentTransform = event.transform;
@@ -200,6 +304,10 @@ const MapComponent = ({ casesData }) => {
       });
 
     d3.select(canvas).call(zoom);
+
+    // ✅ Attacher les événements APRÈS le zoom
+    canvas.addEventListener('click', handleCanvasClick, true);
+    canvas.addEventListener('mousemove', handleCanvasMove);
 
     draw();
 
@@ -216,8 +324,10 @@ const MapComponent = ({ casesData }) => {
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      canvas.removeEventListener('click', handleCanvasClick, true);
+      canvas.removeEventListener('mousemove', handleCanvasMove);
     };
-  }, [worldAtlasQuery.data, casesData]); // ✅ FIX: Dépendances correctes
+  }, [worldAtlasQuery.data, casesData, selectedCountry, hoveredCountry, onCountryClick]);
 
   const handleZoomIn = () => {
     const canvas = canvasRef.current;
@@ -238,12 +348,34 @@ const MapComponent = ({ casesData }) => {
       {() => (
         <div className="map-panel">
           <div className="view-toggle-buttons">
-            <button className="view-toggle-btn" title="Bookmark">…</button>
-            <button className="view-toggle-btn" title="List view">…</button>
-            <button className="view-toggle-btn" title="Grid view">…</button>
+            <button className="view-toggle-btn" title="Bookmark">⋯</button>
+            <button className="view-toggle-btn" title="List view">☰</button>
+            <button className="view-toggle-btn" title="Grid view">⊞</button>
           </div>
 
-          <canvas ref={canvasRef} className="map-container" />
+          {/* ✅ Info de debug */}
+          {hoveredCountry && (
+            <div style={{
+              position: 'absolute',
+              top: '60px',
+              left: '20px',
+              background: 'rgba(0,0,0,0.8)',
+              color: '#fff',
+              padding: '5px 10px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              zIndex: 1000,
+              pointerEvents: 'none'
+            }}>
+              Hovering: {hoveredCountry} - Click to select
+            </div>
+          )}
+
+          <canvas 
+            ref={canvasRef} 
+            className="map-container" 
+            style={{ touchAction: 'none' }}
+          />
 
           <div className="zoom-controls">
             <button className="zoom-btn" onClick={handleZoomIn} title="Zoom in">+</button>

@@ -7,9 +7,6 @@ export const covidController = {
     res.json({ status: 'OK', message: 'COVID-19 API is running' });
   },
 
-  // ════════════════════════════════════════════════════════════
-  // NOUVEAU - Invalider le cache manuellement
-  // ════════════════════════════════════════════════════════════
   invalidateCache: async (req, res, next) => {
     try {
       const { pattern } = req.query;
@@ -26,9 +23,6 @@ export const covidController = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // NOUVEAU - Voir les stats du cache
-  // ════════════════════════════════════════════════════════════
   getCacheStats: async (req, res, next) => {
     try {
       const stats = await getCacheStats();
@@ -148,6 +142,23 @@ export const covidController = {
     try {
       const { period } = req.query;
       const data = await covidService.getCasesTimeSeries(period);
+      res.json(data);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // ✅ NOUVEAU - Time series par pays
+  getCasesTimeSeriesByCountry: async (req, res, next) => {
+    try {
+      const { country } = req.params;
+      const { period } = req.query;
+      
+      if (!country) {
+        throw new AppError('Country parameter is required', 400);
+      }
+      
+      const data = await covidService.getCasesTimeSeriesByCountry(country, period);
       res.json(data);
     } catch (error) {
       next(error);

@@ -2,7 +2,6 @@
 import React, { useState, useCallback } from 'react';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
-// ✅ IMPORT TANSTACK QUERY HOOK
 import { useCovidDashboardData } from './hooks/useCovidData';
 
 const Page = () => {
@@ -11,7 +10,6 @@ const Page = () => {
     days: null
   });
 
-  // ✅ APPEL TANSTACK QUERY - VISIBLE DÈS LE DÉBUT
   const covidData = useCovidDashboardData(selectedPeriod.days);
 
   const handlePeriodChange = useCallback((period) => {

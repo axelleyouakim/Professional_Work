@@ -35,9 +35,6 @@ async function fetchGitHubCSV(type) {
   return await response.text();
 }
 
-// ════════════════════════════════════════════════════════════
-// HELPER - Filtre les colonnes de dates par période
-// ════════════════════════════════════════════════════════════
 function getDateColumnsForPeriod(header, period) {
   if (!period) {
     // Pas de période = toutes les dates
@@ -49,7 +46,6 @@ function getDateColumnsForPeriod(header, period) {
     return { startIndex: 4, endIndex: header.length - 1 };
   }
 
-  // Calculer la date de début (X jours avant la dernière date)
   const endIndex = header.length - 1;
   const startIndex = Math.max(4, endIndex - periodDays);
 
@@ -87,14 +83,10 @@ export const covidService = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - getTotalCases avec support période
-  // ════════════════════════════════════════════════════════════
   getTotalCases: async (period) => {
   try {
     const cleanedData = await loadCleanedData('merged_statistics.json');
     
-    // Pas de période = dernière date (All Time)
     if (!period && cleanedData) {
       return {
         total_cases: cleanedData.globalStats.totalCases,
@@ -102,7 +94,6 @@ export const covidService = {
       };
     }
 
-    // Avec période = date passée
     const data = await fetchGitHubCSV('confirmed');
     const rows = data.split('\n');
     const header = rows[0].split(',');
@@ -110,7 +101,6 @@ export const covidService = {
     const endIndex = header.length - 1;
     const periodDays = parseInt(period);
     
-    // ✅ FIX : S'assurer qu'on ne va pas trop loin dans le passé
     const targetIndex = Math.max(4, endIndex - periodDays);
     const targetDate = header[targetIndex];
 
@@ -149,9 +139,6 @@ export const covidService = {
   }
 },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - getTotalDeaths avec support période
-  // ════════════════════════════════════════════════════════════
   getTotalDeaths: async (period) => {
   try {
     const cleanedData = await loadCleanedData('merged_statistics.json');
@@ -202,15 +189,10 @@ export const covidService = {
   }
 },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - getTotalRecovered avec support période
-  // ════════════════════════════════════════════════════════════
   getTotalRecovered: async (period) => {
   try {
     const cleanedData = await loadCleanedData('merged_statistics.json');
     
-    // ✅ FIX : Recovered data stopped in Aug 2021
-    // Toujours retourner les données nettoyées, peu importe la période
     if (cleanedData) {
       console.log('📊 [getTotalRecovered] Using cleaned data (Recovered stopped in Aug 2021)');
       return {
@@ -220,7 +202,6 @@ export const covidService = {
       };
     }
 
-    // Fallback si pas de données nettoyées
     const data = await fetchGitHubCSV('recovered');
     const rows = data.split('\n');
     const header = rows[0].split(',');
@@ -270,9 +251,6 @@ export const covidService = {
     }
   },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - getTotalCasesPerCountry avec support période
-  // ════════════════════════════════════════════════════════════
   getTotalCasesPerCountry: async (period) => {
   try {
     const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
@@ -407,14 +385,10 @@ export const covidService = {
   }
 },
 
-  // ════════════════════════════════════════════════════════════
-  // MODIFIÉ - getTotalRecoveredPerCountry avec support période
-  // ════════════════════════════════════════════════════════════
   getTotalRecoveredPerCountry: async (period) => {
   try {
     const cleanedData = await loadCleanedData('recovered_cleaned.json');
     
-    // ✅ FIX : Toujours utiliser les données nettoyées pour Recovered
     if (cleanedData) {
       const formattedData = cleanedData.data.map(country => ({
         country: country.country,
@@ -569,6 +543,137 @@ export const covidService = {
       };
     } catch (error) {
       throw new AppError('Failed to fetch cases time series', 500);
+    }
+  },
+
+  // ✅ NOUVEAU - Time series par pays spécifique
+  getCasesTimeSeriesByCountry: async (country, period) => {
+    try {
+      const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
+      
+      let countryTimeSeries = [];
+      
+      if (cleanedData) {
+        // Chercher le pays dans les données cleaned
+        const countryData = cleanedData.data.find(
+          c => c.country.toLowerCase() === country.toLowerCase()
+        );
+        
+        if (!countryData) {
+          throw new AppError(`Country "${country}" not found`, 404);
+        }
+        
+        // Convertir timeSeries object en array
+        const dateColumns = Object.keys(countryData.timeSeries);
+        countryTimeSeries = dateColumns.map(date => ({
+          date: date,
+          cases: countryData.timeSeries[date] || 0
+        }));
+        
+        console.log(`📊 [getCasesTimeSeriesByCountry] Found ${countryTimeSeries.length} data points for ${country}`);
+        
+      } else {
+        // Fallback: fetch from GitHub CSV
+        const data = await fetchGitHubCSV('confirmed');
+        const rows = data.split('\n').filter(row => row.trim() !== '');
+        const header = rows[0].split(',');
+        const dateColumns = header.slice(4);
+        
+        // Chercher toutes les lignes correspondant au pays
+        const countryRows = [];
+        for (let i = 1; i < rows.length; i++) {
+          const columns = rows[i].split(',');
+          const rowCountry = columns[1]?.trim();
+          
+          if (rowCountry && rowCountry.toLowerCase() === country.toLowerCase()) {
+            countryRows.push(columns);
+          }
+        }
+        
+        if (countryRows.length === 0) {
+          throw new AppError(`Country "${country}" not found`, 404);
+        }
+        
+        // Agréger les données de toutes les régions du pays
+        countryTimeSeries = dateColumns.map((date, idx) => {
+          let totalCases = 0;
+          countryRows.forEach(columns => {
+            const cases = parseInt(columns[4 + idx], 10);
+            if (!isNaN(cases)) {
+              totalCases += cases;
+            }
+          });
+          return { date: date.trim(), cases: totalCases };
+        });
+      }
+      
+      // Parser et trier les dates
+      const parsedData = countryTimeSeries.map(item => {
+        const parts = item.date.split("/");
+        let dateObj;
+        
+        if (parts.length === 3) {
+          const month = parseInt(parts[0], 10);
+          const day = parseInt(parts[1], 10);
+          let year = parseInt(parts[2], 10);
+          
+          if (year < 100) {
+            year += 2000;
+          }
+          
+          dateObj = new Date(year, month - 1, day);
+        } else {
+          dateObj = new Date(item.date);
+        }
+        
+        return {
+          date: item.date,
+          cases: item.cases,
+          dateObj: dateObj
+        };
+      }).filter(item => !isNaN(item.dateObj.getTime()))
+        .sort((a, b) => a.dateObj - b.dateObj);
+      
+      // Filtrer par période si demandé
+      let filteredData = parsedData;
+      
+      if (period && !isNaN(period)) {
+        const periodDays = parseInt(period);
+        const latestDate = parsedData[parsedData.length - 1].dateObj;
+        const startDate = new Date(latestDate);
+        startDate.setDate(startDate.getDate() - periodDays);
+        
+        filteredData = parsedData.filter(item => item.dateObj >= startDate);
+        
+        console.log(`📅 [${country}] Timeline filter: ${periodDays} days, Points: ${filteredData.length}`);
+      }
+      
+      const lastDataPoint = filteredData[filteredData.length - 1];
+      const lastDate = lastDataPoint ? lastDataPoint.dateObj : null;
+      
+      const formattedLastDate = lastDate 
+        ? `${lastDate.getMonth() + 1}/${lastDate.getDate()}/${lastDate.getFullYear()}`
+        : null;
+      
+      // Retirer dateObj avant d'envoyer
+      const finalData = filteredData.map(({ dateObj, ...rest }) => rest);
+      
+      return { 
+        data: finalData,
+        metadata: {
+          country: country,
+          lastDate: formattedLastDate,
+          totalPoints: finalData.length,
+          period: period ? parseInt(period) : null
+        }
+      };
+      
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      console.error('❌ [getCasesTimeSeriesByCountry] Error:', error);
+      throw new AppError(`Failed to fetch time series for ${country}`, 500);
     }
   },
 

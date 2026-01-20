@@ -1,7 +1,12 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { useTotalCasesPerCountry, useCasesTimeSeries } from '../hooks/useCovidData';
+import React, { useState, useCallback, useMemo } from 'react';
+import { 
+  useTotalCasesPerCountry, 
+  useTotalDeathsPerCountry,
+  useTotalRecoveredPerCountry,
+  useCasesTimeSeries 
+} from '../hooks/useCovidData';
 import QueryStateWrapper from './QueryStateWrapper';
 import StatsCard from './StatsCard';
 import CountryList from './CountryList';
@@ -13,19 +18,6 @@ import AdminLevelSelector from './AdminLevelSelector';
 import LastUpdatedDisplay from './LastUpdatedDisplay';
 import "./Dashboard.css";
 
-/**
- * ════════════════════════════════════════════════════════════
- * DASHBOARD - SIMPLIFIÉ - Chaque composant fait ses propres appels
- * ════════════════════════════════════════════════════════════
- * 
- * ✅ Dashboard fait seulement 2 appels TanStack Query (pour données partagées) :
- *    - useTotalCasesPerCountry (pour Map + recherche)
- *    - useCasesTimeSeries (pour Chart)
- * 
- * ✅ TOUS les autres composants font leurs propres appels :
- *    - StatsCard : useGlobalTotalCases/Deaths/Recovered
- *    - CountryList : useTotalCasesPerCountry/Deaths/Recovered
- */
 const Dashboard = ({ 
   selectedPeriod,
   onPeriodChange
@@ -34,17 +26,48 @@ const Dashboard = ({
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ─────────────────────────────────────────────────────────
-  // 🔥 APPELS TANSTACK QUERY (uniquement pour données partagées)
-  // ─────────────────────────────────────────────────────────
+  // ✅ Récupérer LES 3 DATASETS
   const totalCasesPerCountry = useTotalCasesPerCountry(selectedPeriod?.days);
+  const totalDeathsPerCountry = useTotalDeathsPerCountry(selectedPeriod?.days);
+  const totalRecoveredPerCountry = useTotalRecoveredPerCountry(selectedPeriod?.days);
   const chartData = useCasesTimeSeries(selectedPeriod?.days);
 
-  // ─────────────────────────────────────────────────────────
-  // HANDLERS
-  // ─────────────────────────────────────────────────────────
+  // ✅ COMBINER les stats du pays sélectionné
+  const selectedCountryStats = useMemo(() => {
+    if (!selectedCountry) return null;
+    
+    const casesData = totalCasesPerCountry.data?.find(
+      c => c.country.toLowerCase() === selectedCountry.toLowerCase()
+    );
+    
+    const deathsData = totalDeathsPerCountry.data?.find(
+      c => c.country.toLowerCase() === selectedCountry.toLowerCase()
+    );
+    
+    const recoveredData = totalRecoveredPerCountry.data?.find(
+      c => c.country.toLowerCase() === selectedCountry.toLowerCase()
+    );
+
+    if (!casesData && !deathsData && !recoveredData) return null;
+
+    return {
+      country: selectedCountry,
+      total_cases: casesData?.total_cases || 0,
+      total_deaths: deathsData?.total_deaths || 0,
+      total_recovered: recoveredData?.total_recovered || 0
+    };
+  }, [selectedCountry, totalCasesPerCountry.data, totalDeathsPerCountry.data, totalRecoveredPerCountry.data]);
+
+  // ✅ Handler pour sélectionner un pays
   const handleCountryClick = useCallback((countryName) => {
+    console.log('🌍 Country selected:', countryName);
     setSelectedCountry(countryName);
+  }, []);
+
+  // ✅ Handler pour retour à la vue globale
+  const handleBackToGlobal = useCallback(() => {
+    console.log('🌍 Back to global view');
+    setSelectedCountry(null);
   }, []);
 
   const handleSearchChange = useCallback((term) => {
@@ -55,9 +78,6 @@ const Dashboard = ({
     setAdminLevel(level);
   }, []);
 
-  // ─────────────────────────────────────────────────────────
-  // FORMAT CHART DATA
-  // ─────────────────────────────────────────────────────────
   const formatChartData = useCallback((rawChartData) => {
     if (!rawChartData || rawChartData.length === 0) return [];
     
@@ -82,11 +102,20 @@ const Dashboard = ({
     });
   }, []);
 
-  // ─────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────
   return (
     <div className="dashboard-grid">
+      {/* ✅ BANNIÈRE DE VUE PAYS */}
+      {selectedCountry && (
+        <div className="country-view-banner">
+          <button className="back-to-global-btn" onClick={handleBackToGlobal}>
+            ← Back to Global View
+          </button>
+          <h2 className="country-view-title">
+            🌍 {selectedCountry} - Country View
+          </h2>
+        </div>
+      )}
+
       {/* LEFT PANEL */}
       <div className="left-panel">
         <CountrySearch 
@@ -94,12 +123,13 @@ const Dashboard = ({
           resultsCount={0}
         />
 
-        {/* 🔥 StatsCard fait maintenant son propre appel TanStack Query */}
+        {/* ✅ StatsCard avec données du pays si sélectionné */}
         <StatsCard 
-          label="Total Confirmed"
+          label={selectedCountry ? `${selectedCountry} - Total Confirmed` : "Total Confirmed"}
           type="cases"
           period={selectedPeriod?.days}
           selectedCountry={selectedCountry}
+          selectedCountryData={selectedCountryStats}
           colorClass="red-text"
         />
 
@@ -108,7 +138,6 @@ const Dashboard = ({
           onLevelChange={handleAdminLevelChange}
         />
 
-        {/* 🔥 CountryList fait maintenant son propre appel TanStack Query */}
         <CountryList
           title="Confirmed Cases by Country/Region/Sovereignty"
           type="cases"
@@ -122,7 +151,7 @@ const Dashboard = ({
         <LastUpdatedDisplay timestamp="4/2/2020 9:02:01 AM" />
       </div>
 
-      {/* CENTER PANEL - Map */}
+      {/* CENTER PANEL - MAP */}
       <QueryStateWrapper 
         query={totalCasesPerCountry}
         loadingMessage="Loading map data..."
@@ -131,7 +160,9 @@ const Dashboard = ({
           <MapComponent 
             casesData={casesData.filter(c => 
               !searchTerm || c.country.toLowerCase().includes(searchTerm.toLowerCase())
-            )} 
+            )}
+            selectedCountry={selectedCountry}
+            onCountryClick={handleCountryClick}
           />
         )}
       </QueryStateWrapper>
@@ -139,13 +170,14 @@ const Dashboard = ({
       {/* RIGHT PANEL */}
       <div className="right-panels-container-narrow">
         <div className="right-stats-column">
-          {/* Deaths Panel - 🔥 Composants font leurs propres appels */}
+          {/* Deaths Panel */}
           <div className="right-stat-panel">
             <StatsCard 
-              label="Total Deaths"
+              label={selectedCountry ? `${selectedCountry} - Total Deaths` : "Total Deaths"}
               type="deaths"
               period={selectedPeriod?.days}
               selectedCountry={selectedCountry}
+              selectedCountryData={selectedCountryStats}
               colorClass="white-text"
             />
 
@@ -153,17 +185,21 @@ const Dashboard = ({
               type="deaths"
               period={selectedPeriod?.days}
               searchTerm={searchTerm}
+              selectedCountry={selectedCountry}
+              onCountryClick={handleCountryClick}
               labelSuffix="deaths"
               colorClass="white-text"
             />
           </div>
 
-          {/* Recovered Panel - 🔥 Composants font leurs propres appels */}
+          {/* Recovered Panel */}
           <div className="right-stat-panel">
             <StatsCard 
-              label="Total Recovered"
+              label={selectedCountry ? `${selectedCountry} - Total Recovered` : "Total Recovered"}
               type="recovered"
               period={selectedPeriod?.days}
+              selectedCountry={selectedCountry}
+              selectedCountryData={selectedCountryStats}
               colorClass="green-text"
             />
 
@@ -171,27 +207,26 @@ const Dashboard = ({
               type="recovered"
               period={selectedPeriod?.days}
               searchTerm={searchTerm}
+              selectedCountry={selectedCountry}
+              onCountryClick={handleCountryClick}
               labelSuffix="recovered"
               colorClass="green-text"
             />
           </div>
         </div>
 
-        {/* Chart Panel avec Timeline */}
+        {/* Chart Panel */}
         <div className="chart-panel-with-timeline">
           <div className="timeline-above-chart">
             <TimelineSlider onPeriodChange={onPeriodChange} />
           </div>
 
           <div className="chart-scrollable-container">
-            <QueryStateWrapper 
-              query={chartData}
-              loadingMessage="Loading chart data..."
-            >
-              {(rawChartData) => (
-                <ChartComponent data={formatChartData(rawChartData)} />
-              )}
-            </QueryStateWrapper>
+            {/* ✅ Chart filtré par pays */}
+            <ChartComponent 
+              period={selectedPeriod?.days}
+              selectedCountry={selectedCountry}
+            />
           </div>
         </div>
       </div>

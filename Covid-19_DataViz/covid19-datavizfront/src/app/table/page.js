@@ -13,7 +13,6 @@ import './table.css';
 const TablePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ✅ APPEL TANSTACK QUERY
   const casesQuery = useTotalCasesPerCountry();
   const deathsQuery = useTotalDeathsPerCountry();
   const recoveredQuery = useTotalRecoveredPerCountry();
@@ -39,7 +38,6 @@ const TablePage = () => {
           errorMessage="Failed to load data"
         >
           {(casesData, deathsData, recoveredData) => {
-            // ✅ LOGIC MOVED INSIDE MultiQueryWrapper
             const combinedData = casesData.map(country => {
               const deathData = deathsData.find(d => d.country === country.country);
               const recoveredDataItem = recoveredData.find(r => r.country === country.country);

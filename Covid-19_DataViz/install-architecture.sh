@@ -9,7 +9,6 @@ cd ..
 echo "📦 Installation des dépendances frontend..."
 cd covid19-datavizfront
 
-# ✅ FIX: Supprime l'ancien lock et réinstalle proprement
 rm -rf node_modules package-lock.json
 npm install --legacy-peer-deps
 

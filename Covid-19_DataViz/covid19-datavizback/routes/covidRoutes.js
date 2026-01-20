@@ -7,9 +7,6 @@ const router = express.Router();
 
 router.get('/', covidController.healthCheck);
 
-// ════════════════════════════════════════════════════════════
-// NOUVEAU - Cache Management
-// ════════════════════════════════════════════════════════════
 router.post('/cache/invalidate', covidController.invalidateCache);
 router.get('/cache/stats', covidController.getCacheStats);
 
@@ -18,8 +15,7 @@ router.get('/covid-data', covidController.getAllCovidData);
 router.get('/get_country', covidController.getCountries);
 router.get('/get_death_by_country', validateQueryParams(['country']), covidController.getDeathByCountry);
 
-// ✅ Cache adapté selon la fraîcheur des données
-router.get('/get_total_cases', cacheMiddleware(3600), covidController.getTotalCases); // 1h cache (données statiques)
+router.get('/get_total_cases', cacheMiddleware(3600), covidController.getTotalCases);
 router.get('/get_total_deaths', cacheMiddleware(3600), covidController.getTotalDeaths);
 router.get('/get_total_recovered', cacheMiddleware(3600), covidController.getTotalRecovered);
 
@@ -29,6 +25,9 @@ router.get('/get_country_death_and_cases', covidController.getCountryDeathAndCas
 router.get('/get_total_cases_per_country', cacheMiddleware(3600), covidController.getTotalCasesPerCountry);
 router.get('/get_total_deaths_per_country', cacheMiddleware(3600), covidController.getTotalDeathsPerCountry);
 router.get('/get_total_recovered_per_country', cacheMiddleware(3600), covidController.getTotalRecoveredPerCountry);
+
+// ✅ NOUVEAU - Time series par pays
+router.get('/get_cases_time_series/:country', cacheMiddleware(3600), covidController.getCasesTimeSeriesByCountry);
 
 router.get('/get_cases_time_series', cacheMiddleware(3600), covidController.getCasesTimeSeries);
 
