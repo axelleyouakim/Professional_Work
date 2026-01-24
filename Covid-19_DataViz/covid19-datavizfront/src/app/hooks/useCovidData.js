@@ -98,11 +98,18 @@ export const use28DayDeaths = () => {
   });
 };
 
-export const useTotalCasesPerCountry = (period = null) => {
+export const useTotalCasesPerCountry = (periodOrDate = null) => {
   return useQuery({
-    queryKey: covidKeys.casesPerCountry(period),
+    queryKey: covidKeys.casesPerCountry(periodOrDate),
     queryFn: async () => {
-      const data = await api.getTotalCasesPerCountry(period);
+      // ✅ Si c'est une date (format "3/15/20"), utiliser l'endpoint spécifique
+      if (periodOrDate && typeof periodOrDate === 'string' && periodOrDate.includes('/')) {
+        const response = await api.getDataAtSpecificDate(periodOrDate);
+        return response?.data || [];
+      }
+      
+      // ✅ Sinon, utiliser l'ancien endpoint avec period
+      const data = await api.getTotalCasesPerCountry(periodOrDate);
       return data?.data || [];
     },
   });
@@ -194,6 +201,30 @@ export const useCasesTimeSeries = (period = null, country = null) => {
       return response?.data || [];
     },
     enabled: true, // Toujours enabled (pas de dépendance sur country)
+  });
+};
+
+// ✅ HOOK - Données à une date spécifique
+export const useDataAtSpecificDate = (dateString) => {
+  return useQuery({
+    queryKey: ['dataAtDate', dateString],
+    queryFn: async () => {
+      if (!dateString) return null;
+      const response = await api.getDataAtSpecificDate(dateString);
+      return response?.data || [];
+    },
+    enabled: !!dateString,
+  });
+};
+
+export const useGlobalTotalsAtDate = (dateString) => {
+  return useQuery({
+    queryKey: ['globalTotalsAtDate', dateString],
+    queryFn: async () => {
+      if (!dateString) return null;
+      return await api.getGlobalTotalsAtDate(dateString);
+    },
+    enabled: !!dateString,
   });
 };
 

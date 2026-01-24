@@ -72,6 +72,11 @@ export const api = {
     return fetchAPI(url);
   },
 
+  // ✅ NOUVEAU - Données à une date spécifique
+  getDataAtSpecificDate: (date) => fetchAPI(`/get_data_at_date?date=${encodeURIComponent(date)}`),
+  
+  getGlobalTotalsAtDate: (date) => fetchAPI(`/get_global_totals_at_date?date=${encodeURIComponent(date)}`),
+
   getMeanCases: () => fetchAPI('/get_mean_cases'),
   getCasesEvolution: () => fetchAPI('/get_cases_evolution'),
   getKMeansClusters: () => fetchAPI('/get_kmeans_clusters'),
@@ -111,5 +116,8 @@ export const getGlobalTotalDeaths = api.getTotalDeaths;
 export const getGlobalTotalRecovered = api.getTotalRecovered;
 
 export const getCasesTimeSeriesByCountry = api.getCasesTimeSeriesByCountry;
+
+export const getDataAtSpecificDate = api.getDataAtSpecificDate;
+export const getGlobalTotalsAtDate = api.getGlobalTotalsAtDate;
 
 export default api;

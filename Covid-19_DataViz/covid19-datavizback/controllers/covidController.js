@@ -165,6 +165,47 @@ export const covidController = {
     }
   },
 
+  // ✅ NOUVEAU - Date range
+  getAvailableDateRange: async (req, res, next) => {
+    try {
+      const data = await covidService.getAvailableDateRange();
+      res.json(data);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // ✅ NOUVEAU - Data at specific date
+  getDataAtSpecificDate: async (req, res, next) => {
+    try {
+      const { date } = req.query;
+      
+      if (!date) {
+        throw new AppError('Date parameter is required', 400);
+      }
+      
+      const data = await covidService.getDataAtSpecificDate(date);
+      res.json(data);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getGlobalTotalsAtDate: async (req, res, next) => {
+    try {
+      const { date } = req.query;
+      
+      if (!date) {
+        throw new AppError('Date parameter is required', 400);
+      }
+      
+      const data = await covidService.getGlobalTotalsAtDate(date);
+      res.json(data);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getMeanCases: async (req, res, next) => {
     try {
       const data = await covidService.getMeanCases();

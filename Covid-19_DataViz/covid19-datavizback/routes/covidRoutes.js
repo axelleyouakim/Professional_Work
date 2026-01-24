@@ -46,4 +46,9 @@ router.get('/get_vaccine_doses_per_country', validateQueryParams(['country']), c
 router.get('/get_28_day_vaccine_doses', cacheMiddleware(3600), covidController.get28DayVaccineDoses);
 router.get('/get_28_day_vaccine_doses_per_country', cacheMiddleware(3600), covidController.get28DayVaccineDosesPerCountry);
 
+router.get('/get_available_date_range', cacheMiddleware(3600), covidController.getAvailableDateRange);
+
+router.get('/get_data_at_date', cacheMiddleware(3600), covidController.getDataAtSpecificDate);
+router.get('/get_global_totals_at_date', cacheMiddleware(3600), covidController.getGlobalTotalsAtDate);
+
 export default router;

@@ -1,32 +1,31 @@
-"use client";
-import React, { useState, useCallback } from 'react';
-import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import { useCovidDashboardData } from './hooks/useCovidData';
+'use client';
 
-const Page = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState({ 
-    id: 'all', 
-    days: null
+import React, { useState, useCallback } from 'react';
+import Dashboard from './components/Dashboard';
+import Header from './components/Header';
+import './globals.css';
+
+export default function HomePage() {
+  const [selectedPeriod, setSelectedPeriod] = useState({
+    label: "All Time",
+    days: null,
+    dateString: null, // ✅ NOUVEAU
+    dateObj: null,    // ✅ NOUVEAU
+    displayDate: null // ✅ NOUVEAU
   });
 
-  const covidData = useCovidDashboardData(selectedPeriod.days);
-
-  const handlePeriodChange = useCallback((period) => {
-    console.log('📅 [PAGE] Period changed to:', period.label, 'days:', period.days);
-    setSelectedPeriod(period);
+  const handlePeriodChange = useCallback((newPeriod) => {
+    console.log('📅 [PAGE] Period changed to:', newPeriod);
+    setSelectedPeriod(newPeriod);
   }, []);
 
   return (
-    <div>
+    <div className="app-container">
       <Header />
       <Dashboard 
-        data={covidData}
-        selectedPeriod={selectedPeriod}
-        onPeriodChange={handlePeriodChange}
+        selectedPeriod={selectedPeriod} 
+        onPeriodChange={handlePeriodChange} 
       />
     </div>
   );
-};
-
-export default Page;
+}

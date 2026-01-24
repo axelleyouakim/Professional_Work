@@ -12,11 +12,6 @@ import {
 import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
 
-/**
- * ════════════════════════════════════════════════════════════
- * STATS CARD - Affiche stats globales OU stats d'un pays
- * ════════════════════════════════════════════════════════════
- */
 const StatsCard = ({ 
   label, 
   type = 'cases',
@@ -25,43 +20,57 @@ const StatsCard = ({
   selectedCountryData = null,
   colorClass = 'red-text' 
 }) => {
-  // ✅ Appels TanStack Query (global)
-  const casesQuery = useGlobalTotalCases(period);
-  const deathsQuery = useGlobalTotalDeaths(period);
-  const recoveredQuery = useGlobalTotalRecovered(period);
-
-  // ✅ Appels TanStack Query (par pays) - pour fallback
+  // ✅ TOUJOURS appeler TOUS les hooks (jamais conditionnellement)
+  const globalCasesQuery = useGlobalTotalCases(period);
+  const globalDeathsQuery = useGlobalTotalDeaths(period);
+  const globalRecoveredQuery = useGlobalTotalRecovered(period);
+  
   const casesPerCountryQuery = useTotalCasesPerCountry(period);
   const deathsPerCountryQuery = useTotalDeathsPerCountry(period);
   const recoveredPerCountryQuery = useTotalRecoveredPerCountry(period);
 
-  // Sélectionner la query
-  const globalQuery = type === 'deaths' ? deathsQuery : type === 'recovered' ? recoveredQuery : casesQuery;
-  const perCountryQuery = type === 'deaths' ? deathsPerCountryQuery : type === 'recovered' ? recoveredPerCountryQuery : casesPerCountryQuery;
+  // ✅ Sélectionner la query appropriée APRÈS les avoir toutes appelées
+  const globalQuery = type === 'deaths' 
+    ? globalDeathsQuery 
+    : type === 'recovered' 
+    ? globalRecoveredQuery 
+    : globalCasesQuery;
+    
+  const perCountryQuery = type === 'deaths' 
+    ? deathsPerCountryQuery 
+    : type === 'recovered' 
+    ? recoveredPerCountryQuery 
+    : casesPerCountryQuery;
 
   // ✅ Calculer la valeur à afficher
   const displayValue = useMemo(() => {
     // Si pays sélectionné
     if (selectedCountry) {
-      // Utilise selectedCountryData si fourni
       if (selectedCountryData) {
-        const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
+        const key = type === 'deaths' 
+          ? 'total_deaths' 
+          : type === 'recovered' 
+          ? 'total_recovered' 
+          : 'total_cases';
         return selectedCountryData[key];
       }
       
-      // Sinon, cherche dans les données per country
       if (perCountryQuery.data) {
         const countryData = perCountryQuery.data.find(
           c => c.country.toLowerCase() === selectedCountry.toLowerCase()
         );
         if (countryData) {
-          const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
+          const key = type === 'deaths' 
+            ? 'total_deaths' 
+            : type === 'recovered' 
+            ? 'total_recovered' 
+            : 'total_cases';
           return countryData[key];
         }
       }
     }
     
-    // Valeur globale par défaut
+    // Valeur globale
     return globalQuery.data;
   }, [selectedCountry, selectedCountryData, perCountryQuery.data, globalQuery.data, type]);
 

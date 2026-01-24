@@ -677,6 +677,150 @@ export const covidService = {
     }
   },
 
+  // ✅ NOUVEAU - Récupérer les dates disponibles
+  getAvailableDateRange: async () => {
+    try {
+      const data = await fetchGitHubCSV('confirmed');
+      const rows = data.split('\n');
+      const header = rows[0].split(',');
+      
+      const dateColumns = header.slice(4); // Toutes les dates (colonnes 5+)
+      
+      if (dateColumns.length === 0) {
+        throw new AppError('No date columns found', 500);
+      }
+      
+      const firstDate = dateColumns[0].trim();
+      const lastDate = dateColumns[dateColumns.length - 1].trim();
+      
+      console.log(`📅 Available dates: ${firstDate} → ${lastDate} (${dateColumns.length} days)`);
+      
+      return {
+        firstDate,
+        lastDate,
+        totalDays: dateColumns.length,
+        allDates: dateColumns.map(d => d.trim())
+      };
+    } catch (error) {
+      console.error('❌ [getAvailableDateRange] Error:', error);
+      throw new AppError('Failed to fetch date range', 500);
+    }
+  },
+
+  // ✅ NOUVEAU - Données à une date spécifique
+  getDataAtSpecificDate: async (dateString) => {
+    try {
+      // dateString format: "3/15/20"
+      console.log(`📅 [getDataAtSpecificDate] Fetching data for: ${dateString}`);
+      
+      const data = await fetchGitHubCSV('confirmed');
+      const rows = data.split('\n');
+      const header = rows[0].split(',');
+      
+      // Trouver l'index de la colonne correspondant à cette date
+      const dateIndex = header.findIndex(col => col.trim() === dateString);
+      
+      if (dateIndex === -1 || dateIndex < 4) {
+        throw new AppError(`Date ${dateString} not found in data`, 404);
+      }
+      
+      console.log(`📊 Found date at column ${dateIndex}`);
+      
+      // Récupérer les données pour tous les pays à cette date
+      const countryCases = {};
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (!rows[i].trim()) continue;
+        
+        const columns = rows[i].split(',');
+        const country = columns[1]?.trim();
+        if (!country) continue;
+        
+        const casesAtDate = parseInt(columns[dateIndex], 10) || 0;
+        
+        if (!countryCases[country]) {
+          countryCases[country] = 0;
+        }
+        countryCases[country] += casesAtDate;
+      }
+      
+      const formattedResult = Object.keys(countryCases)
+        .map(country => ({
+          country: country,
+          total_cases: countryCases[country],
+        }))
+        .filter(c => c.total_cases > 0)
+        .sort((a, b) => b.total_cases - a.total_cases);
+      
+      console.log(`📊 [getDataAtSpecificDate] Found ${formattedResult.length} countries with cases`);
+      
+      return {
+        data: formattedResult,
+        date: dateString,
+        totalCountries: formattedResult.length
+      };
+      
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      console.error('❌ [getDataAtSpecificDate] Error:', error);
+      throw new AppError('Failed to fetch data at specific date', 500);
+    }
+  },
+
+  // ✅ NOUVEAU - Totaux mondiaux à une date spécifique
+  getGlobalTotalsAtDate: async (dateString) => {
+    try {
+      console.log(`📅 [getGlobalTotalsAtDate] Fetching totals for: ${dateString}`);
+      
+      const confirmedData = await fetchGitHubCSV('confirmed');
+      const deathsData = await fetchGitHubCSV('deaths');
+      
+      const confirmedRows = confirmedData.split('\n');
+      const deathsRows = deathsData.split('\n');
+      
+      const confirmedHeader = confirmedRows[0].split(',');
+      const deathsHeader = deathsRows[0].split(',');
+      
+      const confirmedDateIndex = confirmedHeader.findIndex(col => col.trim() === dateString);
+      const deathsDateIndex = deathsHeader.findIndex(col => col.trim() === dateString);
+      
+      if (confirmedDateIndex === -1 || deathsDateIndex === -1) {
+        throw new AppError(`Date ${dateString} not found`, 404);
+      }
+      
+      let totalCases = 0;
+      let totalDeaths = 0;
+      
+      // Calculer les totaux
+      for (let i = 1; i < confirmedRows.length; i++) {
+        if (!confirmedRows[i].trim()) continue;
+        const columns = confirmedRows[i].split(',');
+        const cases = parseInt(columns[confirmedDateIndex], 10) || 0;
+        totalCases += cases;
+      }
+      
+      for (let i = 1; i < deathsRows.length; i++) {
+        if (!deathsRows[i].trim()) continue;
+        const columns = deathsRows[i].split(',');
+        const deaths = parseInt(columns[deathsDateIndex], 10) || 0;
+        totalDeaths += deaths;
+      }
+      
+      console.log(`📊 [getGlobalTotalsAtDate] Cases: ${totalCases.toLocaleString()}, Deaths: ${totalDeaths.toLocaleString()}`);
+      
+      return {
+        total_cases: totalCases,
+        total_deaths: totalDeaths,
+        date: dateString
+      };
+      
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      console.error('❌ [getGlobalTotalsAtDate] Error:', error);
+      throw new AppError('Failed to fetch global totals at date', 500);
+    }
+  },
+
   getMeanCases: async () => {
     try {
       const dailyTotals = await CovidData.aggregate([

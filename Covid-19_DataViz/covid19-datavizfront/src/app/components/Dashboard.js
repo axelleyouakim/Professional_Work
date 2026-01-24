@@ -26,11 +26,14 @@ const Dashboard = ({
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ✅ Récupérer LES 3 DATASETS
-  const totalCasesPerCountry = useTotalCasesPerCountry(selectedPeriod?.days);
-  const totalDeathsPerCountry = useTotalDeathsPerCountry(selectedPeriod?.days);
-  const totalRecoveredPerCountry = useTotalRecoveredPerCountry(selectedPeriod?.days);
-  const chartData = useCasesTimeSeries(selectedPeriod?.days);
+  // ✅ Utiliser la date du slider si disponible, sinon period
+  const queryParam = selectedPeriod?.dateString || selectedPeriod?.days || null;
+  
+  // ✅ Récupérer LES 3 DATASETS avec la date
+  const totalCasesPerCountry = useTotalCasesPerCountry(queryParam);
+  const totalDeathsPerCountry = useTotalDeathsPerCountry(queryParam);
+  const totalRecoveredPerCountry = useTotalRecoveredPerCountry(queryParam);
+  const chartData = useCasesTimeSeries(queryParam, selectedCountry);
 
   // ✅ COMBINER les stats du pays sélectionné
   const selectedCountryStats = useMemo(() => {
@@ -127,7 +130,7 @@ const Dashboard = ({
         <StatsCard 
           label={selectedCountry ? `${selectedCountry} - Total Confirmed` : "Total Confirmed"}
           type="cases"
-          period={selectedPeriod?.days}
+          period={queryParam}
           selectedCountry={selectedCountry}
           selectedCountryData={selectedCountryStats}
           colorClass="red-text"
@@ -141,7 +144,7 @@ const Dashboard = ({
         <CountryList
           title="Confirmed Cases by Country/Region/Sovereignty"
           type="cases"
-          period={selectedPeriod?.days}
+          period={queryParam}
           searchTerm={searchTerm}
           selectedCountry={selectedCountry}
           onCountryClick={handleCountryClick}
@@ -175,7 +178,7 @@ const Dashboard = ({
             <StatsCard 
               label={selectedCountry ? `${selectedCountry} - Total Deaths` : "Total Deaths"}
               type="deaths"
-              period={selectedPeriod?.days}
+              period={queryParam}
               selectedCountry={selectedCountry}
               selectedCountryData={selectedCountryStats}
               colorClass="white-text"
@@ -183,7 +186,7 @@ const Dashboard = ({
 
             <CountryList
               type="deaths"
-              period={selectedPeriod?.days}
+              period={queryParam}
               searchTerm={searchTerm}
               selectedCountry={selectedCountry}
               onCountryClick={handleCountryClick}
@@ -197,7 +200,7 @@ const Dashboard = ({
             <StatsCard 
               label={selectedCountry ? `${selectedCountry} - Total Recovered` : "Total Recovered"}
               type="recovered"
-              period={selectedPeriod?.days}
+              period={queryParam}
               selectedCountry={selectedCountry}
               selectedCountryData={selectedCountryStats}
               colorClass="green-text"
@@ -205,7 +208,7 @@ const Dashboard = ({
 
             <CountryList
               type="recovered"
-              period={selectedPeriod?.days}
+              period={queryParam}
               searchTerm={searchTerm}
               selectedCountry={selectedCountry}
               onCountryClick={handleCountryClick}
@@ -224,7 +227,7 @@ const Dashboard = ({
           <div className="chart-scrollable-container">
             {/* ✅ Chart filtré par pays */}
             <ChartComponent 
-              period={selectedPeriod?.days}
+              period={queryParam}
               selectedCountry={selectedCountry}
             />
           </div>
