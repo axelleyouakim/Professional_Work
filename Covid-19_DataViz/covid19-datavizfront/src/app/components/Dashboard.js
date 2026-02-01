@@ -116,8 +116,8 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
     let timeline = [];
     
     // ✅ ÉTAPE 1 : Générer des points à 0 AVANT les vraies données (Nov 2019 - Jan 21 2020)
-    const startDate = new Date(2019, 10, 1); // 1er Nov 2019
-    const firstDataDate = new Date(2020, 0, 22); // 22 Jan 2020
+    const startDate = new Date(2019, 10, 1);
+    const firstDataDate = new Date(2020, 0, 22);
     const targetDateObj = new Date(
       parseInt(targetDate.split('/')[2]) + 2000,
       parseInt(targetDate.split('/')[0]) - 1,
@@ -166,9 +166,17 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
     filteredDates.forEach(date => {
       let totalCases = 0;
       
-      Object.keys(countries).forEach(country => {
-        totalCases += countries[country].cases[date] || 0;
-      });
+      // ✅ SI UN PAYS EST SÉLECTIONNÉ, filtrer par pays
+      if (selectedCountry) {
+        if (countries[selectedCountry]) {
+          totalCases = countries[selectedCountry].cases[date] || 0;
+        }
+      } else {
+        // Sinon, total mondial
+        Object.keys(countries).forEach(country => {
+          totalCases += countries[country].cases[date] || 0;
+        });
+      }
       
       timeline.push({
         date: date,
@@ -176,10 +184,11 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
       });
     });
     
-    console.log(`📊 [Dashboard] Chart timeline: ${timeline.length} points up to ${targetDate}`);
+    const label = selectedCountry ? `for ${selectedCountry}` : '(global)';
+    console.log(`📊 [Dashboard] Chart timeline ${label}: ${timeline.length} points up to ${targetDate}`);
     
     return timeline;
-  }, [isSliderMode, allTimeSeriesData.data, selectedPeriod]);
+  }, [isSliderMode, allTimeSeriesData.data, selectedPeriod, selectedCountry]);
   
   // ✅ Query param pour l'API (si pas en mode slider)
   const queryParam = isSliderMode ? null : null;
@@ -215,17 +224,43 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
       }
     : apiRecoveredQuery;
 
-  // ✅ Stats globales pour les StatsCards
+  // ✅ Stats globales OU par pays pour les StatsCards
   const globalStats = useMemo(() => {
-    if (isSliderMode && filteredData) {
+    if (!isSliderMode || !filteredData) return null;
+    
+    // ✅ SI UN PAYS EST SÉLECTIONNÉ
+    if (selectedCountry) {
+      // Chercher les stats du pays dans les données filtrées
+      const countryCase = filteredData.casesPerCountry.find(
+        c => c.country.toLowerCase() === selectedCountry.toLowerCase()
+      );
+      const countryDeath = filteredData.deathsPerCountry.find(
+        c => c.country.toLowerCase() === selectedCountry.toLowerCase()
+      );
+      const countryRecovered = filteredData.recoveredPerCountry.find(
+        c => c.country.toLowerCase() === selectedCountry.toLowerCase()
+      );
+      
+      console.log(`📊 [Dashboard] Stats for ${selectedCountry}:`, {
+        cases: countryCase?.total_cases || 0,
+        deaths: countryDeath?.total_deaths || 0,
+        recovered: countryRecovered?.total_recovered || 0
+      });
+      
       return {
-        total_cases: filteredData.totalCases,
-        total_deaths: filteredData.totalDeaths,
-        total_recovered: filteredData.totalRecovered
+        total_cases: countryCase?.total_cases || 0,
+        total_deaths: countryDeath?.total_deaths || 0,
+        total_recovered: countryRecovered?.total_recovered || 0
       };
     }
-    return null;
-  }, [isSliderMode, filteredData]);
+    
+    // ✅ SINON, stats globales
+    return {
+      total_cases: filteredData.totalCases,
+      total_deaths: filteredData.totalDeaths,
+      total_recovered: filteredData.totalRecovered
+    };
+  }, [isSliderMode, filteredData, selectedCountry]);
 
   // ✅ COMBINER les stats du pays sélectionné
   const selectedCountryStats = useMemo(() => {
