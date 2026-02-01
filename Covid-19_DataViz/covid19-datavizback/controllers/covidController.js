@@ -306,6 +306,15 @@ export const covidController = {
     }
   },
 
+  getAllTimeSeriesData: async (req, res, next) => {
+    try {
+      const data = await covidService.getAllTimeSeriesData();
+      res.json(data);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   get28DayVaccineDosesPerCountry: async (req, res, next) => {
     try {
       const data = await covidService.get28DayVaccineDosesPerCountry();

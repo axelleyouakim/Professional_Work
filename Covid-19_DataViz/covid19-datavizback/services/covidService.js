@@ -707,6 +707,110 @@ export const covidService = {
     }
   },
 
+  // ✅ NOUVEAU - Récupérer TOUTES les données time-series (cases, deaths, recovered)
+  getAllTimeSeriesData: async () => {
+    try {
+      console.log('📊 [getAllTimeSeriesData] Loading ALL time-series data (cases, deaths, recovered)...');
+      
+      // ✅ Charger les 3 CSV
+      const confirmedData = await fetchGitHubCSV('confirmed');
+      const deathsData = await fetchGitHubCSV('deaths');
+      const recoveredData = await fetchGitHubCSV('recovered');
+      
+      const confirmedRows = confirmedData.split('\n');
+      const deathsRows = deathsData.split('\n');
+      const recoveredRows = recoveredData.split('\n');
+      
+      const confirmedHeader = confirmedRows[0].split(',');
+      const dateColumns = confirmedHeader.slice(4); // Toutes les dates
+      
+      // Structure: { "US": { cases: {...}, deaths: {...}, recovered: {...} }, ... }
+      const countriesData = {};
+      
+      // ✅ Traiter les cas confirmés
+      for (let i = 1; i < confirmedRows.length; i++) {
+        if (!confirmedRows[i].trim()) continue;
+        
+        const columns = confirmedRows[i].split(',');
+        const country = columns[1]?.trim();
+        if (!country) continue;
+        
+        if (!countriesData[country]) {
+          countriesData[country] = { cases: {}, deaths: {}, recovered: {} };
+        }
+        
+        for (let j = 0; j < dateColumns.length; j++) {
+          const date = dateColumns[j].trim();
+          const cases = parseInt(columns[4 + j], 10) || 0;
+          
+          if (!countriesData[country].cases[date]) {
+            countriesData[country].cases[date] = 0;
+          }
+          countriesData[country].cases[date] += cases;
+        }
+      }
+      
+      // ✅ Traiter les deaths
+      for (let i = 1; i < deathsRows.length; i++) {
+        if (!deathsRows[i].trim()) continue;
+        
+        const columns = deathsRows[i].split(',');
+        const country = columns[1]?.trim();
+        if (!country) continue;
+        
+        if (!countriesData[country]) {
+          countriesData[country] = { cases: {}, deaths: {}, recovered: {} };
+        }
+        
+        for (let j = 0; j < dateColumns.length; j++) {
+          const date = dateColumns[j].trim();
+          const deaths = parseInt(columns[4 + j], 10) || 0;
+          
+          if (!countriesData[country].deaths[date]) {
+            countriesData[country].deaths[date] = 0;
+          }
+          countriesData[country].deaths[date] += deaths;
+        }
+      }
+      
+      // ✅ Traiter les recovered (peut être vide car arrêté en août 2021)
+      for (let i = 1; i < recoveredRows.length; i++) {
+        if (!recoveredRows[i].trim()) continue;
+        
+        const columns = recoveredRows[i].split(',');
+        const country = columns[1]?.trim();
+        if (!country) continue;
+        
+        if (!countriesData[country]) {
+          countriesData[country] = { cases: {}, deaths: {}, recovered: {} };
+        }
+        
+        for (let j = 0; j < dateColumns.length; j++) {
+          const date = dateColumns[j].trim();
+          const recovered = parseInt(columns[4 + j], 10) || 0;
+          
+          if (!countriesData[country].recovered[date]) {
+            countriesData[country].recovered[date] = 0;
+          }
+          countriesData[country].recovered[date] += recovered;
+        }
+      }
+      
+      console.log(`✅ Loaded time-series for ${Object.keys(countriesData).length} countries (cases, deaths, recovered)`);
+      
+      return {
+        countries: countriesData,
+        dates: dateColumns.map(d => d.trim()),
+        firstDate: dateColumns[0].trim(),
+        lastDate: dateColumns[dateColumns.length - 1].trim()
+      };
+      
+    } catch (error) {
+      console.error('❌ [getAllTimeSeriesData] Error:', error);
+      throw new AppError('Failed to load all time-series data', 500);
+    }
+  },
+
   // ✅ NOUVEAU - Données à une date spécifique
   getDataAtSpecificDate: async (dateString) => {
     try {

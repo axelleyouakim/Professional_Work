@@ -185,22 +185,50 @@ export const use28DayVaccineDosesPerCountry = () => {
   });
 };
 
-// ✅ HOOK - Time Series (global OU par pays)
-export const useCasesTimeSeries = (period = null, country = null) => {
+// ✅ HOOK - Time Series (avec filtre par date)
+export const useCasesTimeSeries = (period = null, country = null, maxDate = null) => {
   return useQuery({
     queryKey: covidKeys.timeSeriesCountry(country, period),
     queryFn: async () => {
       // Si un pays est sélectionné, utiliser l'endpoint spécifique
       if (country) {
         const response = await api.getCasesTimeSeriesByCountry(country, period);
-        return response?.data || [];
+        let data = response?.data || [];
+        
+        // ✅ Filtrer par date max si fournie
+        if (maxDate && data.length > 0) {
+          data = data.filter(item => item.date <= maxDate);
+          console.log(`📊 [useCasesTimeSeries] Filtered to ${maxDate}: ${data.length} points for ${country}`);
+        }
+        
+        return data;
       }
       
       // Sinon, utiliser l'endpoint global
       const response = await api.getCasesTimeSeries(period);
-      return response?.data || [];
+      let data = response?.data || [];
+      
+      // ✅ Filtrer par date max si fournie
+      if (maxDate && data.length > 0) {
+        data = data.filter(item => item.date <= maxDate);
+        console.log(`📊 [useCasesTimeSeries] Filtered to ${maxDate}: ${data.length} points (global)`);
+      }
+      
+      return data;
     },
-    enabled: true, // Toujours enabled (pas de dépendance sur country)
+    enabled: true,
+  });
+};
+
+// ✅ HOOK - Charger TOUTES les données time-series (une seule fois)
+export const useAllTimeSeriesData = () => {
+  return useQuery({
+    queryKey: ['allTimeSeriesData'],
+    queryFn: async () => {
+      return await api.getAllTimeSeriesData();
+    },
+    staleTime: Infinity, // Ne jamais recharger
+    cacheTime: Infinity, // Garder en cache pour toujours
   });
 };
 

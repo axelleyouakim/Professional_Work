@@ -93,6 +93,8 @@ export const api = {
   get28DayVaccineDosesPerCountry: () => fetchAPI('/get_28_day_vaccine_doses_per_country'),
 
   getCovidData: () => fetchAPI('/covid-data'),
+
+  getAllTimeSeriesData: () => fetchAPI('/get_all_timeseries'),
 };
 
 export const getCountries = api.getCountries;
@@ -119,5 +121,7 @@ export const getCasesTimeSeriesByCountry = api.getCasesTimeSeriesByCountry;
 
 export const getDataAtSpecificDate = api.getDataAtSpecificDate;
 export const getGlobalTotalsAtDate = api.getGlobalTotalsAtDate;
+
+export const getAllTimeSeriesData = api.getAllTimeSeriesData;
 
 export default api;

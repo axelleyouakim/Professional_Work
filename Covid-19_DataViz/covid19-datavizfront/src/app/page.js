@@ -1,23 +1,29 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Header from './components/Header';
 import './globals.css';
 
 export default function HomePage() {
   const [selectedPeriod, setSelectedPeriod] = useState({
-    label: "All Time",
-    days: null,
-    dateString: null, // ✅ NOUVEAU
-    dateObj: null,    // ✅ NOUVEAU
-    displayDate: null // ✅ NOUVEAU
+    dateString: '3/9/23', // ✅ Commencer à la dernière date par défaut
+    dateObj: new Date(2023, 2, 9),
+    displayDate: 'Mar 9, 2023',
+    dayIndex: 1224,
+    totalDays: 1225,
+    hasData: true
   });
 
   const handlePeriodChange = useCallback((newPeriod) => {
-    console.log('📅 [PAGE] Period changed to:', newPeriod);
+    console.log('📅 [PAGE] Period changed:', newPeriod);
     setSelectedPeriod(newPeriod);
   }, []);
+
+  // ✅ Log pour debug
+  useEffect(() => {
+    console.log('🔍 [PAGE] Current selectedPeriod:', selectedPeriod);
+  }, [selectedPeriod]);
 
   return (
     <div className="app-container">

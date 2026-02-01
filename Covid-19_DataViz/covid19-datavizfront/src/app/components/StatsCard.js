@@ -7,7 +7,8 @@ import {
   useGlobalTotalRecovered,
   useTotalCasesPerCountry,
   useTotalDeathsPerCountry,
-  useTotalRecoveredPerCountry
+  useTotalRecoveredPerCountry,
+  useGlobalTotalsAtDate
 } from '../hooks/useCovidData';
 import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
@@ -18,6 +19,7 @@ const StatsCard = ({
   period = null,
   selectedCountry = null,
   selectedCountryData = null,
+  globalStats = null,
   colorClass = 'red-text' 
 }) => {
   // ✅ TOUJOURS appeler TOUS les hooks (jamais conditionnellement)
@@ -25,33 +27,33 @@ const StatsCard = ({
   const globalDeathsQuery = useGlobalTotalDeaths(period);
   const globalRecoveredQuery = useGlobalTotalRecovered(period);
   
+  const globalCasesAtDateQuery = useGlobalTotalsAtDate(period);
+  const globalDeathsAtDateQuery = useGlobalTotalsAtDate(period);
+  
   const casesPerCountryQuery = useTotalCasesPerCountry(period);
   const deathsPerCountryQuery = useTotalDeathsPerCountry(period);
   const recoveredPerCountryQuery = useTotalRecoveredPerCountry(period);
+  
+  // ✅ PUIS décider quelle query utiliser
+  const isDateMode = period && typeof period === 'string' && period.includes('/');
+  
+  const casesQuery = isDateMode ? globalCasesAtDateQuery : globalCasesQuery;
+  const deathsQuery = isDateMode ? globalDeathsAtDateQuery : globalDeathsQuery;
+  const recoveredQuery = globalRecoveredQuery;
 
-  // ✅ Sélectionner la query appropriée APRÈS les avoir toutes appelées
-  const globalQuery = type === 'deaths' 
-    ? globalDeathsQuery 
-    : type === 'recovered' 
-    ? globalRecoveredQuery 
-    : globalCasesQuery;
-    
-  const perCountryQuery = type === 'deaths' 
-    ? deathsPerCountryQuery 
-    : type === 'recovered' 
-    ? recoveredPerCountryQuery 
-    : casesPerCountryQuery;
+  const globalQuery = type === 'deaths' ? deathsQuery : type === 'recovered' ? recoveredQuery : casesQuery;
+  const perCountryQuery = type === 'deaths' ? deathsPerCountryQuery : type === 'recovered' ? recoveredPerCountryQuery : casesPerCountryQuery;
 
-  // ✅ Calculer la valeur à afficher
   const displayValue = useMemo(() => {
-    // Si pays sélectionné
+    // ✅ Si on a des globalStats (mode slider), utiliser ça
+    if (globalStats) {
+      const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
+      return globalStats[key];
+    }
+    
     if (selectedCountry) {
       if (selectedCountryData) {
-        const key = type === 'deaths' 
-          ? 'total_deaths' 
-          : type === 'recovered' 
-          ? 'total_recovered' 
-          : 'total_cases';
+        const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
         return selectedCountryData[key];
       }
       
@@ -60,19 +62,18 @@ const StatsCard = ({
           c => c.country.toLowerCase() === selectedCountry.toLowerCase()
         );
         if (countryData) {
-          const key = type === 'deaths' 
-            ? 'total_deaths' 
-            : type === 'recovered' 
-            ? 'total_recovered' 
-            : 'total_cases';
+          const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
           return countryData[key];
         }
       }
     }
     
-    // Valeur globale
+    if (isDateMode && globalQuery.data) {
+      return type === 'deaths' ? globalQuery.data.total_deaths : globalQuery.data.total_cases;
+    }
+    
     return globalQuery.data;
-  }, [selectedCountry, selectedCountryData, perCountryQuery.data, globalQuery.data, type]);
+  }, [globalStats, selectedCountry, selectedCountryData, perCountryQuery.data, globalQuery.data, type, isDateMode]);
 
   return (
     <QueryStateWrapper 
@@ -84,8 +85,13 @@ const StatsCard = ({
         <div className="stat-box">
           <h3 className="stat-label">{label}</h3>
           <p className={`stat-value ${colorClass}`}>
-            {displayValue?.toLocaleString() || "No data available"}
+            {displayValue != null ? displayValue.toLocaleString() : "0"}
           </p>
+          {type === 'recovered' && displayValue === 0 && (
+            <p style={{ fontSize: '11px', color: '#999', marginTop: '5px' }}>
+              ⚠️ Data collection ended Aug 2021
+            </p>
+          )}
           {selectedCountry && (
             <p className="stat-country-indicator" style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
               📍 Country View

@@ -1,148 +1,160 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { useDebounce } from '../hooks/useDebounce';
+import React, { useState, useCallback, useMemo } from 'react';
 import './TimelineSlider.css';
 
 const TimelineSlider = ({ onPeriodChange }) => {
-  const LAST_DATA_DATE = useMemo(() => new Date('2023-03-09'), []);
-
-  const periods = useMemo(() => [
-    { id: 0, label: 'All Time', days: null, shortLabel: 'All' },
-    { id: 1, label: 'Last 7 Days', days: 7, shortLabel: '7d' },
-    { id: 2, label: 'Last 14 Days', days: 14, shortLabel: '14d' },
-    { id: 3, label: 'Last Month', days: 30, shortLabel: '1m' },
-    { id: 4, label: 'Last 2 Months', days: 60, shortLabel: '2m' },
-    { id: 5, label: 'Last 3 Months', days: 90, shortLabel: '3m' },
-    { id: 6, label: 'Last 6 Months', days: 180, shortLabel: '6m' },
-    { id: 7, label: 'Last Year', days: 365, shortLabel: '1y' },
-  ], []);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [sliderValue, setSliderValue] = useState(0);
-  const [isSliding, setIsSliding] = useState(false);
-
-  const debouncedSliderValue = useDebounce(sliderValue, 500);
-
-  useEffect(() => {
-    const selectedPeriod = periods[debouncedSliderValue];
-    console.log('🎯 [TimelineSlider] Period changed, updating ALL components:', selectedPeriod.label);
-    onPeriodChange(selectedPeriod);
-  }, [debouncedSliderValue, periods, onPeriodChange]);
-
-  const handleSliderChange = useCallback((e) => {
-    const newValue = parseInt(e.target.value, 10);
-    setSliderValue(newValue);
-    setIsSliding(true);
-  }, []);
-
-  const handleSliderMouseUp = useCallback(() => {
-    setIsSliding(false);
-  }, []);
-
-  const handleOpenModal = useCallback(() => {
-    setIsModalOpen(true);
-  }, []);
-
-  const handleCloseModal = useCallback(() => {
-    setIsModalOpen(false);
-  }, []);
-
-  const getCurrentPeriod = useMemo(() => {
-    return periods[sliderValue];
-  }, [sliderValue, periods]);
-
-  const getDateRange = useMemo(() => {
-    if (!getCurrentPeriod.days) {
-      return 'Jan 22, 2020 → Mar 9, 2023';
+  // ✅ Générer toutes les dates entre 1 Nov 2019 et 9 Mars 2023
+  const allDates = useMemo(() => {
+    const dates = [];
+    const startDate = new Date(2019, 10, 1); // 1er Novembre 2019 (AVANT le COVID)
+    const endDate = new Date(2023, 2, 9);     // 9 Mars 2023
+    const firstDataDate = new Date(2020, 0, 22); // 22 Jan 2020 (première vraie donnée)
+    
+    let currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      const month = currentDate.getMonth() + 1;
+      const day = currentDate.getDate();
+      const year = currentDate.getFullYear() % 100; // Format YY
+      
+      // ✅ Si on est AVANT le 22 jan 2020, marquer comme "no data"
+      const hasData = currentDate >= firstDataDate;
+      
+      dates.push({
+        dateString: `${month}/${day}/${year}`,
+        dateObj: new Date(currentDate),
+        displayDate: currentDate.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        }),
+        hasData: hasData // ✅ NOUVEAU: indique si il y a des données à cette date
+      });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    const endDate = new Date(LAST_DATA_DATE);
-    const startDate = new Date(LAST_DATA_DATE);
-    startDate.setDate(endDate.getDate() - getCurrentPeriod.days);
+    return dates;
+  }, []);
+
+  // ✅ État : index du slider (0 = Jan 22 2020, max = Mars 9 2023)
+  const [sliderIndex, setSliderIndex] = useState(allDates.length - 1); // Commence à la fin
+
+  // ✅ Date sélectionnée
+  const selectedDate = allDates[sliderIndex];
+
+  // ✅ Handler pour bouger le slider
+  const handleSliderChange = useCallback((e) => {
+    const newIndex = parseInt(e.target.value, 10);
+    setSliderIndex(newIndex);
     
-    const formatDate = (date) => {
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+    const date = allDates[newIndex];
+    
+    console.log(`📅 [TimelineSlider] Slider moved to: ${date.displayDate} (index ${newIndex})`);
+    
+    // ✅ Notifier le parent
+    if (onPeriodChange) {
+      onPeriodChange({
+        dateString: date.dateString,      // "3/15/20" pour l'API
+        dateObj: date.dateObj,             // Date object
+        displayDate: date.displayDate,     // "Mar 15, 2020" pour affichage
+        dayIndex: newIndex,                // Index du jour
+        totalDays: allDates.length         // Total de jours
       });
-    };
-    
-    return `${formatDate(startDate)} → ${formatDate(endDate)}`;
-  }, [getCurrentPeriod, LAST_DATA_DATE]);
+    }
+  }, [allDates, onPeriodChange]);
+
+  // ✅ Boutons de contrôle
+  const goToStart = useCallback(() => {
+    setSliderIndex(0);
+  }, []);
+
+  const goToEnd = useCallback(() => {
+    setSliderIndex(allDates.length - 1);
+  }, [allDates.length]);
+
+  const stepBackward = useCallback(() => {
+    setSliderIndex(prev => Math.max(0, prev - 7)); // Recule de 7 jours
+  }, []);
+
+  const stepForward = useCallback(() => {
+    setSliderIndex(prev => Math.min(allDates.length - 1, prev + 7)); // Avance de 7 jours
+  }, [allDates.length]);
 
   return (
-    <>
-      <button 
-        className="timeline-compact-btn"
-        onClick={handleOpenModal}
-        title="Change time period"
-      >
-        <span className="timeline-compact-icon">📅</span>
-        <span className="timeline-compact-text">{getCurrentPeriod.label}</span>
-        <span className="timeline-compact-arrow">▼</span>
-      </button>
-
-      {isModalOpen && (
-        <div className="timeline-modal-overlay" onClick={handleCloseModal}>
-          <div className="timeline-modal timeline-modal-slider" onClick={(e) => e.stopPropagation()}>
-            <div className="timeline-modal-header">
-              <h4 className="timeline-modal-title">Select Time Period</h4>
-              <button 
-                className="timeline-modal-close"
-                onClick={handleCloseModal}
-                title="Close"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="timeline-modal-content timeline-modal-slider-content">
-              <div className="timeline-slider-display">
-                <div className="timeline-slider-label">{getCurrentPeriod.label}</div>
-                <div className="timeline-slider-range">{getDateRange}</div>
-              </div>
-
-              <div className="timeline-slider-track-container">
-                <input
-                  type="range"
-                  min="0"
-                  max={periods.length - 1}
-                  value={sliderValue}
-                  onChange={handleSliderChange}
-                  onMouseUp={handleSliderMouseUp}
-                  onTouchEnd={handleSliderMouseUp}
-                  className="timeline-slider-input"
-                  aria-label="Select time period"
-                />
-                
-                <div className="timeline-slider-labels">
-                  {periods.map((period) => (
-                    <span key={period.id} className="timeline-slider-label-mark">
-                      {period.shortLabel}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {isSliding && (
-                <div className="timeline-slider-info">
-                  ⏳ Updating all components... (stops when you release)
-                </div>
-              )}
-
-              <button 
-                className="timeline-modal-done-btn"
-                onClick={handleCloseModal}
-              >
-                Done
-              </button>
-            </div>
-          </div>
+    <div className="timeline-slider-container">
+      {/* Header avec date sélectionnée */}
+      <div className="timeline-header">
+        <div className="timeline-date-display">
+          <span className="timeline-label">📅 Selected Date:</span>
+          <span className="timeline-date">{selectedDate?.displayDate}</span>
         </div>
-      )}
-    </>
+        <div className="timeline-progress">
+          <span className="timeline-label">Day {sliderIndex + 1} / {allDates.length}</span>
+        </div>
+      </div>
+
+      {/* Contrôles */}
+      <div className="timeline-controls">
+        <button 
+          className="timeline-btn" 
+          onClick={goToStart}
+          title="Go to start (Jan 22, 2020)"
+        >
+          ⏮ Start
+        </button>
+        <button 
+          className="timeline-btn" 
+          onClick={stepBackward}
+          title="Go back 7 days"
+        >
+          ⏪ -7d
+        </button>
+        <button 
+          className="timeline-btn" 
+          onClick={stepForward}
+          title="Go forward 7 days"
+        >
+          +7d ⏩
+        </button>
+        <button 
+          className="timeline-btn" 
+          onClick={goToEnd}
+          title="Go to end (Mar 9, 2023)"
+        >
+          End ⏭
+        </button>
+      </div>
+
+      {/* Slider principal */}
+      <div className="timeline-slider-wrapper">
+        <div className="timeline-slider-labels">
+          <span className="timeline-slider-label">Jan 22, 2020 (Start)</span>
+          <span className="timeline-slider-label">Mar 9, 2023 (End)</span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max={allDates.length - 1}
+          value={sliderIndex}
+          onChange={handleSliderChange}
+          className="timeline-slider"
+        />
+        <div 
+          className="timeline-slider-progress"
+          style={{ width: `${(sliderIndex / (allDates.length - 1)) * 100}%` }}
+        />
+      </div>
+
+      {/* Info */}
+      <div className="timeline-info">
+        {!selectedDate?.hasData && '⚪ Before COVID-19 - No cases recorded'}
+        {selectedDate?.hasData && sliderIndex <= 100 && `📊 Early pandemic - Data starting ${selectedDate?.displayDate}`}
+        {selectedDate?.hasData && sliderIndex > 100 && sliderIndex < allDates.length - 1 && `📊 Cumulative data up to ${selectedDate?.displayDate}`}
+        {sliderIndex === allDates.length - 1 && '✅ Most recent data available'}
+      </div>
+    </div>
   );
 };
 

@@ -51,4 +51,6 @@ router.get('/get_available_date_range', cacheMiddleware(3600), covidController.g
 router.get('/get_data_at_date', cacheMiddleware(3600), covidController.getDataAtSpecificDate);
 router.get('/get_global_totals_at_date', cacheMiddleware(3600), covidController.getGlobalTotalsAtDate);
 
+router.get('/get_all_timeseries', cacheMiddleware(7200), covidController.getAllTimeSeriesData);
+
 export default router;
