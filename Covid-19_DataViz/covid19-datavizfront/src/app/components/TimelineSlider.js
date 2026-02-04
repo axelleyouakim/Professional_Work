@@ -130,7 +130,7 @@ const TimelineSlider = ({ onPeriodChange }) => {
       {/* Slider principal */}
       <div className="timeline-slider-wrapper">
         <div className="timeline-slider-labels">
-          <span className="timeline-slider-label">Jan 22, 2020 (Start)</span>
+          <span className="timeline-slider-label">Nov 1, 2019 (Start - No data yet)</span>
           <span className="timeline-slider-label">Mar 9, 2023 (End)</span>
         </div>
         <input

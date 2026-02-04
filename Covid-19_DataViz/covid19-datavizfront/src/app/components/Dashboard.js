@@ -27,21 +27,35 @@ const Dashboard = ({
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [searchTerm, setSearchTerm] = useState('');
 
+  // ═════════════════════════════════════════════════════════
+  // ✅ TOUS LES HOOKS DOIVENT ÊTRE APPELÉS EN PREMIER
+  // ═════════════════════════════════════════════════════════
+  
   // ✅ Charger TOUTES les données time-series UNE SEULE FOIS
   const allTimeSeriesData = useAllTimeSeriesData();
   
   // ✅ Déterminer le mode : slider ou normal
   const isSliderMode = selectedPeriod?.dateString != null && selectedPeriod.dateString !== '';
-console.log('🔍 [Dashboard] isSliderMode DEBUG:', { 
-  dateString: selectedPeriod?.dateString, 
-  hasData: selectedPeriod?.hasData,
-  isSliderMode: selectedPeriod?.dateString != null && selectedPeriod.dateString !== ''
-});
   const hasNoData = selectedPeriod?.hasData === false;
+  
+  // ✅ Query param pour l'API (si pas en mode slider)
+  const queryParam = isSliderMode ? null : null;
+  
+  // ✅ TOUJOURS appeler les hooks (même si on ne les utilise pas en mode slider)
+  const apiCasesQuery = useTotalCasesPerCountry(queryParam);
+  const apiDeathsQuery = useTotalDeathsPerCountry(queryParam);
+  const apiRecoveredQuery = useTotalRecoveredPerCountry(queryParam);
+  const chartData = useCasesTimeSeries(queryParam, selectedCountry);
   
   // ✅ Filtrer les données selon la date du slider (côté client)
   const filteredData = useMemo(() => {
     if (!isSliderMode || !allTimeSeriesData.data) {
+      return null;
+    }
+    
+    // ✅ VÉRIFICATION CRITIQUE : s'assurer que countries existe
+    if (!allTimeSeriesData.data.countries) {
+      console.warn('⚠️ [Dashboard] Countries data not ready yet');
       return null;
     }
     
@@ -107,6 +121,12 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
   // ✅ Créer les données du graphique à partir des données filtrées
   const chartTimelineData = useMemo(() => {
     if (!isSliderMode || !allTimeSeriesData.data) {
+      return null;
+    }
+    
+    // ✅ VÉRIFICATION CRITIQUE
+    if (!allTimeSeriesData.data.countries || !allTimeSeriesData.data.dates) {
+      console.warn('⚠️ [Dashboard] Timeline data not ready yet');
       return null;
     }
     
@@ -190,39 +210,36 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
     return timeline;
   }, [isSliderMode, allTimeSeriesData.data, selectedPeriod, selectedCountry]);
   
-  // ✅ Query param pour l'API (si pas en mode slider)
-  const queryParam = isSliderMode ? null : null;
-  
-  // ✅ TOUJOURS appeler les hooks
-  const apiCasesQuery = useTotalCasesPerCountry(queryParam);
-  const apiDeathsQuery = useTotalDeathsPerCountry(queryParam);
-  const apiRecoveredQuery = useTotalRecoveredPerCountry(queryParam);
-  const chartData = useCasesTimeSeries(queryParam, selectedCountry);
-  
   // ✅ Utiliser les données filtrées si en mode slider
-  const totalCasesPerCountry = isSliderMode && allTimeSeriesData.data
-    ? { 
-        data: filteredData?.casesPerCountry || [],
-        isLoading: allTimeSeriesData.isLoading,
-        error: allTimeSeriesData.error
-      }
-    : apiCasesQuery;
+  const totalCasesPerCountry = useMemo(() => {
+    return isSliderMode && allTimeSeriesData.data
+      ? { 
+          data: filteredData?.casesPerCountry || [],
+          isLoading: allTimeSeriesData.isLoading,
+          error: allTimeSeriesData.error
+        }
+      : apiCasesQuery;
+  }, [isSliderMode, allTimeSeriesData.data, allTimeSeriesData.isLoading, allTimeSeriesData.error, filteredData, apiCasesQuery]);
   
-  const totalDeathsPerCountry = isSliderMode && allTimeSeriesData.data
-    ? { 
-        data: filteredData?.deathsPerCountry || [],
-        isLoading: allTimeSeriesData.isLoading,
-        error: allTimeSeriesData.error
-      }
-    : apiDeathsQuery;
+  const totalDeathsPerCountry = useMemo(() => {
+    return isSliderMode && allTimeSeriesData.data
+      ? { 
+          data: filteredData?.deathsPerCountry || [],
+          isLoading: allTimeSeriesData.isLoading,
+          error: allTimeSeriesData.error
+        }
+      : apiDeathsQuery;
+  }, [isSliderMode, allTimeSeriesData.data, allTimeSeriesData.isLoading, allTimeSeriesData.error, filteredData, apiDeathsQuery]);
   
-  const totalRecoveredPerCountry = isSliderMode && allTimeSeriesData.data
-    ? { 
-        data: filteredData?.recoveredPerCountry || [],
-        isLoading: allTimeSeriesData.isLoading,
-        error: allTimeSeriesData.error
-      }
-    : apiRecoveredQuery;
+  const totalRecoveredPerCountry = useMemo(() => {
+    return isSliderMode && allTimeSeriesData.data
+      ? { 
+          data: filteredData?.recoveredPerCountry || [],
+          isLoading: allTimeSeriesData.isLoading,
+          error: allTimeSeriesData.error
+        }
+      : apiRecoveredQuery;
+  }, [isSliderMode, allTimeSeriesData.data, allTimeSeriesData.isLoading, allTimeSeriesData.error, filteredData, apiRecoveredQuery]);
 
   // ✅ Stats globales OU par pays pour les StatsCards
   const globalStats = useMemo(() => {
@@ -230,7 +247,6 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
     
     // ✅ SI UN PAYS EST SÉLECTIONNÉ
     if (selectedCountry) {
-      // Chercher les stats du pays dans les données filtrées
       const countryCase = filteredData.casesPerCountry.find(
         c => c.country.toLowerCase() === selectedCountry.toLowerCase()
       );
@@ -240,12 +256,6 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
       const countryRecovered = filteredData.recoveredPerCountry.find(
         c => c.country.toLowerCase() === selectedCountry.toLowerCase()
       );
-      
-      console.log(`📊 [Dashboard] Stats for ${selectedCountry}:`, {
-        cases: countryCase?.total_cases || 0,
-        deaths: countryDeath?.total_deaths || 0,
-        recovered: countryRecovered?.total_recovered || 0
-      });
       
       return {
         total_cases: countryCase?.total_cases || 0,
@@ -262,7 +272,6 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
     };
   }, [isSliderMode, filteredData, selectedCountry]);
 
-  // ✅ COMBINER les stats du pays sélectionné
   const selectedCountryStats = useMemo(() => {
     if (!selectedCountry) return null;
     
@@ -288,13 +297,11 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
     };
   }, [selectedCountry, totalCasesPerCountry.data, totalDeathsPerCountry.data, totalRecoveredPerCountry.data]);
 
-  // ✅ Handler pour sélectionner un pays
   const handleCountryClick = useCallback((countryName) => {
     console.log('🌍 Country selected:', countryName);
     setSelectedCountry(countryName);
   }, []);
 
-  // ✅ Handler pour retour à la vue globale
   const handleBackToGlobal = useCallback(() => {
     console.log('🌍 Back to global view');
     setSelectedCountry(null);
@@ -308,9 +315,72 @@ console.log('🔍 [Dashboard] isSliderMode DEBUG:', {
     setAdminLevel(level);
   }, []);
 
-  console.log('🔍 [Dashboard] chartTimelineData:', chartTimelineData?.length, 'points');
-  console.log('🔍 [Dashboard] isSliderMode:', isSliderMode);
-  console.log('🔍 [Dashboard] selectedPeriod:', selectedPeriod);
+  // ═════════════════════════════════════════════════════════
+  // ✅ EARLY RETURNS APRÈS TOUS LES HOOKS
+  // ═════════════════════════════════════════════════════════
+  
+  // ✅ AFFICHER LOADING SI allTimeSeriesData EN COURS DE CHARGEMENT
+  if (isSliderMode && allTimeSeriesData.isLoading) {
+    return (
+      <div className="dashboard-grid">
+        <div style={{ 
+          gridColumn: '1 / -1', 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '80vh',
+          gap: '20px'
+        }}>
+          <div className="spinner" style={{ width: '50px', height: '50px' }}></div>
+          <p style={{ color: '#999', fontSize: '18px' }}>
+            Loading timeline data... (this may take 10-20 seconds)
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ AFFICHER ERREUR SI allTimeSeriesData A ÉCHOUÉ
+  if (isSliderMode && allTimeSeriesData.error) {
+    return (
+      <div className="dashboard-grid">
+        <div style={{ 
+          gridColumn: '1 / -1', 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '80vh',
+          gap: '20px',
+          color: '#ff4444'
+        }}>
+          <span style={{ fontSize: '48px' }}>⚠️</span>
+          <p style={{ fontSize: '18px' }}>Failed to load timeline data</p>
+          <p style={{ fontSize: '14px', color: '#999' }}>
+            {allTimeSeriesData.error.message}
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '10px 20px',
+              background: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ═════════════════════════════════════════════════════════
+  // ✅ RENDER PRINCIPAL
+  // ═════════════════════════════════════════════════════════
 
   return (
     <div className="dashboard-grid">
