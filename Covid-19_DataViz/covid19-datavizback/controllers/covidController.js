@@ -322,5 +322,14 @@ export const covidController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  getAllCountryNames: async (req, res, next) => {
+  try {
+    const data = await covidService.getAllCountryNames();
+    res.json(data);
+  } catch (error) {
+    next(error);
   }
+}
 };

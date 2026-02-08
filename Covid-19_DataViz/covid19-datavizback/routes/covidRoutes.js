@@ -53,4 +53,6 @@ router.get('/get_global_totals_at_date', cacheMiddleware(3600), covidController.
 
 router.get('/get_all_timeseries', cacheMiddleware(7200), covidController.getAllTimeSeriesData);
 
+router.get('/get_all_country_names', cacheMiddleware(3600), covidController.getAllCountryNames);
+
 export default router;

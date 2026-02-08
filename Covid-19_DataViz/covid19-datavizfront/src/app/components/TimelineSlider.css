@@ -44,6 +44,205 @@
   transition: transform 0.3s ease;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   📅 TIMELINE SLIDER - COMPACT MODE
+   ═══════════════════════════════════════════════════════════ */
+
+.timeline-slider-container {
+  background: rgba(26, 26, 46, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px 12px;
+  backdrop-filter: blur(10px);
+}
+
+/* ──────────────────────────────────────────────────────────
+   HEADER - Tout sur une ligne (COMPACT)
+   ────────────────────────────────────────────────────────── */
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.timeline-date-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.timeline-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.timeline-date {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.timeline-progress {
+  flex: 0 0 auto;
+}
+
+.timeline-progress .timeline-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+}
+
+/* ──────────────────────────────────────────────────────────
+   CONTROLS - Boutons compacts sur une ligne
+   ────────────────────────────────────────────────────────── */
+.timeline-controls {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 6px;
+  flex-wrap: nowrap;
+}
+
+.timeline-btn {
+  flex: 1;
+  min-width: 50px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.timeline-btn:hover {
+  background: rgba(255, 70, 70, 0.2);
+  border-color: rgba(255, 70, 70, 0.4);
+  transform: translateY(-1px);
+}
+
+.timeline-btn:active {
+  transform: translateY(0);
+}
+
+/* ──────────────────────────────────────────────────────────
+   SLIDER - Compact
+   ────────────────────────────────────────────────────────── */
+.timeline-slider-wrapper {
+  position: relative;
+  margin-bottom: 6px;
+}
+
+.timeline-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  gap: 4px;
+}
+
+.timeline-slider-label {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Style du slider */
+.timeline-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  outline: none;
+  position: relative;
+  cursor: pointer;
+}
+
+/* Barre de progression */
+.timeline-slider-progress {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #ff4444, #cc0000);
+  border-radius: 2px;
+  pointer-events: none;
+  transform: translateY(-50%);
+  box-shadow: 0 0 6px rgba(255, 70, 70, 0.4);
+  transition: width 0.1s ease;
+}
+
+/* Thumb - WebKit */
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1px solid #fff;
+  box-shadow: 0 1px 4px rgba(255, 70, 70, 0.5);
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.timeline-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(255, 70, 70, 0.7);
+}
+
+.timeline-slider::-webkit-slider-thumb:active {
+  transform: scale(1.05);
+}
+
+/* Thumb - Firefox */
+.timeline-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1px solid #fff;
+  box-shadow: 0 1px 4px rgba(255, 70, 70, 0.5);
+  transition: all 0.2s ease;
+}
+
+.timeline-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(255, 70, 70, 0.7);
+}
+
+/* ──────────────────────────────────────────────────────────
+   INFO - Compact en bas
+   ────────────────────────────────────────────────────────── */
+.timeline-info {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 4px 8px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
 /* ──────────────────────────────────────────────────────────
    MODAL OVERLAY
    ────────────────────────────────────────────────────────── */
@@ -75,7 +274,7 @@
 }
 
 /* ──────────────────────────────────────────────────────────
-   MODAL (Contient le slider)
+   MODAL
    ────────────────────────────────────────────────────────── */
 .timeline-modal {
   background: linear-gradient(135deg, rgba(26, 47, 63, 0.98) 0%, rgba(16, 32, 48, 0.98) 100%);
@@ -99,9 +298,6 @@
   }
 }
 
-/* ──────────────────────────────────────────────────────────
-   MODAL HEADER
-   ────────────────────────────────────────────────────────── */
 .timeline-modal-header {
   padding: 20px 24px;
   border-bottom: 1px solid rgba(42, 74, 95, 0.4);
@@ -141,9 +337,6 @@
   transform: rotate(90deg);
 }
 
-/* ──────────────────────────────────────────────────────────
-   MODAL CONTENT (Contient le slider)
-   ────────────────────────────────────────────────────────── */
 .timeline-modal-content {
   padding: 24px;
 }
@@ -154,23 +347,12 @@
   gap: 20px;
 }
 
-/* ──────────────────────────────────────────────────────────
-   SLIDER DISPLAY (Période sélectionnée)
-   ────────────────────────────────────────────────────────── */
 .timeline-slider-display {
   background: rgba(42, 74, 95, 0.4);
   border: 1px solid rgba(58, 90, 122, 0.3);
   border-radius: 12px;
   padding: 16px 20px;
   text-align: center;
-}
-
-.timeline-slider-label {
-  color: #ffffff;
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 8px;
-  letter-spacing: 0.5px;
 }
 
 .timeline-slider-range {
@@ -180,17 +362,11 @@
   letter-spacing: 0.2px;
 }
 
-/* ──────────────────────────────────────────────────────────
-   SLIDER TRACK CONTAINER
-   ────────────────────────────────────────────────────────── */
 .timeline-slider-track-container {
   position: relative;
   padding: 10px 0 30px 0;
 }
 
-/* ──────────────────────────────────────────────────────────
-   RANGE INPUT - Le slider
-   ────────────────────────────────────────────────────────── */
 .timeline-slider-input {
   -webkit-appearance: none;
   appearance: none;
@@ -214,11 +390,6 @@
     rgba(33, 150, 243, 0.4) 100%);
 }
 
-/* ──────────────────────────────────────────────────────────
-   SLIDER THUMB (La poignée)
-   ────────────────────────────────────────────────────────── */
-
-/* Webkit */
 .timeline-slider-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -239,13 +410,6 @@
               0 0 0 6px rgba(33, 150, 243, 0.3);
 }
 
-.timeline-slider-input::-webkit-slider-thumb:active {
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.8), 
-              0 0 0 8px rgba(33, 150, 243, 0.4);
-}
-
-/* Firefox */
 .timeline-slider-input::-moz-range-thumb {
   width: 24px;
   height: 24px;
@@ -264,22 +428,6 @@
               0 0 0 6px rgba(33, 150, 243, 0.3);
 }
 
-.timeline-slider-input::-moz-range-thumb:active {
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.8), 
-              0 0 0 8px rgba(33, 150, 243, 0.4);
-}
-
-/* ──────────────────────────────────────────────────────────
-   SLIDER LABELS (Sous le slider)
-   ────────────────────────────────────────────────────────── */
-.timeline-slider-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding: 0 4px;
-}
-
 .timeline-slider-label-mark {
   color: #b0c4de;
   font-size: 11px;
@@ -296,9 +444,6 @@
   transform: translateY(-2px);
 }
 
-/* ──────────────────────────────────────────────────────────
-   INFO MESSAGE (Debouncing)
-   ────────────────────────────────────────────────────────── */
 .timeline-slider-info {
   background: rgba(255, 152, 0, 0.15);
   border: 1px solid rgba(255, 152, 0, 0.3);
@@ -322,9 +467,6 @@
   }
 }
 
-/* ──────────────────────────────────────────────────────────
-   DONE BUTTON
-   ────────────────────────────────────────────────────────── */
 .timeline-modal-done-btn {
   background: linear-gradient(135deg, rgba(33, 150, 243, 0.35) 0%, rgba(33, 150, 243, 0.15) 100%);
   border: 1.5px solid rgba(33, 150, 243, 0.6);
@@ -350,10 +492,49 @@
   transform: translateY(0);
 }
 
-/* ──────────────────────────────────────────────────────────
-   RESPONSIVE
-   ────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   📱 RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+  .timeline-slider-container {
+    padding: 6px 10px;
+  }
+
+  .timeline-header {
+    gap: 4px;
+  }
+
+  .timeline-label {
+    font-size: 8px;
+  }
+
+  .timeline-date {
+    font-size: 9px;
+  }
+
+  .timeline-progress .timeline-label {
+    font-size: 8px;
+  }
+
+  .timeline-controls {
+    gap: 2px;
+  }
+
+  .timeline-btn {
+    min-width: 45px;
+    font-size: 8px;
+    padding: 3px 5px;
+  }
+
+  .timeline-slider-label {
+    font-size: 7px;
+  }
+
+  .timeline-info {
+    font-size: 7px;
+    padding: 3px 6px;
+  }
+
   .timeline-modal {
     max-width: 90vw;
     border-radius: 12px;
@@ -365,28 +546,5 @@
 
   .timeline-modal-content {
     padding: 20px;
-  }
-
-  .timeline-compact-btn {
-    font-size: 12px;
-    padding: 10px 14px;
-  }
-
-  .timeline-slider-label {
-    font-size: 18px;
-  }
-
-  .timeline-slider-range {
-    font-size: 11px;
-  }
-
-  .timeline-slider-input::-webkit-slider-thumb {
-    width: 20px;
-    height: 20px;
-  }
-
-  .timeline-slider-input::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
   }
 }

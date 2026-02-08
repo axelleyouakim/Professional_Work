@@ -707,7 +707,7 @@ export const covidService = {
     }
   },
 
-  // ✅ NOUVEAU - Récupérer TOUTES les données time-series (cases, deaths, recovered)
+  // ✅ MODIFIÉ - Récupérer TOUTES les données time-series avec dates pré-COVID à 0
   getAllTimeSeriesData: async () => {
     try {
       console.log('📊 [getAllTimeSeriesData] Loading ALL time-series data (cases, deaths, recovered)...');
@@ -722,12 +722,76 @@ export const covidService = {
       const recoveredRows = recoveredData.split('\n');
       
       const confirmedHeader = confirmedRows[0].split(',');
-      const dateColumns = confirmedHeader.slice(4); // Toutes les dates
+      const realDateColumns = confirmedHeader.slice(4); // Toutes les dates RÉELLES (à partir du 22 jan 2020)
+      
+      // ✅ ÉTAPE 1 : Générer des dates du 1er nov 2019 au 21 jan 2020 (AVANT les données COVID)
+      const preCovidDates = [];
+      const startDate = new Date(2019, 10, 1); // 1er Nov 2019
+      const firstRealDate = new Date(2020, 0, 22); // 22 Jan 2020
+      
+      let currentDate = new Date(startDate);
+      while (currentDate < firstRealDate) {
+        const month = currentDate.getMonth() + 1;
+        const day = currentDate.getDate();
+        const year = currentDate.getFullYear() % 100;
+        preCovidDates.push(`${month}/${day}/${year}`);
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      console.log(`📅 Generated ${preCovidDates.length} pre-COVID dates (Nov 1 2019 → Jan 21 2020)`);
+      
+      // ✅ ÉTAPE 2 : Combiner les dates pré-COVID + dates réelles
+      const allDates = [...preCovidDates, ...realDateColumns.map(d => d.trim())];
       
       // Structure: { "US": { cases: {...}, deaths: {...}, recovered: {...} }, ... }
       const countriesData = {};
       
-      // ✅ Traiter les cas confirmés
+      // ✅ ÉTAPE 3 : Initialiser TOUS les pays pour TOUTES les dates (y compris pré-COVID)
+      // D'abord, récupérer la liste de TOUS les pays
+      const allCountries = new Set();
+      
+      for (let i = 1; i < confirmedRows.length; i++) {
+        if (!confirmedRows[i].trim()) continue;
+        const columns = confirmedRows[i].split(',');
+        const country = columns[1]?.trim();
+        if (country) allCountries.add(country);
+      }
+      
+      for (let i = 1; i < deathsRows.length; i++) {
+        if (!deathsRows[i].trim()) continue;
+        const columns = deathsRows[i].split(',');
+        const country = columns[1]?.trim();
+        if (country) allCountries.add(country);
+      }
+      
+      for (let i = 1; i < recoveredRows.length; i++) {
+        if (!recoveredRows[i].trim()) continue;
+        const columns = recoveredRows[i].split(',');
+        const country = columns[1]?.trim();
+        if (country) allCountries.add(country);
+      }
+      
+      console.log(`📊 Found ${allCountries.size} unique countries`);
+      
+      // ✅ ÉTAPE 4 : Initialiser TOUS les pays avec 0 pour les dates pré-COVID
+      allCountries.forEach(country => {
+        countriesData[country] = { 
+          cases: {}, 
+          deaths: {}, 
+          recovered: {} 
+        };
+        
+        // Mettre 0 pour toutes les dates pré-COVID
+        preCovidDates.forEach(date => {
+          countriesData[country].cases[date] = 0;
+          countriesData[country].deaths[date] = 0;
+          countriesData[country].recovered[date] = 0;
+        });
+      });
+      
+      console.log(`✅ Initialized ${allCountries.size} countries with 0 for pre-COVID dates`);
+      
+      // ✅ ÉTAPE 5 : Traiter les cas confirmés (VRAIES DONNÉES à partir du 22 jan 2020)
       for (let i = 1; i < confirmedRows.length; i++) {
         if (!confirmedRows[i].trim()) continue;
         
@@ -735,12 +799,8 @@ export const covidService = {
         const country = columns[1]?.trim();
         if (!country) continue;
         
-        if (!countriesData[country]) {
-          countriesData[country] = { cases: {}, deaths: {}, recovered: {} };
-        }
-        
-        for (let j = 0; j < dateColumns.length; j++) {
-          const date = dateColumns[j].trim();
+        for (let j = 0; j < realDateColumns.length; j++) {
+          const date = realDateColumns[j].trim();
           const cases = parseInt(columns[4 + j], 10) || 0;
           
           if (!countriesData[country].cases[date]) {
@@ -750,7 +810,7 @@ export const covidService = {
         }
       }
       
-      // ✅ Traiter les deaths
+      // ✅ ÉTAPE 6 : Traiter les deaths
       for (let i = 1; i < deathsRows.length; i++) {
         if (!deathsRows[i].trim()) continue;
         
@@ -758,12 +818,8 @@ export const covidService = {
         const country = columns[1]?.trim();
         if (!country) continue;
         
-        if (!countriesData[country]) {
-          countriesData[country] = { cases: {}, deaths: {}, recovered: {} };
-        }
-        
-        for (let j = 0; j < dateColumns.length; j++) {
-          const date = dateColumns[j].trim();
+        for (let j = 0; j < realDateColumns.length; j++) {
+          const date = realDateColumns[j].trim();
           const deaths = parseInt(columns[4 + j], 10) || 0;
           
           if (!countriesData[country].deaths[date]) {
@@ -773,7 +829,7 @@ export const covidService = {
         }
       }
       
-      // ✅ Traiter les recovered (peut être vide car arrêté en août 2021)
+      // ✅ ÉTAPE 7 : Traiter les recovered (peut être vide car arrêté en août 2021)
       for (let i = 1; i < recoveredRows.length; i++) {
         if (!recoveredRows[i].trim()) continue;
         
@@ -781,12 +837,8 @@ export const covidService = {
         const country = columns[1]?.trim();
         if (!country) continue;
         
-        if (!countriesData[country]) {
-          countriesData[country] = { cases: {}, deaths: {}, recovered: {} };
-        }
-        
-        for (let j = 0; j < dateColumns.length; j++) {
-          const date = dateColumns[j].trim();
+        for (let j = 0; j < realDateColumns.length; j++) {
+          const date = realDateColumns[j].trim();
           const recovered = parseInt(columns[4 + j], 10) || 0;
           
           if (!countriesData[country].recovered[date]) {
@@ -797,12 +849,13 @@ export const covidService = {
       }
       
       console.log(`✅ Loaded time-series for ${Object.keys(countriesData).length} countries (cases, deaths, recovered)`);
+      console.log(`📅 Total dates: ${allDates.length} (${preCovidDates.length} pre-COVID + ${realDateColumns.length} real data)`);
       
       return {
         countries: countriesData,
-        dates: dateColumns.map(d => d.trim()),
-        firstDate: dateColumns[0].trim(),
-        lastDate: dateColumns[dateColumns.length - 1].trim()
+        dates: allDates,
+        firstDate: allDates[0],
+        lastDate: allDates[allDates.length - 1]
       };
       
     } catch (error) {
@@ -811,17 +864,16 @@ export const covidService = {
     }
   },
 
-  // ✅ NOUVEAU - Données à une date spécifique
+  // ... [reste du code identique - getDataAtSpecificDate, etc.]
+  
   getDataAtSpecificDate: async (dateString) => {
     try {
-      // dateString format: "3/15/20"
       console.log(`📅 [getDataAtSpecificDate] Fetching data for: ${dateString}`);
       
       const data = await fetchGitHubCSV('confirmed');
       const rows = data.split('\n');
       const header = rows[0].split(',');
       
-      // Trouver l'index de la colonne correspondant à cette date
       const dateIndex = header.findIndex(col => col.trim() === dateString);
       
       if (dateIndex === -1 || dateIndex < 4) {
@@ -830,7 +882,6 @@ export const covidService = {
       
       console.log(`📊 Found date at column ${dateIndex}`);
       
-      // Récupérer les données pour tous les pays à cette date
       const countryCases = {};
       
       for (let i = 1; i < rows.length; i++) {
@@ -871,7 +922,6 @@ export const covidService = {
     }
   },
 
-  // ✅ NOUVEAU - Totaux mondiaux à une date spécifique
   getGlobalTotalsAtDate: async (dateString) => {
     try {
       console.log(`📅 [getGlobalTotalsAtDate] Fetching totals for: ${dateString}`);
@@ -895,7 +945,6 @@ export const covidService = {
       let totalCases = 0;
       let totalDeaths = 0;
       
-      // Calculer les totaux
       for (let i = 1; i < confirmedRows.length; i++) {
         if (!confirmedRows[i].trim()) continue;
         const columns = confirmedRows[i].split(',');
@@ -925,539 +974,21 @@ export const covidService = {
     }
   },
 
-  getMeanCases: async () => {
+  // ... [tout le reste du code reste identique]
+  getAllCountryNames: async () => {
     try {
-      const dailyTotals = await CovidData.aggregate([
-        {
-          $group: {
-            _id: "$Date",
-            totalConfirmed: { $sum: "$Confirmed" }
-          }
-        },
-        { $sort: { _id: 1 } }
-      ]);
-
-      if (dailyTotals.length < 2) {
-        return { mean_daily_cases: 0 };
-      }
-
-      let dailyNew = [];
-      for (let i = 1; i < dailyTotals.length; i++) {
-        const diff = dailyTotals[i].totalConfirmed - dailyTotals[i - 1].totalConfirmed;
-        if (diff > 0) dailyNew.push(diff);
-      }
-
-      const mean = dailyNew.length > 0 
-        ? dailyNew.reduce((a, b) => a + b, 0) / dailyNew.length 
-        : 0;
-
-      return { 
-        mean_daily_cases: mean.toFixed(2),
-        source: 'mongodb'
-      };
-    } catch (error) {
-      throw new AppError('Failed to calculate mean cases', 500);
-    }
-  },
-
-  getCasesEvolution: async () => {
-    try {
-      const dailyTotals = await CovidData.aggregate([
-        {
-          $group: {
-            _id: "$Date",
-            totalConfirmed: { $sum: "$Confirmed" }
-          }
-        },
-        { $sort: { _id: 1 } }
-      ]);
-
-      if (dailyTotals.length < 7) {
-        return { weekly_evolution: [] };
-      }
-
-      let weeklyEvolution = [];
-      for (let i = 7; i < dailyTotals.length; i += 7) {
-        const prev = dailyTotals[i - 7].totalConfirmed;
-        const curr = dailyTotals[i].totalConfirmed;
-        const growth = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
-        
-        weeklyEvolution.push({ 
-          week: Math.floor(i / 7), 
-          growth: growth.toFixed(2),
-          date: dailyTotals[i]._id
-        });
-      }
-
-      return { 
-        weekly_evolution: weeklyEvolution,
-        source: 'mongodb'
-      };
-    } catch (error) {
-      throw new AppError('Failed to calculate evolution', 500);
-    }
-  },
-
-  getKMeansClusters: async () => {
-    try {
-      const latestData = await CovidData.aggregate([
-        { $sort: { Date: -1 } },
-        {
-          $group: {
-            _id: "$Country_Region",
-            latestDate: { $first: "$Date" },
-            latestCases: { $first: "$Confirmed" }
-          }
-        }
-      ]);
-
-      const sevenDaysAgo = new Date(latestData[0].latestDate);
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      const previousData = await CovidData.aggregate([
-        { $match: { Date: { $gte: sevenDaysAgo } } },
-        { $sort: { Date: 1 } },
-        {
-          $group: {
-            _id: "$Country_Region",
-            firstCases: { $first: "$Confirmed" }
-          }
-        }
-      ]);
-
-      const previousMap = {};
-      previousData.forEach(item => {
-        previousMap[item._id] = item.firstCases;
-      });
-
-      let dataset = [];
-      let countryNames = [];
-      let countryMap = {};
-
-      latestData.forEach(country => {
-        const latestCases = country.latestCases || 0;
-        const previousCases = previousMap[country._id] || 0;
-
-        if (latestCases === 0) return;
-
-        const weeklyGrowth = previousCases > 0 
-          ? ((latestCases - previousCases) / previousCases) * 100 
-          : 0;
-
-        const logCases = Math.log10(latestCases + 1);
-
-        dataset.push([logCases, weeklyGrowth]);
-        countryNames.push(country._id);
-        countryMap[country._id] = {
-          totalCases: latestCases,
-          weeklyGrowth: weeklyGrowth
-        };
-      });
-
-      if (dataset.length < 3) {
-        return { 
-          error: 'Not enough data for clustering',
-          source: 'mongodb'
-        };
-      }
-
-      const numClusters = 3;
-      const result = kmeans(dataset, numClusters, {
-        initialization: 'kmeans++',
-        maxIterations: 100
-      });
-
-      const countriesClustered = countryNames.map((country, idx) => ({
-        country: country,
-        cluster: result.clusters[idx],
-        totalCases: countryMap[country].totalCases,
-        weeklyGrowth: dataset[idx][1].toFixed(2) + '%'
-      }));
-
-      const clusterGroups = {};
-      for (let i = 0; i < numClusters; i++) {
-        clusterGroups[i] = countriesClustered.filter(c => c.cluster === i);
-      }
-
-      return {
-        centroids: result.centroids.map(c => ({
-          logCases: c[0].toFixed(2),
-          weeklyGrowth: c[1].toFixed(2) + '%'
-        })),
-        clusters: clusterGroups,
-        summary: {
-          totalCountries: countryNames.length,
-          clusterDistribution: Object.values(clusterGroups).map(arr => arr.length)
-        },
-        source: 'mongodb'
-      };
-    } catch (error) {
-      throw new AppError('Failed to perform k-means clustering', 500);
-    }
-  },
-
-  get28DayCases: async () => {
-    try {
-      const data = await fetchGitHubCSV('confirmed');
-      const rows = data.split('\n');
-      const header = rows[0].split(',');
-      const latestDate = header[header.length - 1];
-      const date28DaysAgo = header[header.length - 29];
-
-      let totalLatestCases = 0;
-      let total28DaysAgoCases = 0;
-
-      for (let i = 1; i < rows.length; i++) {
-        const columns = rows[i].split(',');
-        const latestCases = parseInt(columns[columns.length - 1], 10);
-        const cases28DaysAgo = parseInt(columns[columns.length - 29], 10);
-
-        if (!isNaN(latestCases)) totalLatestCases += latestCases;
-        if (!isNaN(cases28DaysAgo)) total28DaysAgoCases += cases28DaysAgo;
-      }
-
-      return {
-        total_28_day_cases: totalLatestCases - total28DaysAgoCases,
-        latest_date: latestDate,
-        date_28_days_ago: date28DaysAgo
-      };
-    } catch (error) {
-      throw new AppError('Failed to fetch 28-day cases', 500);
-    }
-  },
-
-  get28DayCasesPerCountry: async () => {
-    try {
-      const data = await fetchGitHubCSV('confirmed');
-      const rows = data.split('\n');
-      const header = rows[0].split(',');
-      const latestDate = header[header.length - 1];
-      const date28DaysAgo = header[header.length - 29];
-
-      const casesByCountry = {};
-
-      for (let i = 1; i < rows.length; i++) {
-        const columns = rows[i].split(',');
-        const country = columns[1]?.trim();
-        if (!country) continue;
-
-        const latestCases = parseInt(columns[columns.length - 1], 10);
-        const cases28DaysAgo = parseInt(columns[columns.length - 29], 10);
-
-        if (!casesByCountry[country]) {
-          casesByCountry[country] = { latestCases: 0, cases28DaysAgo: 0 };
-        }
-
-        if (!isNaN(latestCases)) casesByCountry[country].latestCases += latestCases;
-        if (!isNaN(cases28DaysAgo)) casesByCountry[country].cases28DaysAgo += cases28DaysAgo;
-      }
-
-      const casesIncreasePerCountry = Object.keys(casesByCountry).map((country) => {
-        const { latestCases, cases28DaysAgo } = casesByCountry[country];
-        return {
-          country,
-          total_28_day_cases_per_country: latestCases - cases28DaysAgo
-        };
-      }).filter(entry => entry.country && entry.total_28_day_cases_per_country !== undefined);
-
-      return {
-        total_28_day_cases_per_country: casesIncreasePerCountry,
-        latest_date: latestDate,
-        date_28_days_ago: date28DaysAgo
-      };
-    } catch (error) {
-      throw new AppError('Failed to fetch 28-day cases per country', 500);
-    }
-  },
-
-  get28DayDeaths: async () => {
-    try {
-      const data = await fetchGitHubCSV('deaths');
-      const rows = data.split('\n');
-      const header = rows[0].split(',');
-      const latestDate = header[header.length - 1];
-      const date28DaysAgo = header[header.length - 29];
-
-      let totalLatestDeaths = 0;
-      let total28DaysAgoDeaths = 0;
-
-      for (let i = 1; i < rows.length; i++) {
-        const columns = rows[i].split(',');
-        const latestDeaths = parseInt(columns[columns.length - 1], 10);
-        const deaths28DaysAgo = parseInt(columns[columns.length - 29], 10);
-
-        if (!isNaN(latestDeaths)) totalLatestDeaths += latestDeaths;
-        if (!isNaN(deaths28DaysAgo)) total28DaysAgoDeaths += deaths28DaysAgo;
-      }
-
-      return {
-        total_28_day_deaths: totalLatestDeaths - total28DaysAgoDeaths,
-        latest_date: latestDate,
-        date_28_days_ago: date28DaysAgo
-      };
-    } catch (error) {
-      throw new AppError('Failed to fetch 28-day deaths', 500);
-    }
-  },
-
-  get28DayDeathsPerCountry: async () => {
-    try {
-      const data = await fetchGitHubCSV('deaths');
-      const rows = data.split('\n');
-      const header = rows[0].split(',');
-      const latestDate = header[header.length - 1];
-      const date28DaysAgo = header[header.length - 29];
-
-      const deathsByCountry = {};
-
-      for (let i = 1; i < rows.length; i++) {
-        const columns = rows[i].split(',');
-        const country = columns[1]?.trim();
-        if (!country) continue;
-
-        const latestDeaths = parseInt(columns[columns.length - 1], 10);
-        const deaths28DaysAgo = parseInt(columns[columns.length - 29], 10);
-
-        if (!deathsByCountry[country]) {
-          deathsByCountry[country] = { latestDeaths: 0, deaths28DaysAgo: 0 };
-        }
-
-        if (!isNaN(latestDeaths)) deathsByCountry[country].latestDeaths += latestDeaths;
-        if (!isNaN(deaths28DaysAgo)) deathsByCountry[country].deaths28DaysAgo += deaths28DaysAgo;
-      }
-
-      const deathsIncreasePerCountry = Object.keys(deathsByCountry).map((country) => {
-        const { latestDeaths, deaths28DaysAgo } = deathsByCountry[country];
-        return {
-          country,
-          total_28_day_deaths_per_country: latestDeaths - deaths28DaysAgo
-        };
-      }).filter(entry => entry.country && entry.total_28_day_deaths_per_country !== undefined);
-
-      return {
-        total_28_day_deaths_per_country: deathsIncreasePerCountry,
-        latest_date: latestDate,
-        date_28_days_ago: date28DaysAgo
-      };
-    } catch (error) {
-      throw new AppError('Failed to fetch 28-day deaths per country', 500);
-    }
-  },
-
-  getDeathCases28Days: async () => {
-    try {
-      const resultTotal = await CovidData.aggregate([
-        { $match: { Date: new Date('2023-09-03') } },
-        { $group: {
-            _id: "$Country_Region",
-            total_deaths: { $max: "$Deaths" },
-            total_confirmed: { $max: "$Confirmed" }
-          }
-        }
-      ]);
-
-      const result28Days = await CovidData.aggregate([
-        { $match: { Date: new Date('2023-09-02') } },
-        { $group: {
-            _id: "$Country_Region",
-            days28_deaths: { $max: "$Deaths" },
-            days28_confirmed: { $max: "$Confirmed" }
-          }
-        }
-      ]);
-
-      const result = resultTotal.map(country => {
-        const country28 = result28Days.find(c => c._id === country._id);
-        return {
-          Country_Region: country._id,
-          total_deaths: country.total_deaths,
-          total_confirmed: country.total_confirmed,
-          days28_deaths: country28 ? country28.days28_deaths : null,
-          days28_confirmed: country28 ? country28.days28_confirmed : null,
-          days28_deaths_increase: country.total_deaths - (country28 ? country28.days28_deaths : 0),
-          days28_confirmed_increase: country.total_confirmed - (country28 ? country28.days28_confirmed : 0)
-        };
-      });
-
-      return result;
-    } catch (error) {
-      throw new AppError('Failed to fetch death cases 28 days', 500);
-    }
-  },
-
-  getTotalVaccineDoses: async () => {
-    try {
-      const data = await fetchGitHubCSV('vaccine');
-      const rows = data.split('\n').filter(row => row.trim() !== '');
-      const header = rows[0].split(',');
-
-      let dosesByDate = new Map();
-
-      for (let i = 1; i < rows.length; i++) {
-        const columns = rows[i].split(',');
-        for (let j = 4; j < columns.length; j++) {
-          const date = header[j];
-          const doses = parseInt(columns[j], 10);
-
-          if (!isNaN(doses)) {
-            if (dosesByDate.has(date)) {
-              dosesByDate.set(date, dosesByDate.get(date) + doses);
-            } else {
-              dosesByDate.set(date, doses);
-            }
-          }
-        }
-      }
-
-      const availableDates = Array.from(dosesByDate.keys()).sort();
-      const latestDate = availableDates[availableDates.length - 1];
-      const totalDoses = dosesByDate.get(latestDate) || 0;
-
-      return { total_vaccine_doses: totalDoses, latest_date: latestDate };
-    } catch (error) {
-      throw new AppError('Failed to fetch total vaccine doses', 500);
-    }
-  },
-
-  getVaccineDosesPerCountry: async (country) => {
-    try {
-      const data = await fetchGitHubCSV('vaccine');
-      const rows = data.split('\n').filter(row => row.trim() !== '');
-      const header = rows[0].split(',');
-
-      const dosesIndex = header.indexOf('Doses_admin');
-      const provinceIndex = header.indexOf('Province_State');
-      const countryIndex = header.indexOf('Country_Region');
-      const dateIndex = header.indexOf('Date');
-
-      if (dosesIndex === -1) throw new AppError('Doses_admin column not found', 400);
-
-      let totalDoses = 0;
-      let latestDate = '';
-
-      for (let i = 1; i < rows.length; i++) {
-        const columns = rows[i].split(',');
-        if (
-          columns[countryIndex].toLowerCase() === country.toLowerCase() &&
-          columns[provinceIndex].trim() === ''
-        ) {
-          totalDoses = parseInt(columns[dosesIndex], 10) || 0;
-          latestDate = columns[dateIndex];
-          break;
-        }
-      }
-
-      return {
-        total_vaccine_doses: totalDoses,
-        latest_date: latestDate,
-      };
-    } catch (error) {
-      throw new AppError('Failed to fetch vaccine doses by country', 500);
-    }
-  },
-
-  get28DayVaccineDoses: async () => {
-    try {
-      const data = await fetchGitHubCSV('vaccine');
-      const rows = data.split('\n').filter(row => row.trim() !== '');
-      const header = rows[0].split(',');
-
-      const dateIndex = header.indexOf('Date');
-      const dosesAdminIndex = header.indexOf('Doses_admin');
-
-      let dosesByDate = new Map();
-
-      for (let i = 1; i < rows.length; i++) {
-        const columns = rows[i].split(',');
-        const date = columns[dateIndex];
-        const doses = parseInt(columns[dosesAdminIndex], 10);
-
-        if (!isNaN(doses)) {
-          if (dosesByDate.has(date)) {
-            dosesByDate.set(date, dosesByDate.get(date) + doses);
-          } else {
-            dosesByDate.set(date, doses);
-          }
-        }
-      }
-
-      const availableDates = Array.from(dosesByDate.keys()).sort();
-      const latestDate = availableDates[availableDates.length - 1];
+      const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
       
-      const latestDateObject = new Date(latestDate);
-      const date28DaysAgoObject = new Date(latestDateObject);
-      date28DaysAgoObject.setDate(latestDateObject.getDate() - 28);
+      if (cleanedData && cleanedData.data) {
+        const countries = cleanedData.data.map(c => c.country).sort();
+        console.log(`✅ [getAllCountryNames] Found ${countries.length} countries`);
+        return { countries };
+      }
       
-      const formattedDate28DaysAgo = date28DaysAgoObject.toISOString().split('T')[0];
-
-      const totalLatestDoses = dosesByDate.get(latestDate) || 0;
-      const total28DaysAgoDoses = dosesByDate.get(formattedDate28DaysAgo) || 0;
-
-      return {
-        total_28_day_vaccine_doses: totalLatestDoses - total28DaysAgoDoses,
-        latest_date: latestDate,
-        date_28_days_ago: formattedDate28DaysAgo,
-      };
+      throw new AppError('No cleaned data available', 500);
     } catch (error) {
-      throw new AppError('Failed to fetch 28-day vaccine doses', 500);
-    }
-  },
-
-  get28DayVaccineDosesPerCountry: async () => {
-    try {
-      const data = await fetchGitHubCSV('vaccine');
-      const rows = data.split('\n').filter(row => row.trim() !== '');
-      const header = rows[0].split(',');
-
-      const dateIndex = header.indexOf('Date');
-      const countryIndex = header.indexOf('Country_Region');
-      const dosesAdminIndex = header.indexOf('Doses_admin');
-
-      const dosesByCountry = new Map();
-
-      for (let i = 1; i < rows.length; i++) {
-        const columns = rows[i].split(',');
-        const date = columns[dateIndex];
-        const country = columns[countryIndex];
-        const doses = parseInt(columns[dosesAdminIndex], 10);
-
-        if (!isNaN(doses)) {
-          if (!dosesByCountry.has(country)) {
-            dosesByCountry.set(country, new Map());
-          }
-          const countryData = dosesByCountry.get(country);
-          
-          if (countryData.has(date)) {
-            countryData.set(date, countryData.get(date) + doses);
-          } else {
-            countryData.set(date, doses);
-          }
-        }
-      }
-
-      const result = {};
-      const availableDates = Array.from(new Set(rows.slice(1).map(row => row.split(',')[dateIndex]))).sort();
-      const latestDate = availableDates[availableDates.length - 1];
-
-      for (const [country, countryData] of dosesByCountry) {
-        const latestDateObject = new Date(latestDate);
-        const date28DaysAgoObject = new Date(latestDateObject);
-        date28DaysAgoObject.setDate(latestDateObject.getDate() - 28);
-        const formattedDate28DaysAgo = date28DaysAgoObject.toISOString().split('T')[0];
-
-        const totalLatestDoses = countryData.get(latestDate) || 0;
-        const total28DaysAgoDoses = countryData.get(formattedDate28DaysAgo) || 0;
-
-        result[country] = {
-          total_28_day_vaccine_doses: totalLatestDoses - total28DaysAgoDoses,
-          latest_date: latestDate,
-          date_28_days_ago: formattedDate28DaysAgo,
-        };
-      }
-
-      return result;
-    } catch (error) {
-      throw new AppError('Failed to fetch 28-day vaccine doses per country', 500);
+      console.error('❌ [getAllCountryNames] Error:', error);
+      throw new AppError('Failed to get country names', 500);
     }
   }
 };

@@ -59,22 +59,43 @@ const Dashboard = ({
       return null;
     }
     
-    // Si on est avant les données (nov 2019 - jan 21 2020)
+    const { countries } = allTimeSeriesData.data;
+    
+    // ✅ FIX : Si on est avant les données (nov 2019 - jan 21 2020), TOUS LES PAYS À 0
     if (hasNoData) {
+      console.log('📊 [Dashboard] Before COVID data - showing ALL countries at 0');
+      
+      // ✅ Créer une liste avec TOUS les pays à 0
+      const allCountries = Object.keys(countries);
+      
+      const casesPerCountry = allCountries.map(country => ({
+        country: country,
+        total_cases: 0
+      })).sort((a, b) => a.country.localeCompare(b.country)); // Tri alphabétique
+      
+      const deathsPerCountry = allCountries.map(country => ({
+        country: country,
+        total_deaths: 0
+      })).sort((a, b) => a.country.localeCompare(b.country));
+      
+      const recoveredPerCountry = allCountries.map(country => ({
+        country: country,
+        total_recovered: 0
+      })).sort((a, b) => a.country.localeCompare(b.country));
+      
       return { 
-        casesPerCountry: [],
-        deathsPerCountry: [],
-        recoveredPerCountry: [],
+        casesPerCountry,      // ✅ TOUS LES PAYS À 0
+        deathsPerCountry,     // ✅ TOUS LES PAYS À 0
+        recoveredPerCountry,  // ✅ TOUS LES PAYS À 0
         totalCases: 0,
         totalDeaths: 0,
         totalRecovered: 0
       };
     }
     
-    const { countries } = allTimeSeriesData.data;
     const targetDate = selectedPeriod.dateString;
     
-    // ✅ Filtrer les CASES
+    // ✅ Filtrer les CASES (seulement les pays avec cases > 0)
     const casesPerCountry = Object.keys(countries)
       .map(country => ({
         country: country,
@@ -83,7 +104,7 @@ const Dashboard = ({
       .filter(c => c.total_cases > 0)
       .sort((a, b) => b.total_cases - a.total_cases);
     
-    // ✅ Filtrer les DEATHS
+    // ✅ Filtrer les DEATHS (seulement les pays avec deaths > 0)
     const deathsPerCountry = Object.keys(countries)
       .map(country => ({
         country: country,
@@ -92,7 +113,7 @@ const Dashboard = ({
       .filter(c => c.total_deaths > 0)
       .sort((a, b) => b.total_deaths - a.total_deaths);
     
-    // ✅ Filtrer les RECOVERED
+    // ✅ Filtrer les RECOVERED (seulement les pays avec recovered > 0)
     const recoveredPerCountry = Object.keys(countries)
       .map(country => ({
         country: country,
@@ -107,6 +128,7 @@ const Dashboard = ({
     const totalRecovered = recoveredPerCountry.reduce((sum, c) => sum + c.total_recovered, 0);
     
     console.log(`📊 [Dashboard] ${targetDate}: Cases=${totalCases.toLocaleString()}, Deaths=${totalDeaths.toLocaleString()}, Recovered=${totalRecovered.toLocaleString()}`);
+    console.log(`📊 [Dashboard] Countries with data: Cases=${casesPerCountry.length}, Deaths=${deathsPerCountry.length}, Recovered=${recoveredPerCountry.length}`);
     
     return { 
       casesPerCountry,

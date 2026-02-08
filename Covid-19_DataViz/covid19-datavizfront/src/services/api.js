@@ -124,4 +124,6 @@ export const getGlobalTotalsAtDate = api.getGlobalTotalsAtDate;
 
 export const getAllTimeSeriesData = api.getAllTimeSeriesData;
 
+export const getAllCountryNames = () => fetchAPI('/get_all_country_names');
+
 export default api;
