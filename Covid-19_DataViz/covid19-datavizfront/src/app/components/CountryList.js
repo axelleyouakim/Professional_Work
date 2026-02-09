@@ -1,34 +1,20 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { 
-  useTotalCasesPerCountry, 
-  useTotalDeathsPerCountry, 
-  useTotalRecoveredPerCountry 
-} from '../hooks/useCovidData';
-import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
 
 const CountryList = ({ 
   title, 
   type = 'cases',
-  period = null,
+  countriesData = [],  // ✅ NOUVEAU : Recevoir les données en props
   searchTerm = '',
   selectedCountry, 
   onCountryClick,
   labelSuffix = '',
-  colorClass = 'red-text'
+  colorClass = 'red-text',
+  isLoading = false,   // ✅ NOUVEAU : État de chargement
+  error = null         // ✅ NOUVEAU : Erreur éventuelle
 }) => {
-  const casesQuery = useTotalCasesPerCountry(period);
-  const deathsQuery = useTotalDeathsPerCountry(period);
-  const recoveredQuery = useTotalRecoveredPerCountry(period);
-
-  const query = type === 'deaths' 
-    ? deathsQuery 
-    : type === 'recovered' 
-    ? recoveredQuery 
-    : casesQuery;
-
   const dataKey = type === 'deaths' 
     ? 'total_deaths' 
     : type === 'recovered' 
@@ -36,64 +22,93 @@ const CountryList = ({
     : 'total_cases';
 
   const filteredCountries = useMemo(() => {
-    const countries = query.data || [];
-    if (!searchTerm) return countries;
+    if (!countriesData || countriesData.length === 0) return [];
+    
+    if (!searchTerm) return countriesData;
     
     const searchLower = searchTerm.toLowerCase().trim();
-    return countries.filter((c) =>
+    return countriesData.filter((c) =>
       c.country.toLowerCase().includes(searchLower)
     );
-  }, [query.data, searchTerm]);
+  }, [countriesData, searchTerm]);
 
-  return (
-    <QueryStateWrapper 
-      query={query}
-      loadingMessage="Loading countries..."
-    >
-      {() => {
-        if (filteredCountries.length === 0) {
-          return (
-            <div className="country-list-container">
-              {title && <h4 className="country-list-title">{title}</h4>}
-              <div className="country-list">
-                <p style={{ color: '#999', padding: '10px' }}>
-                  {searchTerm ? 'No countries match your search' : 'No countries found'}
-                </p>
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div className="country-list-container">
-            {title && <h4 className="country-list-title">{title}</h4>}
-            <div className="country-list">
-              {filteredCountries.map((countryData) => (
-                <div
-                  key={countryData.country}
-                  className={`country-item ${selectedCountry === countryData.country ? "selected" : ""}`}
-                  onClick={() => onCountryClick && onCountryClick(countryData.country)}
-                >
-                  <span className={`country-cases ${colorClass}`}>
-                    {countryData[dataKey]?.toLocaleString() || "N/A"}
-                  </span>
-                  {labelSuffix ? (
-                    <>
-                      {" "}
-                      <span className="country-name-small">{labelSuffix}</span>
-                      <br />
-                    </>
-                  ) : (
-                    <span> </span>
-                  )}
-                  <span className="country-name">{countryData.country}</span>
-                </div>
-              ))}
-            </div>
+  // ✅ LOADING STATE
+  if (isLoading) {
+    return (
+      <div className="country-list-container">
+        {title && <h4 className="country-list-title">{title}</h4>}
+        <div className="country-list">
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '20px',
+            gap: '10px'
+          }}>
+            <div className="spinner" style={{ width: '30px', height: '30px' }}></div>
+            <p style={{ color: '#999', fontSize: '12px' }}>Loading countries...</p>
           </div>
-        );
-      }}
-    </QueryStateWrapper>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ ERROR STATE
+  if (error) {
+    return (
+      <div className="country-list-container">
+        {title && <h4 className="country-list-title">{title}</h4>}
+        <div className="country-list">
+          <p style={{ color: '#ff4444', padding: '10px', fontSize: '12px' }}>
+            ⚠️ Failed to load countries
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ EMPTY STATE
+  if (filteredCountries.length === 0) {
+    return (
+      <div className="country-list-container">
+        {title && <h4 className="country-list-title">{title}</h4>}
+        <div className="country-list">
+          <p style={{ color: '#999', padding: '10px', fontSize: '12px' }}>
+            {searchTerm ? 'No countries match your search' : 'No countries found'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ RENDER LIST
+  return (
+    <div className="country-list-container">
+      {title && <h4 className="country-list-title">{title}</h4>}
+      <div className="country-list">
+        {filteredCountries.map((countryData) => (
+          <div
+            key={countryData.country}
+            className={`country-item ${selectedCountry === countryData.country ? "selected" : ""}`}
+            onClick={() => onCountryClick && onCountryClick(countryData.country)}
+          >
+            <span className={`country-cases ${colorClass}`}>
+              {countryData[dataKey]?.toLocaleString() || "0"}
+            </span>
+            {labelSuffix ? (
+              <>
+                {" "}
+                <span className="country-name-small">{labelSuffix}</span>
+                <br />
+              </>
+            ) : (
+              <span> </span>
+            )}
+            <span className="country-name">{countryData.country}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 

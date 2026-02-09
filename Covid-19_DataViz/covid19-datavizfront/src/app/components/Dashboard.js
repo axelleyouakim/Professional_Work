@@ -426,10 +426,10 @@ const Dashboard = ({
         <StatsCard 
           label={selectedCountry ? `${selectedCountry} - Total Confirmed` : "Total Confirmed"}
           type="cases"
-          period={queryParam}
           selectedCountry={selectedCountry}
-          selectedCountryData={selectedCountryStats}
           globalStats={globalStats}
+          isLoading={totalCasesPerCountry.isLoading}
+          error={totalCasesPerCountry.error}
           colorClass="red-text"
         />
 
@@ -438,10 +438,13 @@ const Dashboard = ({
           onLevelChange={handleAdminLevelChange}
         />
 
+        {/* ✅ PASSER LES DONNÉES EN PROPS */}
         <CountryList
           title="Confirmed Cases by Country/Region/Sovereignty"
           type="cases"
-          period={queryParam}
+          countriesData={totalCasesPerCountry.data || []}
+          isLoading={totalCasesPerCountry.isLoading}
+          error={totalCasesPerCountry.error}
           searchTerm={searchTerm}
           selectedCountry={selectedCountry}
           onCountryClick={handleCountryClick}
@@ -472,16 +475,19 @@ const Dashboard = ({
             <StatsCard 
               label={selectedCountry ? `${selectedCountry} - Total Deaths` : "Total Deaths"}
               type="deaths"
-              period={queryParam}
               selectedCountry={selectedCountry}
-              selectedCountryData={selectedCountryStats}
               globalStats={globalStats}
+              isLoading={totalDeathsPerCountry.isLoading}
+              error={totalDeathsPerCountry.error}
               colorClass="white-text"
             />
 
+            {/* ✅ PASSER LES DONNÉES EN PROPS */}
             <CountryList
               type="deaths"
-              period={queryParam}
+              countriesData={totalDeathsPerCountry.data || []}
+              isLoading={totalDeathsPerCountry.isLoading}
+              error={totalDeathsPerCountry.error}
               searchTerm={searchTerm}
               selectedCountry={selectedCountry}
               onCountryClick={handleCountryClick}
@@ -494,16 +500,19 @@ const Dashboard = ({
             <StatsCard 
               label={selectedCountry ? `${selectedCountry} - Total Recovered` : "Total Recovered"}
               type="recovered"
-              period={queryParam}
               selectedCountry={selectedCountry}
-              selectedCountryData={selectedCountryStats}
               globalStats={globalStats}
+              isLoading={totalRecoveredPerCountry.isLoading}
+              error={totalRecoveredPerCountry.error}
               colorClass="green-text"
             />
 
+            {/* ✅ PASSER LES DONNÉES EN PROPS */}
             <CountryList
               type="recovered"
-              period={queryParam}
+              countriesData={totalRecoveredPerCountry.data || []}
+              isLoading={totalRecoveredPerCountry.isLoading}
+              error={totalRecoveredPerCountry.error}
               searchTerm={searchTerm}
               selectedCountry={selectedCountry}
               onCountryClick={handleCountryClick}

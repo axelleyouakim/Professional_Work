@@ -1,105 +1,87 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { 
-  useGlobalTotalCases, 
-  useGlobalTotalDeaths, 
-  useGlobalTotalRecovered,
-  useTotalCasesPerCountry,
-  useTotalDeathsPerCountry,
-  useTotalRecoveredPerCountry,
-  useGlobalTotalsAtDate
-} from '../hooks/useCovidData';
-import QueryStateWrapper from './QueryStateWrapper';
+import React from 'react';
 import './Dashboard.css';
 
 const StatsCard = ({ 
   label, 
   type = 'cases',
-  period = null,
+  value = null,        // ✅ NOUVEAU : Recevoir la valeur directement
   selectedCountry = null,
-  selectedCountryData = null,
-  globalStats = null,
-  colorClass = 'red-text' 
+  globalStats = null,  // ✅ Données du slider
+  colorClass = 'red-text',
+  isLoading = false,   // ✅ NOUVEAU : État de chargement
+  error = null         // ✅ NOUVEAU : Erreur éventuelle
 }) => {
-  // ✅ TOUJOURS appeler TOUS les hooks (jamais conditionnellement)
-  const globalCasesQuery = useGlobalTotalCases(period);
-  const globalDeathsQuery = useGlobalTotalDeaths(period);
-  const globalRecoveredQuery = useGlobalTotalRecovered(period);
-  
-  const globalCasesAtDateQuery = useGlobalTotalsAtDate(period);
-  const globalDeathsAtDateQuery = useGlobalTotalsAtDate(period);
-  
-  const casesPerCountryQuery = useTotalCasesPerCountry(period);
-  const deathsPerCountryQuery = useTotalDeathsPerCountry(period);
-  const recoveredPerCountryQuery = useTotalRecoveredPerCountry(period);
-  
-  // ✅ PUIS décider quelle query utiliser
-  const isDateMode = period && typeof period === 'string' && period.includes('/');
-  
-  const casesQuery = isDateMode ? globalCasesAtDateQuery : globalCasesQuery;
-  const deathsQuery = isDateMode ? globalDeathsAtDateQuery : globalDeathsQuery;
-  const recoveredQuery = globalRecoveredQuery;
-
-  const globalQuery = type === 'deaths' ? deathsQuery : type === 'recovered' ? recoveredQuery : casesQuery;
-  const perCountryQuery = type === 'deaths' ? deathsPerCountryQuery : type === 'recovered' ? recoveredPerCountryQuery : casesPerCountryQuery;
-
-  const displayValue = useMemo(() => {
-    // ✅ Si on a des globalStats (mode slider), utiliser ça
+  // ✅ Déterminer quelle valeur afficher
+  const displayValue = (() => {
+    // 1. Priorité : globalStats (données du slider)
     if (globalStats) {
       const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
       return globalStats[key];
     }
     
-    if (selectedCountry) {
-      if (selectedCountryData) {
-        const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
-        return selectedCountryData[key];
-      }
-      
-      if (perCountryQuery.data) {
-        const countryData = perCountryQuery.data.find(
-          c => c.country.toLowerCase() === selectedCountry.toLowerCase()
-        );
-        if (countryData) {
-          const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
-          return countryData[key];
-        }
-      }
+    // 2. Sinon : valeur passée en props
+    if (value != null) {
+      return value;
     }
     
-    if (isDateMode && globalQuery.data) {
-      return type === 'deaths' ? globalQuery.data.total_deaths : globalQuery.data.total_cases;
-    }
-    
-    return globalQuery.data;
-  }, [globalStats, selectedCountry, selectedCountryData, perCountryQuery.data, globalQuery.data, type, isDateMode]);
+    // 3. Par défaut : 0
+    return 0;
+  })();
 
-  return (
-    <QueryStateWrapper 
-      query={globalQuery}
-      loadingMessage={`Loading ${label.toLowerCase()}...`}
-      errorMessage={`Failed to load ${label.toLowerCase()}`}
-    >
-      {() => (
-        <div className="stat-box">
-          <h3 className="stat-label">{label}</h3>
-          <p className={`stat-value ${colorClass}`}>
-            {displayValue != null ? displayValue.toLocaleString() : "0"}
-          </p>
-          {type === 'recovered' && displayValue === 0 && (
-            <p style={{ fontSize: '11px', color: '#999', marginTop: '5px' }}>
-              ⚠️ Data collection ended Aug 2021
-            </p>
-          )}
-          {selectedCountry && (
-            <p className="stat-country-indicator" style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
-              📍 Country View
-            </p>
-          )}
+  // ✅ LOADING STATE
+  if (isLoading) {
+    return (
+      <div className="stat-box">
+        <h3 className="stat-label">{label}</h3>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '20px 0'
+        }}>
+          <div className="spinner" style={{ width: '30px', height: '30px' }}></div>
+          <p style={{ color: '#999', fontSize: '11px' }}>Loading...</p>
         </div>
+      </div>
+    );
+  }
+
+  // ✅ ERROR STATE
+  if (error) {
+    return (
+      <div className="stat-box">
+        <h3 className="stat-label">{label}</h3>
+        <p className={`stat-value`} style={{ color: '#ff4444', fontSize: '16px' }}>
+          ⚠️ Error
+        </p>
+        <p style={{ fontSize: '10px', color: '#999', marginTop: '5px' }}>
+          Failed to load data
+        </p>
+      </div>
+    );
+  }
+
+  // ✅ RENDER VALUE
+  return (
+    <div className="stat-box">
+      <h3 className="stat-label">{label}</h3>
+      <p className={`stat-value ${colorClass}`}>
+        {displayValue != null ? displayValue.toLocaleString() : "0"}
+      </p>
+      {type === 'recovered' && displayValue === 0 && !isLoading && (
+        <p style={{ fontSize: '11px', color: '#999', marginTop: '5px' }}>
+          ⚠️ Data collection ended Aug 2021
+        </p>
       )}
-    </QueryStateWrapper>
+      {selectedCountry && (
+        <p className="stat-country-indicator" style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
+          📍 Country View
+        </p>
+      )}
+    </div>
   );
 };
 
