@@ -848,8 +848,35 @@ export const covidService = {
         }
       }
       
+      // ✅✅✅ ÉTAPE 7.5 : RÉPÉTER les dernières valeurs recovered après août 2021
+      console.log('📊 [getAllTimeSeriesData] Filling recovered gaps after Aug 2021...');
+      
+      Object.keys(countriesData).forEach(country => {
+        // Trouver toutes les dates avec recovered > 0
+        const recoveredDates = Object.keys(countriesData[country].recovered)
+          .filter(d => countriesData[country].recovered[d] > 0)
+          .sort();
+        
+        if (recoveredDates.length > 0) {
+          // Dernière date avec données
+          const lastRecoveredDate = recoveredDates[recoveredDates.length - 1];
+          const lastRecoveredValue = countriesData[country].recovered[lastRecoveredDate];
+          
+          // Index de cette date dans allDates
+          const lastRecoveredIndex = allDates.indexOf(lastRecoveredDate);
+          
+          if (lastRecoveredIndex !== -1) {
+            // Répéter pour toutes les dates APRÈS
+            for (let i = lastRecoveredIndex + 1; i < allDates.length; i++) {
+              countriesData[country].recovered[allDates[i]] = lastRecoveredValue;
+            }
+          }
+        }
+      });
+      
       console.log(`✅ Loaded time-series for ${Object.keys(countriesData).length} countries (cases, deaths, recovered)`);
       console.log(`📅 Total dates: ${allDates.length} (${preCovidDates.length} pre-COVID + ${realDateColumns.length} real data)`);
+      console.log(`📊 Recovered: Last update ~Aug 2021, values repeated until ${allDates[allDates.length - 1]}`);
       
       return {
         countries: countriesData,
