@@ -35,14 +35,12 @@ const QueryStateWrapper = ({
   return children(query.data);
 };
 
-// Nouveau composant pour gérer plusieurs queries
 export const MultiQueryWrapper = ({ 
   queries, 
   loadingMessage = 'Loading...', 
   errorMessage = 'An error occurred',
   children 
 }) => {
-  // Vérifier si au moins une query est en chargement
   const isLoading = queries.some(query => query.isLoading);
   
   if (isLoading) {
@@ -56,7 +54,6 @@ export const MultiQueryWrapper = ({
     );
   }
 
-  // Vérifier si au moins une query a une erreur
   const errorQuery = queries.find(query => query.error);
   
   if (errorQuery) {
@@ -71,11 +68,8 @@ export const MultiQueryWrapper = ({
     );
   }
 
-  // Toutes les queries sont chargées avec succès
-  // Extraire les données de chaque query
   const data = queries.map(query => query.data);
   
-  // Passer toutes les données comme arguments séparés
   return children(...data);
 };
 

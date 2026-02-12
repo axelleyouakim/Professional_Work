@@ -8,7 +8,9 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  ReferenceLine,
+  Label
 } from 'recharts';
 import { useCasesTimeSeries } from '../hooks/useCovidData';
 import './Dashboard.css';
@@ -20,10 +22,7 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
     timelineDataLength: timelineData?.length 
   });
 
-  // ✅ Si timelineData est fourni (mode slider), utiliser ÇA et rien d'autre
   const shouldUseTimeline = timelineData !== null && timelineData !== undefined;
-  
-  // ✅ Charger via API SEULEMENT si pas de timelineData
   const apiQuery = useCasesTimeSeries(period, selectedCountry);
 
   const formatYAxis = useCallback((value) => {
@@ -42,8 +41,6 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
     }
     
     console.log('📊 [ChartComponent] Formatting data:', rawData.length, 'points');
-    console.log('📊 [ChartComponent] First:', rawData[0]);
-    console.log('📊 [ChartComponent] Last:', rawData[rawData.length - 1]);
     
     const data = rawData.map(item => {
       const parts = item.date.split("/");
@@ -60,17 +57,16 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
         return {
           date: `${monthName} ${fullYear}`,
           cases: item.cases,
-          fullDate: `${monthName} ${day}, ${fullYear}`
+          fullDate: `${monthName} ${day}, ${fullYear}`,
+          dateKey: item.date
         };
       }
       return item;
     });
     
-    console.log('📊 [ChartComponent] Formatted:', data.length, 'points');
     return data;
   }, []);
 
-  // ✅ DÉCIDER QUELLE DONNÉE UTILISER
   const rawData = useMemo(() => {
     if (shouldUseTimeline) {
       console.log('✅ [ChartComponent] Using TIMELINE data:', timelineData.length, 'points');
@@ -88,6 +84,35 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
 
   const isLoading = shouldUseTimeline ? false : apiQuery.isLoading;
   const error = shouldUseTimeline ? null : apiQuery.error;
+
+  const peakInfo = useMemo(() => {
+    if (!rawData || rawData.length === 0) return null;
+    
+    let maxCases = 0;
+    let peakIndex = 0;
+    
+    rawData.forEach((item, index) => {
+      if (item.cases > maxCases) {
+        maxCases = item.cases;
+        peakIndex = index;
+      }
+    });
+    
+    if (maxCases === 0) return null;
+    
+    const peakData = rawData[peakIndex];
+    console.log('📊 [ChartComponent] PEAK found:', { 
+      cases: maxCases, 
+      date: peakData.date, 
+      index: peakIndex 
+    });
+    
+    return {
+      cases: maxCases,
+      date: peakData.date,
+      index: peakIndex
+    };
+  }, [rawData]);
 
   if (isLoading) {
     return (
@@ -165,6 +190,19 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
         </div>
       )}
       
+      {peakInfo && (
+        <div style={{
+          padding: '8px 20px',
+          background: 'rgba(255, 100, 100, 0.1)',
+          borderBottom: '1px solid rgba(255, 100, 100, 0.3)',
+          color: '#ff6464',
+          fontSize: '12px',
+          fontWeight: '600'
+        }}>
+          🔺 PEAK: {peakInfo.cases.toLocaleString()} cases on {peakInfo.date}
+        </div>
+      )}
+      
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={formattedData}>
@@ -189,6 +227,24 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
                 return payload && payload[0] ? payload[0].payload.fullDate : label;
               }}
             />
+            
+            {peakInfo && (
+              <ReferenceLine 
+                x={formattedData[peakInfo.index]?.date} 
+                stroke="#ff4444" 
+                strokeWidth={2}
+                strokeDasharray="5 5"
+              >
+                <Label 
+                  value="PEAK" 
+                  position="top" 
+                  fill="#ff4444" 
+                  fontSize={10}
+                  fontWeight="bold"
+                />
+              </ReferenceLine>
+            )}
+            
             <Line
               type="monotone"
               dataKey="cases"

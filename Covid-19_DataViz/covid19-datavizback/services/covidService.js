@@ -37,7 +37,6 @@ async function fetchGitHubCSV(type) {
 
 function getDateColumnsForPeriod(header, period) {
   if (!period) {
-    // Pas de période = toutes les dates
     return { startIndex: 4, endIndex: header.length - 1 };
   }
 
@@ -114,7 +113,6 @@ export const covidService = {
       
       const columns = rows[i].split(',');
       
-      // ✅ FIX : Vérifier que la colonne existe
       if (targetIndex >= columns.length) continue;
       
       const casesAtDate = parseInt(columns[targetIndex], 10) || 0;
@@ -546,7 +544,6 @@ export const covidService = {
     }
   },
 
-  // ✅ NOUVEAU - Time series par pays spécifique
   getCasesTimeSeriesByCountry: async (country, period) => {
     try {
       const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
@@ -554,7 +551,6 @@ export const covidService = {
       let countryTimeSeries = [];
       
       if (cleanedData) {
-        // Chercher le pays dans les données cleaned
         const countryData = cleanedData.data.find(
           c => c.country.toLowerCase() === country.toLowerCase()
         );
@@ -563,7 +559,6 @@ export const covidService = {
           throw new AppError(`Country "${country}" not found`, 404);
         }
         
-        // Convertir timeSeries object en array
         const dateColumns = Object.keys(countryData.timeSeries);
         countryTimeSeries = dateColumns.map(date => ({
           date: date,
@@ -573,13 +568,11 @@ export const covidService = {
         console.log(`📊 [getCasesTimeSeriesByCountry] Found ${countryTimeSeries.length} data points for ${country}`);
         
       } else {
-        // Fallback: fetch from GitHub CSV
         const data = await fetchGitHubCSV('confirmed');
         const rows = data.split('\n').filter(row => row.trim() !== '');
         const header = rows[0].split(',');
         const dateColumns = header.slice(4);
         
-        // Chercher toutes les lignes correspondant au pays
         const countryRows = [];
         for (let i = 1; i < rows.length; i++) {
           const columns = rows[i].split(',');
@@ -594,7 +587,6 @@ export const covidService = {
           throw new AppError(`Country "${country}" not found`, 404);
         }
         
-        // Agréger les données de toutes les régions du pays
         countryTimeSeries = dateColumns.map((date, idx) => {
           let totalCases = 0;
           countryRows.forEach(columns => {
@@ -607,7 +599,6 @@ export const covidService = {
         });
       }
       
-      // Parser et trier les dates
       const parsedData = countryTimeSeries.map(item => {
         const parts = item.date.split("/");
         let dateObj;
@@ -634,7 +625,6 @@ export const covidService = {
       }).filter(item => !isNaN(item.dateObj.getTime()))
         .sort((a, b) => a.dateObj - b.dateObj);
       
-      // Filtrer par période si demandé
       let filteredData = parsedData;
       
       if (period && !isNaN(period)) {
@@ -655,7 +645,6 @@ export const covidService = {
         ? `${lastDate.getMonth() + 1}/${lastDate.getDate()}/${lastDate.getFullYear()}`
         : null;
       
-      // Retirer dateObj avant d'envoyer
       const finalData = filteredData.map(({ dateObj, ...rest }) => rest);
       
       return { 
@@ -677,14 +666,13 @@ export const covidService = {
     }
   },
 
-  // ✅ NOUVEAU - Récupérer les dates disponibles
   getAvailableDateRange: async () => {
     try {
       const data = await fetchGitHubCSV('confirmed');
       const rows = data.split('\n');
       const header = rows[0].split(',');
       
-      const dateColumns = header.slice(4); // Toutes les dates (colonnes 5+)
+      const dateColumns = header.slice(4);
       
       if (dateColumns.length === 0) {
         throw new AppError('No date columns found', 500);
@@ -707,12 +695,10 @@ export const covidService = {
     }
   },
 
-  // ✅ MODIFIÉ - Récupérer TOUTES les données time-series avec dates pré-COVID à 0
   getAllTimeSeriesData: async () => {
     try {
       console.log('📊 [getAllTimeSeriesData] Loading ALL time-series data (cases, deaths, recovered)...');
       
-      // ✅ Charger les 3 CSV
       const confirmedData = await fetchGitHubCSV('confirmed');
       const deathsData = await fetchGitHubCSV('deaths');
       const recoveredData = await fetchGitHubCSV('recovered');
@@ -722,12 +708,11 @@ export const covidService = {
       const recoveredRows = recoveredData.split('\n');
       
       const confirmedHeader = confirmedRows[0].split(',');
-      const realDateColumns = confirmedHeader.slice(4); // Toutes les dates RÉELLES (à partir du 22 jan 2020)
+      const realDateColumns = confirmedHeader.slice(4);
       
-      // ✅ ÉTAPE 1 : Générer des dates du 1er nov 2019 au 21 jan 2020 (AVANT les données COVID)
       const preCovidDates = [];
-      const startDate = new Date(2019, 10, 1); // 1er Nov 2019
-      const firstRealDate = new Date(2020, 0, 22); // 22 Jan 2020
+      const startDate = new Date(2019, 10, 1);
+      const firstRealDate = new Date(2020, 0, 22);
       
       let currentDate = new Date(startDate);
       while (currentDate < firstRealDate) {
@@ -740,14 +725,10 @@ export const covidService = {
       
       console.log(`📅 Generated ${preCovidDates.length} pre-COVID dates (Nov 1 2019 → Jan 21 2020)`);
       
-      // ✅ ÉTAPE 2 : Combiner les dates pré-COVID + dates réelles
       const allDates = [...preCovidDates, ...realDateColumns.map(d => d.trim())];
       
-      // Structure: { "US": { cases: {...}, deaths: {...}, recovered: {...} }, ... }
       const countriesData = {};
       
-      // ✅ ÉTAPE 3 : Initialiser TOUS les pays pour TOUTES les dates (y compris pré-COVID)
-      // D'abord, récupérer la liste de TOUS les pays
       const allCountries = new Set();
       
       for (let i = 1; i < confirmedRows.length; i++) {
@@ -773,7 +754,6 @@ export const covidService = {
       
       console.log(`📊 Found ${allCountries.size} unique countries`);
       
-      // ✅ ÉTAPE 4 : Initialiser TOUS les pays avec 0 pour les dates pré-COVID
       allCountries.forEach(country => {
         countriesData[country] = { 
           cases: {}, 
@@ -781,7 +761,6 @@ export const covidService = {
           recovered: {} 
         };
         
-        // Mettre 0 pour toutes les dates pré-COVID
         preCovidDates.forEach(date => {
           countriesData[country].cases[date] = 0;
           countriesData[country].deaths[date] = 0;
@@ -791,7 +770,6 @@ export const covidService = {
       
       console.log(`✅ Initialized ${allCountries.size} countries with 0 for pre-COVID dates`);
       
-      // ✅ ÉTAPE 5 : Traiter les cas confirmés (VRAIES DONNÉES à partir du 22 jan 2020)
       for (let i = 1; i < confirmedRows.length; i++) {
         if (!confirmedRows[i].trim()) continue;
         
@@ -810,7 +788,6 @@ export const covidService = {
         }
       }
       
-      // ✅ ÉTAPE 6 : Traiter les deaths
       for (let i = 1; i < deathsRows.length; i++) {
         if (!deathsRows[i].trim()) continue;
         
@@ -829,7 +806,6 @@ export const covidService = {
         }
       }
       
-      // ✅ ÉTAPE 7 : Traiter les recovered (peut être vide car arrêté en août 2021)
       for (let i = 1; i < recoveredRows.length; i++) {
         if (!recoveredRows[i].trim()) continue;
         
@@ -848,25 +824,20 @@ export const covidService = {
         }
       }
       
-      // ✅✅✅ ÉTAPE 7.5 : RÉPÉTER les dernières valeurs recovered après août 2021
       console.log('📊 [getAllTimeSeriesData] Filling recovered gaps after Aug 2021...');
       
       Object.keys(countriesData).forEach(country => {
-        // Trouver toutes les dates avec recovered > 0
         const recoveredDates = Object.keys(countriesData[country].recovered)
           .filter(d => countriesData[country].recovered[d] > 0)
           .sort();
         
         if (recoveredDates.length > 0) {
-          // Dernière date avec données
           const lastRecoveredDate = recoveredDates[recoveredDates.length - 1];
           const lastRecoveredValue = countriesData[country].recovered[lastRecoveredDate];
           
-          // Index de cette date dans allDates
           const lastRecoveredIndex = allDates.indexOf(lastRecoveredDate);
           
           if (lastRecoveredIndex !== -1) {
-            // Répéter pour toutes les dates APRÈS
             for (let i = lastRecoveredIndex + 1; i < allDates.length; i++) {
               countriesData[country].recovered[allDates[i]] = lastRecoveredValue;
             }
@@ -891,7 +862,6 @@ export const covidService = {
     }
   },
 
-  // ... [reste du code identique - getDataAtSpecificDate, etc.]
   
   getDataAtSpecificDate: async (dateString) => {
     try {
@@ -999,23 +969,22 @@ export const covidService = {
       console.error('❌ [getGlobalTotalsAtDate] Error:', error);
       throw new AppError('Failed to fetch global totals at date', 500);
     }
-  },
+  }/*,*/
 
-  // ... [tout le reste du code reste identique]
-  getAllCountryNames: async () => {
-    try {
-      const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
+  // getAllCountryNames: async () => {
+  //   try {
+  //     const cleanedData = await loadCleanedData('confirmed_cases_cleaned.json');
       
-      if (cleanedData && cleanedData.data) {
-        const countries = cleanedData.data.map(c => c.country).sort();
-        console.log(`✅ [getAllCountryNames] Found ${countries.length} countries`);
-        return { countries };
-      }
+  //     if (cleanedData && cleanedData.data) {
+  //       const countries = cleanedData.data.map(c => c.country).sort();
+  //       console.log(`✅ [getAllCountryNames] Found ${countries.length} countries`);
+  //       return { countries };
+  //     }
       
-      throw new AppError('No cleaned data available', 500);
-    } catch (error) {
-      console.error('❌ [getAllCountryNames] Error:', error);
-      throw new AppError('Failed to get country names', 500);
-    }
-  }
+  //     throw new AppError('No cleaned data available', 500);
+  //   } catch (error) {
+  //     console.error('❌ [getAllCountryNames] Error:', error);
+  //     throw new AppError('Failed to get country names', 500);
+  //   }
+  // }
 };

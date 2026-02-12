@@ -7,7 +7,7 @@ import './globals.css';
 
 export default function HomePage() {
   const [selectedPeriod, setSelectedPeriod] = useState({
-    dateString: '3/9/23', // ✅ Commencer à la dernière date par défaut
+    dateString: '3/9/23',
     dateObj: new Date(2023, 2, 9),
     displayDate: 'Mar 9, 2023',
     dayIndex: 1224,
@@ -20,7 +20,6 @@ export default function HomePage() {
     setSelectedPeriod(newPeriod);
   }, []);
 
-  // ✅ Log pour debug
   useEffect(() => {
     console.log('🔍 [PAGE] Current selectedPeriod:', selectedPeriod);
   }, [selectedPeriod]);

@@ -6,31 +6,26 @@ import './Dashboard.css';
 const StatsCard = ({ 
   label, 
   type = 'cases',
-  value = null,        // ✅ NOUVEAU : Recevoir la valeur directement
+  value = null,
   selectedCountry = null,
-  globalStats = null,  // ✅ Données du slider
+  globalStats = null,
   colorClass = 'red-text',
-  isLoading = false,   // ✅ NOUVEAU : État de chargement
-  error = null         // ✅ NOUVEAU : Erreur éventuelle
+  isLoading = false,
+  error = null
 }) => {
-  // ✅ Déterminer quelle valeur afficher
   const displayValue = (() => {
-    // 1. Priorité : globalStats (données du slider)
     if (globalStats) {
       const key = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
       return globalStats[key];
     }
     
-    // 2. Sinon : valeur passée en props
     if (value != null) {
       return value;
     }
     
-    // 3. Par défaut : 0
     return 0;
   })();
 
-  // ✅ LOADING STATE
   if (isLoading) {
     return (
       <div className="stat-box">
@@ -49,7 +44,6 @@ const StatsCard = ({
     );
   }
 
-  // ✅ ERROR STATE
   if (error) {
     return (
       <div className="stat-box">
@@ -64,7 +58,6 @@ const StatsCard = ({
     );
   }
 
-  // ✅ RENDER VALUE
   return (
     <div className="stat-box">
       <h3 className="stat-label">{label}</h3>

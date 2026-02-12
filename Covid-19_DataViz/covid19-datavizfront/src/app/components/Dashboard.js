@@ -26,34 +26,24 @@ const Dashboard = ({
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [searchTerm, setSearchTerm] = useState('');
-
-  // ═════════════════════════════════════════════════════════
-  // ✅ TOUS LES HOOKS DOIVENT ÊTRE APPELÉS EN PREMIER
-  // ═════════════════════════════════════════════════════════
   
-  // ✅ Charger TOUTES les données time-series UNE SEULE FOIS
   const allTimeSeriesData = useAllTimeSeriesData();
   
-  // ✅ Déterminer le mode : slider ou normal
   const isSliderMode = selectedPeriod?.dateString != null && selectedPeriod.dateString !== '';
   const hasNoData = selectedPeriod?.hasData === false;
   
-  // ✅ Query param pour l'API (si pas en mode slider)
   const queryParam = isSliderMode ? null : null;
   
-  // ✅ TOUJOURS appeler les hooks (même si on ne les utilise pas en mode slider)
   const apiCasesQuery = useTotalCasesPerCountry(queryParam);
   const apiDeathsQuery = useTotalDeathsPerCountry(queryParam);
   const apiRecoveredQuery = useTotalRecoveredPerCountry(queryParam);
   const chartData = useCasesTimeSeries(queryParam, selectedCountry);
   
-  // ✅ Filtrer les données selon la date du slider (côté client)
   const filteredData = useMemo(() => {
     if (!isSliderMode || !allTimeSeriesData.data) {
       return null;
     }
     
-    // ✅ VÉRIFICATION CRITIQUE : s'assurer que countries existe
     if (!allTimeSeriesData.data.countries) {
       console.warn('⚠️ [Dashboard] Countries data not ready yet');
       return null;
@@ -61,17 +51,15 @@ const Dashboard = ({
     
     const { countries } = allTimeSeriesData.data;
     
-    // ✅ FIX : Si on est avant les données (nov 2019 - jan 21 2020), TOUS LES PAYS À 0
     if (hasNoData) {
       console.log('📊 [Dashboard] Before COVID data - showing ALL countries at 0');
       
-      // ✅ Créer une liste avec TOUS les pays à 0
       const allCountries = Object.keys(countries);
       
       const casesPerCountry = allCountries.map(country => ({
         country: country,
         total_cases: 0
-      })).sort((a, b) => a.country.localeCompare(b.country)); // Tri alphabétique
+      })).sort((a, b) => a.country.localeCompare(b.country));
       
       const deathsPerCountry = allCountries.map(country => ({
         country: country,
@@ -84,9 +72,9 @@ const Dashboard = ({
       })).sort((a, b) => a.country.localeCompare(b.country));
       
       return { 
-        casesPerCountry,      // ✅ TOUS LES PAYS À 0
-        deathsPerCountry,     // ✅ TOUS LES PAYS À 0
-        recoveredPerCountry,  // ✅ TOUS LES PAYS À 0
+        casesPerCountry,
+        deathsPerCountry,
+        recoveredPerCountry,
         totalCases: 0,
         totalDeaths: 0,
         totalRecovered: 0
@@ -95,7 +83,6 @@ const Dashboard = ({
     
     const targetDate = selectedPeriod.dateString;
     
-    // ✅ Filtrer les CASES (seulement les pays avec cases > 0)
     const casesPerCountry = Object.keys(countries)
       .map(country => ({
         country: country,
@@ -104,7 +91,6 @@ const Dashboard = ({
       .filter(c => c.total_cases > 0)
       .sort((a, b) => b.total_cases - a.total_cases);
     
-    // ✅ Filtrer les DEATHS (seulement les pays avec deaths > 0)
     const deathsPerCountry = Object.keys(countries)
       .map(country => ({
         country: country,
@@ -113,7 +99,6 @@ const Dashboard = ({
       .filter(c => c.total_deaths > 0)
       .sort((a, b) => b.total_deaths - a.total_deaths);
     
-    // ✅ Filtrer les RECOVERED (seulement les pays avec recovered > 0)
     const recoveredPerCountry = Object.keys(countries)
       .map(country => ({
         country: country,
@@ -122,7 +107,6 @@ const Dashboard = ({
       .filter(c => c.total_recovered > 0)
       .sort((a, b) => b.total_recovered - a.total_recovered);
     
-    // Calculer les totaux globaux
     const totalCases = casesPerCountry.reduce((sum, c) => sum + c.total_cases, 0);
     const totalDeaths = deathsPerCountry.reduce((sum, c) => sum + c.total_deaths, 0);
     const totalRecovered = recoveredPerCountry.reduce((sum, c) => sum + c.total_recovered, 0);
@@ -140,13 +124,11 @@ const Dashboard = ({
     };
   }, [allTimeSeriesData.data, selectedPeriod, isSliderMode, hasNoData]);
   
-  // ✅ Créer les données du graphique à partir des données filtrées
   const chartTimelineData = useMemo(() => {
     if (!isSliderMode || !allTimeSeriesData.data) {
       return null;
     }
     
-    // ✅ VÉRIFICATION CRITIQUE
     if (!allTimeSeriesData.data.countries || !allTimeSeriesData.data.dates) {
       console.warn('⚠️ [Dashboard] Timeline data not ready yet');
       return null;
@@ -157,7 +139,6 @@ const Dashboard = ({
     
     let timeline = [];
     
-    // ✅ ÉTAPE 1 : Générer des points à 0 AVANT les vraies données (Nov 2019 - Jan 21 2020)
     const startDate = new Date(2019, 10, 1);
     const firstDataDate = new Date(2020, 0, 22);
     const targetDateObj = new Date(
@@ -166,7 +147,6 @@ const Dashboard = ({
       parseInt(targetDate.split('/')[1])
     );
     
-    // Si la date sélectionnée est AVANT les vraies données
     if (targetDateObj < firstDataDate) {
       let currentDate = new Date(startDate);
       
@@ -187,7 +167,6 @@ const Dashboard = ({
       return timeline;
     }
     
-    // ✅ ÉTAPE 2 : Ajouter les points à 0 AVANT les vraies données
     let currentDate = new Date(startDate);
     while (currentDate < firstDataDate) {
       const month = currentDate.getMonth() + 1;
@@ -202,19 +181,16 @@ const Dashboard = ({
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    // ✅ ÉTAPE 3 : Ajouter les vraies données jusqu'à la date sélectionnée
     const filteredDates = dates.filter(d => d <= targetDate);
     
     filteredDates.forEach(date => {
       let totalCases = 0;
       
-      // ✅ SI UN PAYS EST SÉLECTIONNÉ, filtrer par pays
       if (selectedCountry) {
         if (countries[selectedCountry]) {
           totalCases = countries[selectedCountry].cases[date] || 0;
         }
       } else {
-        // Sinon, total mondial
         Object.keys(countries).forEach(country => {
           totalCases += countries[country].cases[date] || 0;
         });
@@ -232,7 +208,6 @@ const Dashboard = ({
     return timeline;
   }, [isSliderMode, allTimeSeriesData.data, selectedPeriod, selectedCountry]);
   
-  // ✅ Utiliser les données filtrées si en mode slider
   const totalCasesPerCountry = useMemo(() => {
     return isSliderMode && allTimeSeriesData.data
       ? { 
@@ -263,11 +238,9 @@ const Dashboard = ({
       : apiRecoveredQuery;
   }, [isSliderMode, allTimeSeriesData.data, allTimeSeriesData.isLoading, allTimeSeriesData.error, filteredData, apiRecoveredQuery]);
 
-  // ✅ Stats globales OU par pays pour les StatsCards
   const globalStats = useMemo(() => {
     if (!isSliderMode || !filteredData) return null;
     
-    // ✅ SI UN PAYS EST SÉLECTIONNÉ
     if (selectedCountry) {
       const countryCase = filteredData.casesPerCountry.find(
         c => c.country.toLowerCase() === selectedCountry.toLowerCase()
@@ -286,7 +259,6 @@ const Dashboard = ({
       };
     }
     
-    // ✅ SINON, stats globales
     return {
       total_cases: filteredData.totalCases,
       total_deaths: filteredData.totalDeaths,
@@ -337,11 +309,7 @@ const Dashboard = ({
     setAdminLevel(level);
   }, []);
 
-  // ═════════════════════════════════════════════════════════
-  // ✅ EARLY RETURNS APRÈS TOUS LES HOOKS
-  // ═════════════════════════════════════════════════════════
   
-  // ✅ AFFICHER LOADING SI allTimeSeriesData EN COURS DE CHARGEMENT
   if (isSliderMode && allTimeSeriesData.isLoading) {
     return (
       <div className="dashboard-grid">
@@ -363,7 +331,6 @@ const Dashboard = ({
     );
   }
 
-  // ✅ AFFICHER ERREUR SI allTimeSeriesData A ÉCHOUÉ
   if (isSliderMode && allTimeSeriesData.error) {
     return (
       <div className="dashboard-grid">
@@ -400,9 +367,6 @@ const Dashboard = ({
     );
   }
 
-  // ═════════════════════════════════════════════════════════
-  // ✅ RENDER PRINCIPAL
-  // ═════════════════════════════════════════════════════════
 
   return (
     <div className="dashboard-grid">
@@ -412,7 +376,7 @@ const Dashboard = ({
             ← Back to Global View
           </button>
           <h2 className="country-view-title">
-            🌍 {selectedCountry} - Country View
+            {selectedCountry} - Country View
           </h2>
         </div>
       )}
@@ -438,7 +402,6 @@ const Dashboard = ({
           onLevelChange={handleAdminLevelChange}
         />
 
-        {/* ✅ PASSER LES DONNÉES EN PROPS */}
         <CountryList
           title="Confirmed Cases by Country/Region/Sovereignty"
           type="cases"
@@ -482,7 +445,6 @@ const Dashboard = ({
               colorClass="white-text"
             />
 
-            {/* ✅ PASSER LES DONNÉES EN PROPS */}
             <CountryList
               type="deaths"
               countriesData={totalDeathsPerCountry.data || []}
@@ -507,7 +469,6 @@ const Dashboard = ({
               colorClass="green-text"
             />
 
-            {/* ✅ PASSER LES DONNÉES EN PROPS */}
             <CountryList
               type="recovered"
               countriesData={totalRecoveredPerCountry.data || []}

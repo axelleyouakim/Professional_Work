@@ -26,7 +26,6 @@ router.get('/get_total_cases_per_country', cacheMiddleware(3600), covidControlle
 router.get('/get_total_deaths_per_country', cacheMiddleware(3600), covidController.getTotalDeathsPerCountry);
 router.get('/get_total_recovered_per_country', cacheMiddleware(3600), covidController.getTotalRecoveredPerCountry);
 
-// ✅ NOUVEAU - Time series par pays
 router.get('/get_cases_time_series/:country', cacheMiddleware(3600), covidController.getCasesTimeSeriesByCountry);
 
 router.get('/get_cases_time_series', cacheMiddleware(3600), covidController.getCasesTimeSeries);
@@ -53,6 +52,6 @@ router.get('/get_global_totals_at_date', cacheMiddleware(3600), covidController.
 
 router.get('/get_all_timeseries', cacheMiddleware(7200), covidController.getAllTimeSeriesData);
 
-router.get('/get_all_country_names', cacheMiddleware(3600), covidController.getAllCountryNames);
+// router.get('/get_all_country_names', cacheMiddleware(3600), covidController.getAllCountryNames);
 
 export default router;

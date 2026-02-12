@@ -6,14 +6,14 @@ import './Dashboard.css';
 const CountryList = ({ 
   title, 
   type = 'cases',
-  countriesData = [],  // ✅ NOUVEAU : Recevoir les données en props
+  countriesData = [],
   searchTerm = '',
   selectedCountry, 
   onCountryClick,
   labelSuffix = '',
   colorClass = 'red-text',
-  isLoading = false,   // ✅ NOUVEAU : État de chargement
-  error = null         // ✅ NOUVEAU : Erreur éventuelle
+  isLoading = false,
+  error = null
 }) => {
   const dataKey = type === 'deaths' 
     ? 'total_deaths' 
@@ -32,7 +32,6 @@ const CountryList = ({
     );
   }, [countriesData, searchTerm]);
 
-  // ✅ LOADING STATE
   if (isLoading) {
     return (
       <div className="country-list-container">
@@ -53,7 +52,6 @@ const CountryList = ({
     );
   }
 
-  // ✅ ERROR STATE
   if (error) {
     return (
       <div className="country-list-container">
@@ -67,7 +65,6 @@ const CountryList = ({
     );
   }
 
-  // ✅ EMPTY STATE
   if (filteredCountries.length === 0) {
     return (
       <div className="country-list-container">
@@ -81,7 +78,6 @@ const CountryList = ({
     );
   }
 
-  // ✅ RENDER LIST
   return (
     <div className="country-list-container">
       {title && <h4 className="country-list-title">{title}</h4>}

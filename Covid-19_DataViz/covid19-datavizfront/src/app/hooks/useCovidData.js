@@ -13,7 +13,6 @@ export const covidKeys = {
   deathsPerCountry: (period) => [...covidKeys.perCountry(period), 'deaths'],
   recoveredPerCountry: (period) => [...covidKeys.perCountry(period), 'recovered'],
   
-  // ✅ NOUVEAU - Time series par pays
   timeSeriesCountry: (country, period) => country 
     ? [...covidKeys.all, 'time-series', country, period || 'all']
     : covidKeys.casesTimeSeries(period),
@@ -102,13 +101,11 @@ export const useTotalCasesPerCountry = (periodOrDate = null) => {
   return useQuery({
     queryKey: covidKeys.casesPerCountry(periodOrDate),
     queryFn: async () => {
-      // ✅ Si c'est une date (format "3/15/20"), utiliser l'endpoint spécifique
       if (periodOrDate && typeof periodOrDate === 'string' && periodOrDate.includes('/')) {
         const response = await api.getDataAtSpecificDate(periodOrDate);
         return response?.data || [];
       }
-      
-      // ✅ Sinon, utiliser l'ancien endpoint avec period
+
       const data = await api.getTotalCasesPerCountry(periodOrDate);
       return data?.data || [];
     },
@@ -185,17 +182,14 @@ export const use28DayVaccineDosesPerCountry = () => {
   });
 };
 
-// ✅ HOOK - Time Series (avec filtre par date)
 export const useCasesTimeSeries = (period = null, country = null, maxDate = null) => {
   return useQuery({
     queryKey: covidKeys.timeSeriesCountry(country, period),
     queryFn: async () => {
-      // Si un pays est sélectionné, utiliser l'endpoint spécifique
       if (country) {
         const response = await api.getCasesTimeSeriesByCountry(country, period);
         let data = response?.data || [];
         
-        // ✅ Filtrer par date max si fournie
         if (maxDate && data.length > 0) {
           data = data.filter(item => item.date <= maxDate);
           console.log(`📊 [useCasesTimeSeries] Filtered to ${maxDate}: ${data.length} points for ${country}`);
@@ -204,11 +198,9 @@ export const useCasesTimeSeries = (period = null, country = null, maxDate = null
         return data;
       }
       
-      // Sinon, utiliser l'endpoint global
       const response = await api.getCasesTimeSeries(period);
       let data = response?.data || [];
       
-      // ✅ Filtrer par date max si fournie
       if (maxDate && data.length > 0) {
         data = data.filter(item => item.date <= maxDate);
         console.log(`📊 [useCasesTimeSeries] Filtered to ${maxDate}: ${data.length} points (global)`);
@@ -220,19 +212,17 @@ export const useCasesTimeSeries = (period = null, country = null, maxDate = null
   });
 };
 
-// ✅ HOOK - Charger TOUTES les données time-series (une seule fois)
 export const useAllTimeSeriesData = () => {
   return useQuery({
     queryKey: ['allTimeSeriesData'],
     queryFn: async () => {
       return await api.getAllTimeSeriesData();
     },
-    staleTime: Infinity, // Ne jamais recharger
-    cacheTime: Infinity, // Garder en cache pour toujours
+    staleTime: Infinity,
+    cacheTime: Infinity,
   });
 };
 
-// ✅ HOOK - Données à une date spécifique
 export const useDataAtSpecificDate = (dateString) => {
   return useQuery({
     queryKey: ['dataAtDate', dateString],

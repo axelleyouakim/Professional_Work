@@ -64,7 +64,6 @@ export const api = {
     return fetchAPI(url);
   },
 
-  // ✅ NOUVEAU - Time series par pays
   getCasesTimeSeriesByCountry: (country, period) => {
     const url = period 
       ? `/get_cases_time_series/${encodeURIComponent(country)}?period=${period}` 
@@ -72,7 +71,6 @@ export const api = {
     return fetchAPI(url);
   },
 
-  // ✅ NOUVEAU - Données à une date spécifique
   getDataAtSpecificDate: (date) => fetchAPI(`/get_data_at_date?date=${encodeURIComponent(date)}`),
   
   getGlobalTotalsAtDate: (date) => fetchAPI(`/get_global_totals_at_date?date=${encodeURIComponent(date)}`),
@@ -124,6 +122,6 @@ export const getGlobalTotalsAtDate = api.getGlobalTotalsAtDate;
 
 export const getAllTimeSeriesData = api.getAllTimeSeriesData;
 
-export const getAllCountryNames = () => fetchAPI('/get_all_country_names');
+// export const getAllCountryNames = () => fetchAPI('/get_all_country_names');
 
 export default api;

@@ -64,7 +64,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       context.fillStyle = "#0a1929";
       context.fillRect(-width * 2, -height * 2, width * 5, height * 5);
 
-      // Dessiner les pays
       countries.features.forEach((feature) => {
         const countryName = feature.properties.name || feature.properties.NAME || feature.properties.admin || feature.properties.ADMIN || "";
         const isSelected = selectedCountry && countryName.toLowerCase() === selectedCountry.toLowerCase();
@@ -196,11 +195,9 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       ctx.globalAlpha = 1;
     };
 
-    // ✅ FONCTION HELPER : Trouver le pays cliqué
     const findClickedCountry = (x, y) => {
       console.log('🔍 Searching for country at:', { x, y });
       
-      // Méthode 1: Chercher dans les cercles rouges (plus précis)
       if (casesData && casesData.length > 0) {
         const maxCases = Math.max(...casesData.map((c) => c.total_cases || 0));
         
@@ -226,7 +223,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
         }
       }
 
-      // Méthode 2: Chercher dans les polygones de pays (fallback)
       const point = projection.invert([x, y]);
       if (point) {
         for (const feature of countries.features) {
@@ -245,7 +241,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       return null;
     };
 
-    // ✅ HANDLER DE CLIC - FIXED VERSION
     const handleCanvasClick = (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -274,7 +269,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       }
     };
 
-    // ✅ HANDLER DE HOVER
     const handleCanvasMove = (event) => {
       const rect = canvas.getBoundingClientRect();
       const x = (event.clientX - rect.left - currentTransform.x) / currentTransform.k;
@@ -288,12 +282,9 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       }
     };
 
-    // ✅ SETUP ZOOM avec filter pour ne pas bloquer les clics
     const zoom = d3
       .zoom()
       .filter((event) => {
-        // Permettre le zoom avec molette SEULEMENT
-        // Bloquer le drag avec souris (qui interfère avec les clics)
         return event.type === 'wheel';
       })
       .scaleExtent([1, 8])
@@ -305,7 +296,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
 
     d3.select(canvas).call(zoom);
 
-    // ✅ Attacher les événements APRÈS le zoom
     canvas.addEventListener('click', handleCanvasClick, true);
     canvas.addEventListener('mousemove', handleCanvasMove);
 
@@ -353,7 +343,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
             <button className="view-toggle-btn" title="Grid view">⊞</button>
           </div>
 
-          {/* ✅ Info de debug */}
           {hoveredCountry && (
             <div style={{
               position: 'absolute',

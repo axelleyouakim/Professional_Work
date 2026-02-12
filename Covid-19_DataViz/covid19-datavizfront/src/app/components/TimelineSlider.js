@@ -4,21 +4,19 @@ import React, { useState, useCallback, useMemo } from 'react';
 import './TimelineSlider.css';
 
 const TimelineSlider = ({ onPeriodChange }) => {
-  // ✅ Générer toutes les dates entre 1 Nov 2019 et 9 Mars 2023
   const allDates = useMemo(() => {
     const dates = [];
-    const startDate = new Date(2019, 10, 1); // 1er Novembre 2019 (AVANT le COVID)
-    const endDate = new Date(2023, 2, 9);     // 9 Mars 2023
-    const firstDataDate = new Date(2020, 0, 22); // 22 Jan 2020 (première vraie donnée)
+    const startDate = new Date(2019, 10, 1);
+    const endDate = new Date(2023, 2, 9);
+    const firstDataDate = new Date(2020, 0, 22);
     
     let currentDate = new Date(startDate);
     
     while (currentDate <= endDate) {
       const month = currentDate.getMonth() + 1;
       const day = currentDate.getDate();
-      const year = currentDate.getFullYear() % 100; // Format YY
+      const year = currentDate.getFullYear() % 100;
       
-      // ✅ Si on est AVANT le 22 jan 2020, marquer comme "no data"
       const hasData = currentDate >= firstDataDate;
       
       dates.push({
@@ -29,7 +27,7 @@ const TimelineSlider = ({ onPeriodChange }) => {
           day: 'numeric', 
           year: 'numeric' 
         }),
-        hasData: hasData // ✅ NOUVEAU: indique si il y a des données à cette date
+        hasData: hasData
       });
       
       currentDate.setDate(currentDate.getDate() + 1);
@@ -38,13 +36,10 @@ const TimelineSlider = ({ onPeriodChange }) => {
     return dates;
   }, []);
 
-  // ✅ État : index du slider (0 = Jan 22 2020, max = Mars 9 2023)
-  const [sliderIndex, setSliderIndex] = useState(allDates.length - 1); // Commence à la fin
+  const [sliderIndex, setSliderIndex] = useState(allDates.length - 1);
 
-  // ✅ Date sélectionnée
   const selectedDate = allDates[sliderIndex];
 
-  // ✅ Handler pour bouger le slider
   const handleSliderChange = useCallback((e) => {
     const newIndex = parseInt(e.target.value, 10);
     setSliderIndex(newIndex);
@@ -53,19 +48,17 @@ const TimelineSlider = ({ onPeriodChange }) => {
     
     console.log(`📅 [TimelineSlider] Slider moved to: ${date.displayDate} (index ${newIndex})`);
     
-    // ✅ Notifier le parent
     if (onPeriodChange) {
       onPeriodChange({
-        dateString: date.dateString,      // "3/15/20" pour l'API
-        dateObj: date.dateObj,             // Date object
-        displayDate: date.displayDate,     // "Mar 15, 2020" pour affichage
-        dayIndex: newIndex,                // Index du jour
-        totalDays: allDates.length         // Total de jours
+        dateString: date.dateString,
+        dateObj: date.dateObj,
+        displayDate: date.displayDate,
+        dayIndex: newIndex,
+        totalDays: allDates.length
       });
     }
   }, [allDates, onPeriodChange]);
 
-  // ✅ Boutons de contrôle
   const goToStart = useCallback(() => {
     setSliderIndex(0);
   }, []);
@@ -75,16 +68,15 @@ const TimelineSlider = ({ onPeriodChange }) => {
   }, [allDates.length]);
 
   const stepBackward = useCallback(() => {
-    setSliderIndex(prev => Math.max(0, prev - 7)); // Recule de 7 jours
+    setSliderIndex(prev => Math.max(0, prev - 7));
   }, []);
 
   const stepForward = useCallback(() => {
-    setSliderIndex(prev => Math.min(allDates.length - 1, prev + 7)); // Avance de 7 jours
+    setSliderIndex(prev => Math.min(allDates.length - 1, prev + 7));
   }, [allDates.length]);
 
   return (
     <div className="timeline-slider-container">
-      {/* Header avec date sélectionnée */}
       <div className="timeline-header">
         <div className="timeline-date-display">
           <span className="timeline-label">📅 Selected Date:</span>
@@ -95,7 +87,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
         </div>
       </div>
 
-      {/* Contrôles */}
       <div className="timeline-controls">
         <button 
           className="timeline-btn" 
@@ -127,7 +118,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
         </button>
       </div>
 
-      {/* Slider principal */}
       <div className="timeline-slider-wrapper">
         <div className="timeline-slider-labels">
           <span className="timeline-slider-label">Nov 1, 2019 (Start - No data yet)</span>
@@ -147,7 +137,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
         />
       </div>
 
-      {/* Info */}
       <div className="timeline-info">
         {!selectedDate?.hasData && '⚪ Before COVID-19 - No cases recorded'}
         {selectedDate?.hasData && sliderIndex <= 100 && `📊 Early pandemic - Data starting ${selectedDate?.displayDate}`}

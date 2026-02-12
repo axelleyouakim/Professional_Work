@@ -148,7 +148,6 @@ export const covidController = {
     }
   },
 
-  // ✅ NOUVEAU - Time series par pays
   getCasesTimeSeriesByCountry: async (req, res, next) => {
     try {
       const { country } = req.params;
@@ -165,7 +164,6 @@ export const covidController = {
     }
   },
 
-  // ✅ NOUVEAU - Date range
   getAvailableDateRange: async (req, res, next) => {
     try {
       const data = await covidService.getAvailableDateRange();
@@ -175,7 +173,6 @@ export const covidController = {
     }
   },
 
-  // ✅ NOUVEAU - Data at specific date
   getDataAtSpecificDate: async (req, res, next) => {
     try {
       const { date } = req.query;
@@ -324,12 +321,12 @@ export const covidController = {
     }
   },
 
-  getAllCountryNames: async (req, res, next) => {
-  try {
-    const data = await covidService.getAllCountryNames();
-    res.json(data);
-  } catch (error) {
-    next(error);
-  }
-}
+//   getAllCountryNames: async (req, res, next) => {
+//   try {
+//     const data = await covidService.getAllCountryNames();
+//     res.json(data);
+//   } catch (error) {
+//     next(error);
+//   }
+// }
 };
