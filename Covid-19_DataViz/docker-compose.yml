@@ -15,12 +15,6 @@ services:
       - mongodb_data:/data/db
     networks:
       - covid_network
-    healthcheck:
-      test: ["CMD-SHELL", "mongosh --eval 'db.runCommand({ ping: 1 })' || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
 
   redis:
     image: redis:alpine
@@ -32,12 +26,6 @@ services:
       - redis_data:/data
     networks:
       - covid_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
 
   backend:
     build:
@@ -48,19 +36,15 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - NODE_ENV=production
-      - PORT=5000
-      - MONGODB_URI=mongodb://root:example@mongodb:27017/covid_db?authSource=admin
-      - REDIS_URL=redis://redis:6379
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://root:example@mongodb:27017/covid_db?authSource=admin
+      REDIS_URL: redis://redis:6379
     depends_on:
       - mongodb
       - redis
     networks:
       - covid_network
-    volumes:
-      - ./covid19-datavizback:/app
-      - /app/node_modules
-    command: npm start
 
   frontend:
     build:
@@ -71,16 +55,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://backend:5000/api
     depends_on:
       - backend
     networks:
       - covid_network
-    volumes:
-      - ./covid19-datavizfront:/app
-      - /app/node_modules
-      - /app/.next
 
 networks:
   covid_network:
