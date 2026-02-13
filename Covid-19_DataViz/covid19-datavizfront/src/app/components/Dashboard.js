@@ -388,13 +388,14 @@ const Dashboard = ({
         />
 
         <StatsCard 
-          label={selectedCountry ? `${selectedCountry} - Total Confirmed` : "Total Confirmed"}
-          type="cases"
-          selectedCountry={selectedCountry}
-          globalStats={globalStats}
-          isLoading={totalCasesPerCountry.isLoading}
-          error={totalCasesPerCountry.error}
-          colorClass="red-text"
+        label={selectedCountry ? `${selectedCountry} - Total Confirmed` : "Total Confirmed"}
+        type="cases"
+        selectedCountry={selectedCountry}
+        globalStats={globalStats}
+        isLoading={totalCasesPerCountry.isLoading}
+        error={totalCasesPerCountry.error}
+        currentDate={selectedPeriod?.dateString}
+        colorClass="red-text"
         />
 
         <AdminLevelSelector 
@@ -442,6 +443,7 @@ const Dashboard = ({
               globalStats={globalStats}
               isLoading={totalDeathsPerCountry.isLoading}
               error={totalDeathsPerCountry.error}
+              currentDate={selectedPeriod?.dateString}
               colorClass="white-text"
             />
 
@@ -466,6 +468,7 @@ const Dashboard = ({
               globalStats={globalStats}
               isLoading={totalRecoveredPerCountry.isLoading}
               error={totalRecoveredPerCountry.error}
+              currentDate={selectedPeriod?.dateString}
               colorClass="green-text"
             />
 
