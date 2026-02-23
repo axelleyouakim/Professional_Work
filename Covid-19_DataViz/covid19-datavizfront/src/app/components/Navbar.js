@@ -1,4 +1,3 @@
-// pas de refactorisation, gestion de la navbar avec liens actifs, navigation statique
 "use client";
 import React from 'react';
 import Link from 'next/link';
@@ -7,7 +6,7 @@ import './Navbar.css';
 
 const Navbar = () => {
   const pathname = usePathname();
-  
+
   return (
     <nav className="navbar">
       <div className="nav-container">
@@ -22,6 +21,9 @@ const Navbar = () => {
         </Link>
         <Link href="/map" className={`nav-link ${pathname === '/map' ? 'active' : ''}`}>
           Map View
+        </Link>
+        <Link href="/compare" className={`nav-link nav-link-compare ${pathname === '/compare' ? 'active' : ''}`}>
+          ⚖️ Compare
         </Link>
         <Link href="/about" className={`nav-link ${pathname === '/about' ? 'active' : ''}`}>
           About
