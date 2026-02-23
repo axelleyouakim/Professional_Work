@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../../services/api';
 
 export const covidKeys = {
@@ -192,7 +192,6 @@ export const useCasesTimeSeries = (period = null, country = null, maxDate = null
         
         if (maxDate && data.length > 0) {
           data = data.filter(item => item.date <= maxDate);
-          console.log(`📊 [useCasesTimeSeries] Filtered to ${maxDate}: ${data.length} points for ${country}`);
         }
         
         return data;
@@ -203,7 +202,6 @@ export const useCasesTimeSeries = (period = null, country = null, maxDate = null
       
       if (maxDate && data.length > 0) {
         data = data.filter(item => item.date <= maxDate);
-        console.log(`📊 [useCasesTimeSeries] Filtered to ${maxDate}: ${data.length} points (global)`);
       }
       
       return data;
@@ -244,6 +242,31 @@ export const useGlobalTotalsAtDate = (dateString) => {
     },
     enabled: !!dateString,
   });
+};
+
+// ─── Prefetch les données d'un pays au survol pour éviter le lag au clic ──────
+// Appelé avec le pays survolé → met les données en cache avant le clic
+export const usePrefetchCountryData = (countryName, selectedPeriod) => {
+  const queryClient = useQueryClient();
+  
+  const queryParam = selectedPeriod?.dateString ? null : null;
+
+  if (countryName) {
+    const queryKey = covidKeys.timeSeriesCountry(countryName, queryParam);
+    const cached   = queryClient.getQueryData(queryKey);
+
+    // Seulement si pas déjà en cache
+    if (!cached) {
+      queryClient.prefetchQuery({
+        queryKey,
+        queryFn: async () => {
+          const response = await api.getCasesTimeSeriesByCountry(countryName, queryParam);
+          return response?.data || [];
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+      });
+    }
+  }
 };
 
 export const useCovidDashboardData = (period = null) => {

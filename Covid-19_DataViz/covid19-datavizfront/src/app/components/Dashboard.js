@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useTransition } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   useTotalCasesPerCountry, 
   useTotalDeathsPerCountry,
   useTotalRecoveredPerCountry,
   useCasesTimeSeries,
-  useAllTimeSeriesData
+  useAllTimeSeriesData,
+  covidKeys,
+  usePrefetchCountryData
 } from '../hooks/useCovidData';
+import * as api from '../../services/api';
 import QueryStateWrapper from './QueryStateWrapper';
 import StatsCard from './StatsCard';
 import CountryList from './CountryList';
@@ -26,8 +30,16 @@ const Dashboard = ({
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [adminLevel, setAdminLevel] = useState("admin0");
   const [searchTerm, setSearchTerm] = useState('');
+  const [hoveredCountry, setHoveredCountry] = useState(null);
   
+  // ✅ useTransition pour transitions fluides
+  const [isPending, startTransition] = useTransition();
+  
+  const queryClient = useQueryClient();
   const allTimeSeriesData = useAllTimeSeriesData();
+  
+  // ✅ Prefetch les données du pays survolé
+  usePrefetchCountryData(hoveredCountry, selectedPeriod);
   
   const isSliderMode = selectedPeriod?.dateString != null && selectedPeriod.dateString !== '';
   const hasNoData = selectedPeriod?.hasData === false;
@@ -291,14 +303,30 @@ const Dashboard = ({
     };
   }, [selectedCountry, totalCasesPerCountry.data, totalDeathsPerCountry.data, totalRecoveredPerCountry.data]);
 
+  // ✅ Handler optimisé avec transition et prefetch
   const handleCountryClick = useCallback((countryName) => {
     console.log('🌍 Country selected:', countryName);
-    setSelectedCountry(countryName);
-  }, []);
+    
+    // Prefetch immédiatement les time series du pays
+    queryClient.prefetchQuery({
+      queryKey: covidKeys.timeSeriesCountry(countryName, queryParam),
+      queryFn: async () => {
+        const response = await api.getCasesTimeSeriesByCountry(countryName, queryParam);
+        return response?.data || [];
+      },
+    });
+    
+    // Utilise une transition pour éviter le lag UI
+    startTransition(() => {
+      setSelectedCountry(countryName);
+    });
+  }, [queryClient, queryParam]);
 
   const handleBackToGlobal = useCallback(() => {
     console.log('🌍 Back to global view');
-    setSelectedCountry(null);
+    startTransition(() => {
+      setSelectedCountry(null);
+    });
   }, []);
 
   const handleSearchChange = useCallback((term) => {
@@ -308,6 +336,13 @@ const Dashboard = ({
   const handleAdminLevelChange = useCallback((level) => {
     setAdminLevel(level);
   }, []);
+
+  // ✅ NOUVEAU : Handler pour le hover qui prefetch
+  const handleCountryHover = useCallback((countryName) => {
+    if (countryName && countryName !== hoveredCountry) {
+      setHoveredCountry(countryName);
+    }
+  }, [hoveredCountry]);
 
   
   if (isSliderMode && allTimeSeriesData.isLoading) {
@@ -369,7 +404,7 @@ const Dashboard = ({
 
 
   return (
-    <div className="dashboard-grid">
+    <div className="dashboard-grid" style={{ opacity: isPending ? 0.7 : 1, transition: 'opacity 0.2s' }}>
       {selectedCountry && (
         <div className="country-view-banner">
           <button className="back-to-global-btn" onClick={handleBackToGlobal}>
@@ -412,6 +447,7 @@ const Dashboard = ({
           searchTerm={searchTerm}
           selectedCountry={selectedCountry}
           onCountryClick={handleCountryClick}
+          onCountryHover={handleCountryHover}
           colorClass="red-text"
         />
 
@@ -429,6 +465,7 @@ const Dashboard = ({
             )}
             selectedCountry={selectedCountry}
             onCountryClick={handleCountryClick}
+            onCountryHover={handleCountryHover}
           />
         )}
       </QueryStateWrapper>
@@ -455,6 +492,7 @@ const Dashboard = ({
               searchTerm={searchTerm}
               selectedCountry={selectedCountry}
               onCountryClick={handleCountryClick}
+              onCountryHover={handleCountryHover}
               labelSuffix="deaths"
               colorClass="white-text"
             />
@@ -480,6 +518,7 @@ const Dashboard = ({
               searchTerm={searchTerm}
               selectedCountry={selectedCountry}
               onCountryClick={handleCountryClick}
+              onCountryHover={handleCountryHover}
               labelSuffix="recovered"
               colorClass="green-text"
             />
