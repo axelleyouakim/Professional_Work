@@ -16,12 +16,6 @@ import { useCasesTimeSeries } from '../hooks/useCovidData';
 import './Dashboard.css';
 
 const ChartComponent = ({ period = null, selectedCountry = null, timelineData = null }) => {
-  console.log('📊 [ChartComponent] Received props:', { 
-    period, 
-    selectedCountry, 
-    timelineDataLength: timelineData?.length 
-  });
-
   const shouldUseTimeline = timelineData !== null && timelineData !== undefined;
   const apiQuery = useCasesTimeSeries(period, selectedCountry);
 
@@ -34,15 +28,28 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
     return value;
   }, []);
 
-  const formatChartData = useCallback((rawData) => {
+  const rawData = useMemo(() => {
+    if (shouldUseTimeline) {
+      return timelineData;
+    }
+    
+    if (apiQuery.data) {
+      return apiQuery.data;
+    }
+    
+    return [];
+  }, [shouldUseTimeline, timelineData, apiQuery.data]);
+
+  const isLoading = shouldUseTimeline ? false : apiQuery.isLoading;
+  const error = shouldUseTimeline ? null : apiQuery.error;
+
+  // ✅ MEMOIZE LE FORMATTING : Ne recalcule que si rawData change
+  const formattedData = useMemo(() => {
     if (!rawData || rawData.length === 0) {
-      console.log('📊 [ChartComponent] No raw data');
       return [];
     }
     
-    console.log('📊 [ChartComponent] Formatting data:', rawData.length, 'points');
-    
-    const data = rawData.map(item => {
+    return rawData.map(item => {
       const parts = item.date.split("/");
       if (parts.length === 3) {
         const month = parseInt(parts[0], 10);
@@ -63,35 +70,16 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
       }
       return item;
     });
-    
-    return data;
-  }, []);
+  }, [rawData]); // ✅ Ne recalcule que si rawData change !
 
-  const rawData = useMemo(() => {
-    if (shouldUseTimeline) {
-      console.log('✅ [ChartComponent] Using TIMELINE data:', timelineData.length, 'points');
-      return timelineData;
-    }
-    
-    if (apiQuery.data) {
-      console.log('⚠️ [ChartComponent] Using API data:', apiQuery.data.length, 'points');
-      return apiQuery.data;
-    }
-    
-    console.log('❌ [ChartComponent] No data available');
-    return [];
-  }, [shouldUseTimeline, timelineData, apiQuery.data]);
-
-  const isLoading = shouldUseTimeline ? false : apiQuery.isLoading;
-  const error = shouldUseTimeline ? null : apiQuery.error;
-
+  // ✅ MEMOIZE LE PEAK : Ne recalcule que si formattedData change
   const peakInfo = useMemo(() => {
-    if (!rawData || rawData.length === 0) return null;
+    if (!formattedData || formattedData.length === 0) return null;
     
     let maxCases = 0;
     let peakIndex = 0;
     
-    rawData.forEach((item, index) => {
+    formattedData.forEach((item, index) => {
       if (item.cases > maxCases) {
         maxCases = item.cases;
         peakIndex = index;
@@ -100,19 +88,14 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
     
     if (maxCases === 0) return null;
     
-    const peakData = rawData[peakIndex];
-    console.log('📊 [ChartComponent] PEAK found:', { 
-      cases: maxCases, 
-      date: peakData.date, 
-      index: peakIndex 
-    });
+    const peakData = formattedData[peakIndex];
     
     return {
       cases: maxCases,
       date: peakData.date,
       index: peakIndex
     };
-  }, [rawData]);
+  }, [formattedData]); // ✅ Ne recalcule que si formattedData change !
 
   if (isLoading) {
     return (
@@ -149,8 +132,6 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
       </div>
     );
   }
-
-  const formattedData = formatChartData(rawData);
 
   if (formattedData.length === 0) {
     return (

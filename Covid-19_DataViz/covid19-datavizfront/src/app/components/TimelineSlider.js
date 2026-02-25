@@ -1,127 +1,151 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { useThrottledCallback } from '@tanstack/react-pacer';
 import './TimelineSlider.css';
 
 const TimelineSlider = ({ onPeriodChange }) => {
   const allDates = useMemo(() => {
     const dates = [];
-    const startDate     = new Date(2019, 10, 1);
-    const endDate       = new Date(2023,  2, 9);
-    const firstDataDate = new Date(2020,  0, 22);
-
+    const startDate = new Date(2019, 10, 1);
+    const endDate = new Date(2023, 2, 9);
+    const firstDataDate = new Date(2020, 0, 22);
+    
     let currentDate = new Date(startDate);
+    
     while (currentDate <= endDate) {
-      const month   = currentDate.getMonth() + 1;
-      const day     = currentDate.getDate();
-      const year    = currentDate.getFullYear() % 100;
+      const month = currentDate.getMonth() + 1;
+      const day = currentDate.getDate();
+      const year = currentDate.getFullYear() % 100;
+      
       const hasData = currentDate >= firstDataDate;
-
+      
       dates.push({
-        dateString:  `${month}/${day}/${year}`,
-        dateObj:     new Date(currentDate),
-        displayDate: currentDate.toLocaleDateString('en-US', {
-          month: 'short', day: 'numeric', year: 'numeric',
+        dateString: `${month}/${day}/${year}`,
+        dateObj: new Date(currentDate),
+        displayDate: currentDate.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
         }),
-        hasData,
+        hasData: hasData
       });
-
+      
       currentDate.setDate(currentDate.getDate() + 1);
     }
+    
     return dates;
   }, []);
 
   const [sliderIndex, setSliderIndex] = useState(allDates.length - 1);
-  const selectedDate = allDates[sliderIndex];
 
-  // ─── Fix "tout à 0" : appel initial au montage ───────────────────────────
-  // Sans ça, Dashboard reçoit selectedPeriod=null au démarrage et
-  // isSliderMode=false → les données API sont utilisées → ça marche.
-  // Mais si le slider est monté sans jamais être bougé, les données
-  // du slider ne sont jamais envoyées. On envoie la date initiale dès
-  // le montage pour synchroniser le Dashboard.
-  useEffect(() => {
-    if (onPeriodChange && allDates.length > 0) {
-      const initialDate = allDates[allDates.length - 1];
-      onPeriodChange({
-        dateString:  initialDate.dateString,
-        dateObj:     initialDate.dateObj,
-        displayDate: initialDate.displayDate,
-        dayIndex:    allDates.length - 1,
-        totalDays:   allDates.length,
-        hasData:     initialDate.hasData,
-      });
+  // ✅ THROTTLED CALLBACK - Limite les appels API à 1 toutes les 300ms
+  // Utilise le trailing edge pour être sûr d'avoir la dernière valeur
+  const throttledPeriodChange = useThrottledCallback(
+    (periodData) => {
+      if (onPeriodChange) {
+        console.log(`🚀 [Throttled] API call for: ${periodData.displayDate}`);
+        onPeriodChange(periodData);
+      }
+    },
+    {
+      interval: 300, // 300ms entre chaque appel API
+      leading: false, // Ne pas exécuter immédiatement
+      trailing: true,  // Exécuter à la fin (dernière valeur)
     }
-    // On veut que ça tourne UNE SEULE FOIS au montage
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  );
+
+  const selectedDate = allDates[sliderIndex];
 
   const handleSliderChange = useCallback((e) => {
     const newIndex = parseInt(e.target.value, 10);
+    
+    // ✅ Update UI immédiatement (pas de lag visuel)
     setSliderIndex(newIndex);
-
+    
     const date = allDates[newIndex];
+    
     console.log(`📅 [TimelineSlider] Slider moved to: ${date.displayDate} (index ${newIndex})`);
+    
+    // ✅ Throttle l'appel API
+    throttledPeriodChange({
+      dateString: date.dateString,
+      dateObj: date.dateObj,
+      displayDate: date.displayDate,
+      dayIndex: newIndex,
+      totalDays: allDates.length,
+      hasData: date.hasData
+    });
+  }, [allDates, throttledPeriodChange]);
 
+  const goToStart = useCallback(() => {
+    const newIndex = 0;
+    setSliderIndex(newIndex);
+    const date = allDates[newIndex];
+    
+    // ✅ Pour les boutons, on appelle directement (pas de throttle)
     if (onPeriodChange) {
       onPeriodChange({
-        dateString:  date.dateString,
-        dateObj:     date.dateObj,
+        dateString: date.dateString,
+        dateObj: date.dateObj,
         displayDate: date.displayDate,
-        dayIndex:    newIndex,
-        totalDays:   allDates.length,
-        hasData:     date.hasData,
+        dayIndex: newIndex,
+        totalDays: allDates.length,
+        hasData: date.hasData
       });
     }
   }, [allDates, onPeriodChange]);
 
-  const goToStart = useCallback(() => {
-    const idx  = 0;
-    const date = allDates[idx];
-    setSliderIndex(idx);
-    if (onPeriodChange) onPeriodChange({
-      dateString: date.dateString, dateObj: date.dateObj,
-      displayDate: date.displayDate, dayIndex: idx,
-      totalDays: allDates.length, hasData: date.hasData,
-    });
-  }, [allDates, onPeriodChange]);
-
   const goToEnd = useCallback(() => {
-    const idx  = allDates.length - 1;
-    const date = allDates[idx];
-    setSliderIndex(idx);
-    if (onPeriodChange) onPeriodChange({
-      dateString: date.dateString, dateObj: date.dateObj,
-      displayDate: date.displayDate, dayIndex: idx,
-      totalDays: allDates.length, hasData: date.hasData,
-    });
+    const newIndex = allDates.length - 1;
+    setSliderIndex(newIndex);
+    const date = allDates[newIndex];
+    
+    if (onPeriodChange) {
+      onPeriodChange({
+        dateString: date.dateString,
+        dateObj: date.dateObj,
+        displayDate: date.displayDate,
+        dayIndex: newIndex,
+        totalDays: allDates.length,
+        hasData: date.hasData
+      });
+    }
   }, [allDates, onPeriodChange]);
 
   const stepBackward = useCallback(() => {
-    setSliderIndex((prev) => {
-      const idx  = Math.max(0, prev - 7);
-      const date = allDates[idx];
-      if (onPeriodChange) onPeriodChange({
-        dateString: date.dateString, dateObj: date.dateObj,
-        displayDate: date.displayDate, dayIndex: idx,
-        totalDays: allDates.length, hasData: date.hasData,
+    const newIndex = Math.max(0, sliderIndex - 7);
+    setSliderIndex(newIndex);
+    const date = allDates[newIndex];
+    
+    if (onPeriodChange) {
+      onPeriodChange({
+        dateString: date.dateString,
+        dateObj: date.dateObj,
+        displayDate: date.displayDate,
+        dayIndex: newIndex,
+        totalDays: allDates.length,
+        hasData: date.hasData
       });
-      return idx;
-    });
-  }, [allDates, onPeriodChange]);
+    }
+  }, [sliderIndex, allDates, onPeriodChange]);
 
   const stepForward = useCallback(() => {
-    setSliderIndex((prev) => {
-      const idx  = Math.min(allDates.length - 1, prev + 7);
-      const date = allDates[idx];
-      if (onPeriodChange) onPeriodChange({
-        dateString: date.dateString, dateObj: date.dateObj,
-        displayDate: date.displayDate, dayIndex: idx,
-        totalDays: allDates.length, hasData: date.hasData,
+    const newIndex = Math.min(allDates.length - 1, sliderIndex + 7);
+    setSliderIndex(newIndex);
+    const date = allDates[newIndex];
+    
+    if (onPeriodChange) {
+      onPeriodChange({
+        dateString: date.dateString,
+        dateObj: date.dateObj,
+        displayDate: date.displayDate,
+        dayIndex: newIndex,
+        totalDays: allDates.length,
+        hasData: date.hasData
       });
-      return idx;
-    });
-  }, [allDates, onPeriodChange]);
+    }
+  }, [sliderIndex, allDates, onPeriodChange]);
 
   return (
     <div className="timeline-slider-container">
@@ -136,10 +160,34 @@ const TimelineSlider = ({ onPeriodChange }) => {
       </div>
 
       <div className="timeline-controls">
-        <button className="timeline-btn" onClick={goToStart}    title="Go to start">⏮ Start</button>
-        <button className="timeline-btn" onClick={stepBackward} title="Go back 7 days">⏪ -7d</button>
-        <button className="timeline-btn" onClick={stepForward}  title="Go forward 7 days">+7d ⏩</button>
-        <button className="timeline-btn" onClick={goToEnd}      title="Go to end">End ⏭</button>
+        <button 
+          className="timeline-btn" 
+          onClick={goToStart}
+          title="Go to start (Jan 22, 2020)"
+        >
+          ⏮ Start
+        </button>
+        <button 
+          className="timeline-btn" 
+          onClick={stepBackward}
+          title="Go back 7 days"
+        >
+          ⏪ -7d
+        </button>
+        <button 
+          className="timeline-btn" 
+          onClick={stepForward}
+          title="Go forward 7 days"
+        >
+          +7d ⏩
+        </button>
+        <button 
+          className="timeline-btn" 
+          onClick={goToEnd}
+          title="Go to end (Mar 9, 2023)"
+        >
+          End ⏭
+        </button>
       </div>
 
       <div className="timeline-slider-wrapper">
@@ -155,7 +203,7 @@ const TimelineSlider = ({ onPeriodChange }) => {
           onChange={handleSliderChange}
           className="timeline-slider"
         />
-        <div
+        <div 
           className="timeline-slider-progress"
           style={{ width: `${(sliderIndex / (allDates.length - 1)) * 100}%` }}
         />
@@ -163,10 +211,8 @@ const TimelineSlider = ({ onPeriodChange }) => {
 
       <div className="timeline-info">
         {!selectedDate?.hasData && '⚪ Before COVID-19 - No cases recorded'}
-        {selectedDate?.hasData && sliderIndex <= 100 &&
-          `📊 Early pandemic - Data starting ${selectedDate?.displayDate}`}
-        {selectedDate?.hasData && sliderIndex > 100 && sliderIndex < allDates.length - 1 &&
-          `📊 Cumulative data up to ${selectedDate?.displayDate}`}
+        {selectedDate?.hasData && sliderIndex <= 100 && `📊 Early pandemic - Data starting ${selectedDate?.displayDate}`}
+        {selectedDate?.hasData && sliderIndex > 100 && sliderIndex < allDates.length - 1 && `📊 Cumulative data up to ${selectedDate?.displayDate}`}
         {sliderIndex === allDates.length - 1 && '✅ Most recent data available'}
       </div>
     </div>
