@@ -7,165 +7,108 @@ import { useWorldAtlas } from '../hooks/useCovidData';
 import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
 
-// ─── Retourne le plus grand polygone d'un feature (comme Feature GeoJSON) ────
 const getLargestPolygon = (feature) => {
   if (!feature.geometry) return feature;
   const { type, coordinates } = feature.geometry;
   if (type === 'Polygon') return feature;
   if (type === 'MultiPolygon') {
-    let largestArea = -Infinity;
-    let largestCoords = null;
+    let largestArea = -Infinity, largestCoords = null;
     coordinates.forEach((polygonCoords) => {
-      const poly = {
-        type: 'Feature',
-        geometry: { type: 'Polygon', coordinates: polygonCoords },
-        properties: feature.properties,
-      };
+      const poly = { type: 'Feature', geometry: { type: 'Polygon', coordinates: polygonCoords }, properties: feature.properties };
       const area = d3.geoArea(poly);
-      if (area > largestArea) {
-        largestArea = area;
-        largestCoords = polygonCoords;
-      }
+      if (area > largestArea) { largestArea = area; largestCoords = polygonCoords; }
     });
-    if (largestCoords) {
-      return {
-        type: 'Feature',
-        geometry: { type: 'Polygon', coordinates: largestCoords },
-        properties: feature.properties,
-      };
-    }
+    if (largestCoords) return { type: 'Feature', geometry: { type: 'Polygon', coordinates: largestCoords }, properties: feature.properties };
   }
   return feature;
 };
 
-// ─── Centroïde du plus grand polygone ────────────────────────────────────────
-const getLargestPolygonCentroid = (feature) => {
-  return d3.geoCentroid(getLargestPolygon(feature));
-};
+const getLargestPolygonCentroid = (feature) => d3.geoCentroid(getLargestPolygon(feature));
 
 const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
-  const canvasRef     = useRef(null);
-  const zoomRef       = useRef(null);
-  const transformRef  = useRef(d3.zoomIdentity);
-  const countriesRef  = useRef(null);
-  const projectionRef = useRef(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [hoveredCountry, setHoveredCountry] = useState(null);
+  const canvasRef      = useRef(null);
+  const zoomRef        = useRef(null);
+  const transformRef   = useRef(d3.zoomIdentity);
+  const countriesRef   = useRef(null);
+  const projectionRef  = useRef(null);
+  const drawRef        = useRef(null); // ← ref vers la fonction draw
 
+  // ─── Refs pour les props qui changent souvent ─────────────────────────────
+  // Ces refs permettent à draw() de toujours lire la dernière valeur
+  // SANS être dans les dépendances du useEffect principal
+  const casesDataRef        = useRef(casesData);
+  const selectedCountryRef  = useRef(selectedCountry);
+  const hoveredCountryRef   = useRef(null);
+  const onCountryClickRef   = useRef(onCountryClick);
+
+  // Sync des refs à chaque render
+  casesDataRef.current       = casesData;
+  selectedCountryRef.current = selectedCountry;
+  onCountryClickRef.current  = onCountryClick;
+
+  const [hoveredCountry, setHoveredCountry] = useState(null);
   const worldAtlasQuery = useWorldAtlas();
 
-  // ─── Zoom basé sur le cercle (centroïde) + bounds du PLUS GRAND polygone ──
-  const computeFitTransform = useCallback((feature, width, height, projection) => {
-    // On travaille UNIQUEMENT sur le plus grand polygone
-    // → ignore la Guyane française, l'Alaska, les îles lointaines etc.
-    const mainPolygon = getLargestPolygon(feature);
+  // ─── Redessiner quand casesData ou selectedCountry changent ──────────────
+  // N'utilise PAS useEffect avec dépendances lourdes — juste appel draw()
+  useEffect(() => {
+    if (drawRef.current) drawRef.current();
+  }, [casesData, selectedCountry, hoveredCountry]);
 
-    // Centroïde du polygone principal = centre visuel = position du cercle
+  // ─── Zoom ─────────────────────────────────────────────────────────────────
+  const computeFitTransform = useCallback((feature, width, height, projection) => {
+    const mainPolygon = getLargestPolygon(feature);
     const centroid = d3.geoCentroid(mainPolygon);
     const [cx, cy] = projection(centroid);
-
-    // Bounds pixel du polygone principal uniquement
     const tempPath = d3.geoPath(projection);
     const [[bx0, by0], [bx1, by1]] = tempPath.bounds(mainPolygon);
-
-    // Distance max entre le centroïde et chaque bord
-    const distLeft   = Math.abs(cx - bx0);
-    const distRight  = Math.abs(bx1 - cx);
-    const distTop    = Math.abs(cy - by0);
-    const distBottom = Math.abs(by1 - cy);
-
-    const halfW = Math.max(distLeft, distRight, 1);
-    const halfH = Math.max(distTop, distBottom, 1);
-
-    // Scale exact : le bord le plus éloigné du centroïde touche le bord du canvas
-    const scale = Math.min(
-      (width  / 2) / halfW,
-      (height / 2) / halfH,
-      8
-    );
-
-    // Le centroïde se retrouve exactement au centre du canvas
-    return d3.zoomIdentity
-      .translate(width / 2, height / 2)
-      .scale(scale)
-      .translate(-cx, -cy);
+    const halfW = Math.max(Math.abs(cx - bx0), Math.abs(bx1 - cx), 1);
+    const halfH = Math.max(Math.abs(cy - by0), Math.abs(by1 - cy), 1);
+    const scale = Math.min((width / 2) / halfW, (height / 2) / halfH, 8);
+    return d3.zoomIdentity.translate(width / 2, height / 2).scale(scale).translate(-cx, -cy);
   }, []);
 
-  // ─── Zoom vers un pays ─────────────────────────────────────────────────────
   const zoomToCountry = useCallback((countryName) => {
-    const canvas     = canvasRef.current;
-    const zoom       = zoomRef.current;
-    const countries  = countriesRef.current;
-    const projection = projectionRef.current;
+    const canvas = canvasRef.current, zoom = zoomRef.current;
+    const countries = countriesRef.current, projection = projectionRef.current;
     if (!canvas || !zoom || !countries || !projection || !countryName) return;
-
     const feature = countries.features.find((f) => {
-      const name =
-        f.properties.name  ||
-        f.properties.NAME  ||
-        f.properties.admin ||
-        f.properties.ADMIN || '';
+      const name = f.properties.name || f.properties.NAME || f.properties.admin || f.properties.ADMIN || '';
       return name.toLowerCase() === countryName.toLowerCase();
     });
-
-    if (!feature) {
-      console.warn(`⚠️ zoomToCountry: feature not found for "${countryName}"`);
-      return;
-    }
-
+    if (!feature) return;
     try {
-      const newTransform = computeFitTransform(feature, canvas.width, canvas.height, projection);
-      d3.select(canvas)
-        .transition()
-        .duration(750)
-        .call(zoom.transform, newTransform);
-    } catch (e) {
-      console.error('zoomToCountry error:', e);
-    }
+      const t = computeFitTransform(feature, canvas.width, canvas.height, projection);
+      d3.select(canvas).transition().duration(750).call(zoom.transform, t);
+    } catch (e) { console.error('zoomToCountry error:', e); }
   }, [computeFitTransform]);
 
-  // ─── Retour vue globale ────────────────────────────────────────────────────
   const zoomToGlobal = useCallback(() => {
-    const canvas = canvasRef.current;
-    const zoom   = zoomRef.current;
-    if (!canvas || !zoom) return;
-    d3.select(canvas)
-      .transition()
-      .duration(750)
-      .call(zoom.transform, d3.zoomIdentity);
+    const canvas = canvasRef.current, zoom = zoomRef.current;
+    if (canvas && zoom) d3.select(canvas).transition().duration(750).call(zoom.transform, d3.zoomIdentity);
   }, []);
 
-  // ─── Déclencher zoom quand selectedCountry change ─────────────────────────
   useEffect(() => {
-    if (selectedCountry) {
-      zoomToCountry(selectedCountry);
-    } else {
-      zoomToGlobal();
-    }
+    if (selectedCountry) zoomToCountry(selectedCountry);
+    else zoomToGlobal();
   }, [selectedCountry, zoomToCountry, zoomToGlobal]);
 
-  // ─── Setup principal du canvas ─────────────────────────────────────────────
+  // ─── Setup D3 : UNE SEULE FOIS quand worldAtlas est chargé ───────────────
+  // casesData / selectedCountry / hoveredCountry NE SONT PAS dans les deps
+  // → le setup ne se recrée jamais au mouvement du slider
   useEffect(() => {
     if (!worldAtlasQuery.data || !canvasRef.current) return;
 
-    const topology = worldAtlasQuery.data;
-    const canvas   = canvasRef.current;
-    const context  = canvas.getContext('2d');
-    const width    = (canvas.width  = canvas.offsetWidth);
-    const height   = (canvas.height = canvas.offsetHeight);
+    const canvas  = canvasRef.current;
+    const context = canvas.getContext('2d');
+    const width   = (canvas.width  = canvas.offsetWidth);
+    const height  = (canvas.height = canvas.offsetHeight);
 
-    const countries = topojson.feature(topology, topology.objects.countries);
-
-    // Centroïde sur le plus grand polygone pour chaque pays
-    countries.features.forEach((feature) => {
-      feature.properties.centroid = getLargestPolygonCentroid(feature);
-    });
+    const countries = topojson.feature(worldAtlasQuery.data, worldAtlasQuery.data.objects.countries);
+    countries.features.forEach((f) => { f.properties.centroid = getLargestPolygonCentroid(f); });
     countriesRef.current = countries;
 
-    const projection = d3
-      .geoMercator()
-      .scale(width / (2 * Math.PI))
-      .translate([width / 2, height / 2]);
+    const projection = d3.geoMercator().scale(width / (2 * Math.PI)).translate([width / 2, height / 2]);
     projectionRef.current = projection;
 
     const path = d3.geoPath(projection, context);
@@ -185,12 +128,15 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       { name: 'AUSTRALIA',     coords: [ 135,-25] },
     ];
 
-    // ─── draw ────────────────────────────────────────────────────────────────
+    // ─── draw lit TOUJOURS les dernières valeurs via les refs ────────────────
     const draw = () => {
-      const t = transformRef.current;
+      const t              = transformRef.current;
+      const curCasesData   = casesDataRef.current;
+      const curSelected    = selectedCountryRef.current;
+      const curHovered     = hoveredCountryRef.current;
+
       context.clearRect(0, 0, width, height);
       context.save();
-
       context.translate(t.x, t.y);
       context.scale(t.k, t.k);
 
@@ -198,149 +144,115 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       context.fillRect(-width * 2, -height * 2, width * 5, height * 5);
 
       countries.features.forEach((feature) => {
-        const name =
-          feature.properties.name  ||
-          feature.properties.NAME  ||
-          feature.properties.admin ||
-          feature.properties.ADMIN || '';
-        const isSelected = selectedCountry && name.toLowerCase() === selectedCountry.toLowerCase();
-        const isHovered  = hoveredCountry  && name.toLowerCase() === hoveredCountry.toLowerCase();
-
+        const name = feature.properties.name || feature.properties.NAME || feature.properties.admin || feature.properties.ADMIN || '';
+        const isSelected = curSelected && name.toLowerCase() === curSelected.toLowerCase();
+        const isHovered  = curHovered  && name.toLowerCase() === curHovered.toLowerCase();
         context.fillStyle   = isSelected ? '#2a4a7f' : '#1a2f3f';
         context.strokeStyle = isSelected ? '#5a8aff' : isHovered ? '#4a6a8f' : '#2a4a5f';
         context.lineWidth   = (isSelected ? 1.5 : 0.5) / t.k;
-
         context.beginPath();
         path(feature);
         context.fill();
         context.stroke();
       });
 
-      drawCasesCircles(context, projection, t.k, countries);
+      // Cercles cas
+      if (curCasesData && curCasesData.length > 0) {
+        const maxCases = Math.max(...curCasesData.map((c) => c.total_cases || 0));
+        if (maxCases > 0) {
+          curCasesData.forEach((countryData) => {
+            if (!countryData.total_cases) return;
+            const feature = countries.features.find((f) => {
+              const n = f.properties.name || f.properties.NAME || f.properties.admin || f.properties.ADMIN || '';
+              return n.toLowerCase() === countryData.country.toLowerCase();
+            });
+            if (!feature?.properties.centroid) return;
+            const coords = projection(feature.properties.centroid);
+            if (!coords || coords[0] < -width || coords[0] > width * 2 || coords[1] < -height || coords[1] > height * 2) return;
+            const baseRadius = Math.sqrt(countryData.total_cases / maxCases) * 40;
+            const radius     = Math.max(3, baseRadius / t.k);
+            const isSel      = curSelected && countryData.country.toLowerCase() === curSelected.toLowerCase();
+            context.shadowColor = isSel ? 'rgba(255,255,0,0.8)' : 'rgba(255,0,0,0.8)';
+            context.shadowBlur  = (isSel ? 15 : 10) / t.k;
+            context.fillStyle   = isSel ? 'rgba(255,255,0,0.7)' : 'rgba(255,0,0,0.6)';
+            context.beginPath();
+            context.arc(coords[0], coords[1], radius, 0, 2 * Math.PI);
+            context.fill();
+            context.strokeStyle = isSel ? 'rgba(255,255,100,1)' : 'rgba(255,100,100,0.8)';
+            context.lineWidth   = (isSel ? 2 : 1) / t.k;
+            context.stroke();
+            context.shadowBlur = 0;
+          });
+        }
+      }
 
+      // Labels
       if (t.k < 2) {
-        drawLabels(context, oceanLabels,     projection, t.k, '#3a5a7a', 14, 0.7, 'italic');
-        drawLabels(context, continentLabels, projection, t.k, '#e0e0e0', 13, 0.9, 'bold');
+        [
+          [oceanLabels,     '#3a5a7a', 14, 0.7, 'italic'],
+          [continentLabels, '#e0e0e0', 13, 0.9, 'bold'],
+        ].forEach(([labels, color, fontSize, minZoom, fw]) => {
+          if (t.k < minZoom) return;
+          context.font         = `${fw} ${fontSize / t.k}px Arial`;
+          context.fillStyle    = color;
+          context.textAlign    = 'center';
+          context.textBaseline = 'middle';
+          context.globalAlpha  = Math.min(1, (t.k - minZoom + 0.5) / 0.7);
+          labels.forEach((label) => {
+            const coords = projection(label.coords);
+            if (coords) {
+              context.shadowColor = 'rgba(0,0,0,0.8)';
+              context.shadowBlur  = 3 / t.k;
+              context.fillText(label.name, coords[0], coords[1]);
+              context.shadowBlur = 0;
+            }
+          });
+          context.globalAlpha = 1;
+        });
       } else {
-        drawCountryLabels(context, projection, t.k, countries);
+        // Noms des pays
+        const minArea = 1000 / (t.k * t.k);
+        context.font         = `${10 / t.k}px Arial`;
+        context.fillStyle    = '#ffffff';
+        context.textAlign    = 'center';
+        context.textBaseline = 'middle';
+        context.globalAlpha  = Math.min(1, (t.k - 1.5) / 1);
+        countries.features.forEach((feature) => {
+          const area = d3.geoArea(feature) * 1_000_000;
+          if (area > minArea && feature.properties.centroid) {
+            const coords = projection(feature.properties.centroid);
+            if (coords && coords[0] >= 0 && coords[0] <= width && coords[1] >= 0 && coords[1] <= height) {
+              const name = feature.properties.name || feature.properties.NAME || feature.properties.admin || feature.properties.ADMIN || '';
+              if (name) {
+                context.shadowColor = 'rgba(0,0,0,0.8)';
+                context.shadowBlur  = 3 / t.k;
+                context.fillText(name, coords[0], coords[1]);
+                context.shadowBlur = 0;
+              }
+            }
+          }
+        });
+        context.globalAlpha = 1;
       }
 
       context.restore();
     };
 
-    // ─── drawCasesCircles ────────────────────────────────────────────────────
-    const drawCasesCircles = (ctx, proj, zoom, worldData) => {
-      if (!casesData || casesData.length === 0) return;
-      const maxCases = Math.max(...casesData.map((c) => c.total_cases || 0));
-      // Si maxCases = 0 (avant COVID), pas de cercles à dessiner
-      if (maxCases === 0) return;
+    drawRef.current = draw;
 
-      casesData.forEach((countryData) => {
-        if (!countryData.total_cases || countryData.total_cases === 0) return;
-        const feature = worldData.features.find((f) => {
-          const n =
-            f.properties.name  ||
-            f.properties.NAME  ||
-            f.properties.admin ||
-            f.properties.ADMIN || '';
-          return n.toLowerCase() === countryData.country.toLowerCase();
-        });
-
-        if (feature && feature.properties.centroid) {
-          const coords = proj(feature.properties.centroid);
-          if (
-            coords &&
-            coords[0] >= -width    && coords[0] <= width * 2 &&
-            coords[1] >= -height   && coords[1] <= height * 2
-          ) {
-            const baseRadius = Math.sqrt(countryData.total_cases / maxCases) * 40;
-            const radius     = Math.max(3, baseRadius / zoom);
-            const isSelected =
-              selectedCountry &&
-              countryData.country.toLowerCase() === selectedCountry.toLowerCase();
-
-            ctx.shadowColor = isSelected ? 'rgba(255,255,0,0.8)' : 'rgba(255,0,0,0.8)';
-            ctx.shadowBlur  = (isSelected ? 15 : 10) / zoom;
-            ctx.fillStyle   = isSelected ? 'rgba(255,255,0,0.7)' : 'rgba(255,0,0,0.6)';
-            ctx.beginPath();
-            ctx.arc(coords[0], coords[1], radius, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.strokeStyle = isSelected ? 'rgba(255,255,100,1)' : 'rgba(255,100,100,0.8)';
-            ctx.lineWidth   = (isSelected ? 2 : 1) / zoom;
-            ctx.stroke();
-            ctx.shadowBlur  = 0;
-          }
-        }
-      });
-    };
-
-    // ─── drawCountryLabels ───────────────────────────────────────────────────
-    const drawCountryLabels = (ctx, proj, zoom, worldData) => {
-      const minArea = 1000 / (zoom * zoom);
-      ctx.font         = `${10 / zoom}px Arial`;
-      ctx.fillStyle    = '#ffffff';
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.globalAlpha  = Math.min(1, (zoom - 1.5) / 1);
-
-      worldData.features.forEach((feature) => {
-        const area = d3.geoArea(feature) * 1_000_000;
-        if (area > minArea && feature.properties.centroid) {
-          const coords = proj(feature.properties.centroid);
-          if (coords && coords[0] >= 0 && coords[0] <= width && coords[1] >= 0 && coords[1] <= height) {
-            const name =
-              feature.properties.name  ||
-              feature.properties.NAME  ||
-              feature.properties.admin ||
-              feature.properties.ADMIN || '';
-            if (name) {
-              ctx.shadowColor = 'rgba(0,0,0,0.8)';
-              ctx.shadowBlur  = 3 / zoom;
-              ctx.fillText(name, coords[0], coords[1]);
-              ctx.shadowBlur  = 0;
-            }
-          }
-        }
-      });
-      ctx.globalAlpha = 1;
-    };
-
-    // ─── drawLabels ──────────────────────────────────────────────────────────
-    const drawLabels = (ctx, labels, proj, zoom, color, fontSize, minZoom, fontWeight = 'normal') => {
-      if (zoom < minZoom) return;
-      ctx.font         = `${fontWeight} ${fontSize / zoom}px Arial`;
-      ctx.fillStyle    = color;
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.globalAlpha  = Math.min(1, (zoom - minZoom + 0.5) / 0.7);
-      labels.forEach((label) => {
-        const coords = proj(label.coords);
-        if (coords) {
-          ctx.shadowColor = 'rgba(0,0,0,0.8)';
-          ctx.shadowBlur  = 3 / zoom;
-          ctx.fillText(label.name, coords[0], coords[1]);
-          ctx.shadowBlur  = 0;
-        }
-      });
-      ctx.globalAlpha = 1;
-    };
-
-    // ─── findClickedCountry ──────────────────────────────────────────────────
+    // ─── findClickedCountry ───────────────────────────────────────────────
     const findClickedCountry = (x, y) => {
-      if (casesData && casesData.length > 0) {
-        const maxCases = Math.max(...casesData.map((c) => c.total_cases || 0));
+      const curCasesData = casesDataRef.current;
+      if (curCasesData && curCasesData.length > 0) {
+        const maxCases = Math.max(...curCasesData.map((c) => c.total_cases || 0));
         if (maxCases > 0) {
-          for (const countryData of casesData) {
+          for (const countryData of curCasesData) {
             if (!countryData.total_cases) continue;
             const feature = countries.features.find((f) => {
-              const n =
-                f.properties.name  ||
-                f.properties.NAME  ||
-                f.properties.admin ||
-                f.properties.ADMIN || '';
+              const n = f.properties.name || f.properties.NAME || f.properties.admin || f.properties.ADMIN || '';
               return n.toLowerCase() === countryData.country.toLowerCase();
             });
-            if (feature && feature.properties.centroid) {
+            if (feature?.properties.centroid) {
               const coords = projection(feature.properties.centroid);
               if (coords) {
                 const baseRadius = Math.sqrt(countryData.total_cases / maxCases) * 40;
@@ -351,73 +263,60 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
           }
         }
       }
-
       const point = projection.invert([x, y]);
       if (point) {
         for (const feature of countries.features) {
-          const name =
-            feature.properties.name  ||
-            feature.properties.NAME  ||
-            feature.properties.admin ||
-            feature.properties.ADMIN || '';
+          const name = feature.properties.name || feature.properties.NAME || feature.properties.admin || feature.properties.ADMIN || '';
           if (name && d3.geoContains(feature, point)) return name;
         }
       }
       return null;
     };
 
-    // ─── Event handlers ──────────────────────────────────────────────────────
-    const handleCanvasClick = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
+    // ─── Event handlers ───────────────────────────────────────────────────
+    const handleCanvasClick = (e) => {
+      e.preventDefault(); e.stopPropagation();
       const rect = canvas.getBoundingClientRect();
       const t    = transformRef.current;
-      const x    = (event.clientX - rect.left - t.x) / t.k;
-      const y    = (event.clientY - rect.top  - t.y) / t.k;
+      const x    = (e.clientX - rect.left - t.x) / t.k;
+      const y    = (e.clientY - rect.top  - t.y) / t.k;
       const clicked = findClickedCountry(x, y);
-      if (clicked && onCountryClick) onCountryClick(clicked);
+      if (clicked && onCountryClickRef.current) onCountryClickRef.current(clicked);
     };
 
-    const handleCanvasMove = (event) => {
+    const handleCanvasMove = (e) => {
       const rect    = canvas.getBoundingClientRect();
       const t       = transformRef.current;
-      const x       = (event.clientX - rect.left - t.x) / t.k;
-      const y       = (event.clientY - rect.top  - t.y) / t.k;
+      const x       = (e.clientX - rect.left - t.x) / t.k;
+      const y       = (e.clientY - rect.top  - t.y) / t.k;
       const country = findClickedCountry(x, y);
-      if (country !== hoveredCountry) {
+      if (country !== hoveredCountryRef.current) {
+        hoveredCountryRef.current = country;
         setHoveredCountry(country);
         canvas.style.cursor = country ? 'pointer' : 'default';
       }
     };
 
-    // ─── D3 zoom ─────────────────────────────────────────────────────────────
-    const zoom = d3
-      .zoom()
-      .filter((event) => event.type === 'wheel')
+    // ─── D3 zoom ──────────────────────────────────────────────────────────
+    const zoom = d3.zoom()
+      .filter((e) => e.type === 'wheel')
       .scaleExtent([1, 8])
-      .on('zoom', (event) => {
-        transformRef.current = event.transform;
-        setZoomLevel(event.transform.k);
+      .on('zoom', (e) => {
+        transformRef.current = e.transform;
         draw();
       });
 
     zoomRef.current = zoom;
     d3.select(canvas).call(zoom);
-
     canvas.addEventListener('click',     handleCanvasClick, true);
     canvas.addEventListener('mousemove', handleCanvasMove);
 
     draw();
-    canvas._draw = draw;
 
     const handleResize = () => {
-      const newWidth  = canvas.offsetWidth;
-      const newHeight = canvas.offsetHeight;
-      canvas.width  = newWidth;
-      canvas.height = newHeight;
-      projection
-        .scale(newWidth / (2 * Math.PI))
-        .translate([newWidth / 2, newHeight / 2]);
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      projection.scale(canvas.width / (2 * Math.PI)).translate([canvas.width / 2, canvas.height / 2]);
       draw();
     };
     window.addEventListener('resize', handleResize);
@@ -426,33 +325,16 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       window.removeEventListener('resize', handleResize);
       canvas.removeEventListener('click',     handleCanvasClick, true);
       canvas.removeEventListener('mousemove', handleCanvasMove);
-      delete canvas._draw;
+      drawRef.current = null;
     };
-  }, [worldAtlasQuery.data, casesData, selectedCountry, hoveredCountry, onCountryClick]);
+  // ✅ UNIQUEMENT worldAtlasQuery.data — jamais casesData/selectedCountry/hoveredCountry
+  }, [worldAtlasQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas && canvas._draw) canvas._draw();
-  }, [selectedCountry]);
-
-  const handleZoomIn = () => {
-    const canvas = canvasRef.current;
-    const zoom   = zoomRef.current;
-    if (canvas && zoom) d3.select(canvas).transition().duration(300).call(zoom.scaleBy, 1.3);
-  };
-
-  const handleZoomOut = () => {
-    const canvas = canvasRef.current;
-    const zoom   = zoomRef.current;
-    if (canvas && zoom) d3.select(canvas).transition().duration(300).call(zoom.scaleBy, 0.77);
-  };
+  const handleZoomIn  = () => { const c = canvasRef.current, z = zoomRef.current; if (c && z) d3.select(c).transition().duration(300).call(z.scaleBy, 1.3); };
+  const handleZoomOut = () => { const c = canvasRef.current, z = zoomRef.current; if (c && z) d3.select(c).transition().duration(300).call(z.scaleBy, 0.77); };
 
   return (
-    <QueryStateWrapper
-      query={worldAtlasQuery}
-      loadingMessage="Loading world map..."
-      errorMessage="Failed to load world map"
-    >
+    <QueryStateWrapper query={worldAtlasQuery} loadingMessage="Loading world map..." errorMessage="Failed to load world map">
       {() => (
         <div className="map-panel">
           <div className="view-toggle-buttons">
@@ -462,21 +344,12 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
           </div>
 
           {hoveredCountry && (
-            <div style={{
-              position: 'absolute', top: '60px', left: '20px',
-              background: 'rgba(0,0,0,0.8)', color: '#fff',
-              padding: '5px 10px', borderRadius: '4px',
-              fontSize: '12px', zIndex: 1000, pointerEvents: 'none',
-            }}>
+            <div style={{ position: 'absolute', top: '60px', left: '20px', background: 'rgba(0,0,0,0.8)', color: '#fff', padding: '5px 10px', borderRadius: '4px', fontSize: '12px', zIndex: 1000, pointerEvents: 'none' }}>
               {hoveredCountry} — cliquez pour sélectionner
             </div>
           )}
 
-          <canvas
-            ref={canvasRef}
-            className="map-container"
-            style={{ touchAction: 'none' }}
-          />
+          <canvas ref={canvasRef} className="map-container" style={{ touchAction: 'none' }} />
 
           <div className="zoom-controls">
             <button className="zoom-btn" onClick={handleZoomIn}  title="Zoom in">+</button>
@@ -494,15 +367,9 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
               <span className="info-sublabel">countries/regions</span>
             </div>
             <div className="info-text">
-              <strong>Lancet Inf Dis</strong> Article: <a href="#">Here</a>. Mobile Version:{' '}
-              <a href="#">Here</a>. Visualization: <a href="#">JHU CSSE</a>. Automation Support:{' '}
-              <a href="#">Esri Living Atlas team</a> and <a href="#">JHU APL</a>.{' '}
-              <a href="#">Contact Us</a>. <a href="#">FAQ</a>.<br />
-              Data sources: WHO, CDC, ECDC, NHC, DXY, 1point3acres, Worldometers.info, BNO, state and
-              national government health departments, and local media reports. Read more in{' '}
-              <a href="#">this blog</a>.<br />
-              Downloadable database: GitHub: <a href="#">Here</a>. Feature layer:{' '}
-              <a href="#">Here</a>.
+              <strong>Lancet Inf Dis</strong> Article: <a href="#">Here</a>. Mobile Version: <a href="#">Here</a>. Visualization: <a href="#">JHU CSSE</a>. Automation Support: <a href="#">Esri Living Atlas team</a> and <a href="#">JHU APL</a>. <a href="#">Contact Us</a>. <a href="#">FAQ</a>.<br />
+              Data sources: WHO, CDC, ECDC, NHC, DXY, 1point3acres, Worldometers.info, BNO, state and national government health departments, and local media reports.<br />
+              Downloadable database: GitHub: <a href="#">Here</a>. Feature layer: <a href="#">Here</a>.
             </div>
           </div>
         </div>
@@ -511,4 +378,4 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
   );
 };
 
-export default MapComponent;
+export default React.memo(MapComponent);
