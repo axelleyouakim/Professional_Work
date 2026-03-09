@@ -56,7 +56,12 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://backend:5000/api
+      # ✅ BACKEND_URL : utilisé côté serveur Next.js (SSR/API routes)
+      #    → résolu dans le réseau Docker via le nom du service "backend"
+      BACKEND_URL: http://backend:5000/api
+      # ✅ NEXT_PUBLIC_API_URL : utilisé côté navigateur (client)
+      #    → doit être localhost car le navigateur ne connaît pas "backend"
+      NEXT_PUBLIC_API_URL: http://localhost:5000/api
     depends_on:
       - backend
     networks:

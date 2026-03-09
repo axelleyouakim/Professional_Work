@@ -30,25 +30,26 @@ const TimelineSlider = ({ onPeriodChange }) => {
   const [sliderIndex, setSliderIndex] = useState(allDates.length - 1);
   const latestIndexRef = useRef(allDates.length - 1);
 
-  // ─── Throttle à 50ms, leading:true ───────────────────────────────────────
-  // leading:true  → fire immédiatement au premier mouvement (pas de délai perçu)
-  // interval:50ms → max 20 updates/sec pendant le drag (fluide sans surcharge)
-  // trailing:true → garantit que la dernière position est toujours envoyée
+  // ─── Throttle TanStack Pacer ──────────────────────────────────────────────
+  // wait: 150ms  → max ~6 updates/sec pendant le drag (fluide sans surcharge)
+  // leading: true  → fire immédiatement au premier mouvement (pas de délai perçu)
+  // trailing: true → garantit que la dernière position est toujours envoyée
   const throttledPeriodChange = useThrottledCallback(
     (periodData) => {
       if (onPeriodChange) onPeriodChange(periodData);
     },
-    { interval: 50, leading: true, trailing: true }
+    { wait: 150, leading: true, trailing: true }
   );
 
   const handleSliderChange = useCallback((e) => {
     const newIndex = parseInt(e.target.value, 10);
     latestIndexRef.current = newIndex;
 
-    // UI : immédiat, jamais throttlé
+    // UI : mise à jour immédiate, jamais throttlée
     setSliderIndex(newIndex);
 
     const date = allDates[newIndex];
+    // onPeriodChange : throttlé → max 1 update / 150ms
     throttledPeriodChange({
       dateString:  date.dateString,
       dateObj:     date.dateObj,

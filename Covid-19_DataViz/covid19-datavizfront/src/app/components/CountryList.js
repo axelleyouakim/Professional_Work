@@ -1,60 +1,10 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import './Dashboard.css';
-
 import { getFlagUrl } from '../utils/countryFlags';
 
-// ─── Mapping nom propre → ISO2 pour flagcdn.com ───────────────────────────────
-// Clés = noms APRÈS nettoyage par usePreCalculatedData (cleanName)
-// const COUNTRY_TO_ISO2 = {
-//   'Afghanistan':'af','Albania':'al','Algeria':'dz','Andorra':'ad','Angola':'ao',
-//   'Antigua and Barbuda':'ag','Argentina':'ar','Armenia':'am','Australia':'au','Austria':'at',
-//   'Azerbaijan':'az','Bahamas':'bs','Bahrain':'bh','Bangladesh':'bd','Barbados':'bb',
-//   'Belarus':'by','Belgium':'be','Belize':'bz','Benin':'bj','Bhutan':'bt',
-//   'Bolivia':'bo','Bosnia and Herzegovina':'ba','Botswana':'bw','Brazil':'br','Brunei':'bn',
-//   'Bulgaria':'bg','Burkina Faso':'bf','Myanmar':'mm','Burundi':'bi','Cape Verde':'cv',
-//   'Cambodia':'kh','Cameroon':'cm','Canada':'ca','Central African Republic':'cf','Chad':'td',
-//   'Chile':'cl','China':'cn','Colombia':'co','Comoros':'km','Congo (Brazzaville)':'cg',
-//   'Congo (Kinshasa)':'cd','Costa Rica':'cr',"Côte d'Ivoire":'ci','Croatia':'hr','Cuba':'cu',
-//   'Cyprus':'cy','Czechia':'cz','Denmark':'dk','Djibouti':'dj','Dominica':'dm',
-//   'Dominican Republic':'do','Ecuador':'ec','Egypt':'eg','El Salvador':'sv',
-//   'Equatorial Guinea':'gq','Eritrea':'er','Estonia':'ee','Eswatini':'sz','Ethiopia':'et',
-//   'Fiji':'fj','Finland':'fi','France':'fr','Gabon':'ga','Gambia':'gm','Georgia':'ge',
-//   'Germany':'de','Ghana':'gh','Greece':'gr','Grenada':'gd','Guatemala':'gt','Guinea':'gn',
-//   'Guinea-Bissau':'gw','Guyana':'gy','Haiti':'ht','Vatican City':'va','Honduras':'hn',
-//   'Hungary':'hu','Iceland':'is','India':'in','Indonesia':'id','Iran':'ir','Iraq':'iq',
-//   'Ireland':'ie','Israel':'il','Italy':'it','Jamaica':'jm','Japan':'jp','Jordan':'jo',
-//   'Kazakhstan':'kz','Kenya':'ke','Kiribati':'ki','Korea, North': 'kp','Korea, South': 'kr',
-//   'Kosovo':'xk','Kuwait':'kw','Kyrgyzstan':'kg','Laos':'la','Latvia':'lv','Lebanon':'lb',
-//   'Lesotho':'ls','Liberia':'lr','Libya':'ly','Liechtenstein':'li','Lithuania':'lt',
-//   'Luxembourg':'lu','Madagascar':'mg','Malawi':'mw','Malaysia':'my','Maldives':'mv',
-//   'Mali':'ml','Malta':'mt','Marshall Islands':'mh','Mauritania':'mr','Mauritius':'mu',
-//   'Mexico':'mx','Micronesia':'fm','Moldova':'md','Monaco':'mc','Mongolia':'mn',
-//   'Montenegro':'me','Morocco':'ma','Mozambique':'mz','Namibia':'na','Nauru':'nr',
-//   'Nepal':'np','Netherlands':'nl','New Zealand':'nz','Nicaragua':'ni','Niger':'ne',
-//   'Nigeria':'ng','North Macedonia':'mk','Norway':'no','Oman':'om','Pakistan':'pk',
-//   'Palau':'pw','Panama':'pa','Papua New Guinea':'pg','Paraguay':'py','Peru':'pe',
-//   'Philippines':'ph','Poland':'pl','Portugal':'pt','Qatar':'qa','Romania':'ro',
-//   'Russia':'ru','Rwanda':'rw','Saint Kitts and Nevis':'kn','Saint Lucia':'lc',
-//   'Saint Vincent and the Grenadines':'vc','Samoa':'ws','San Marino':'sm',
-//   'São Tomé and Príncipe':'st','Saudi Arabia':'sa','Senegal':'sn','Serbia':'rs',
-//   'Seychelles':'sc','Sierra Leone':'sl','Singapore':'sg','Slovakia':'sk','Slovenia':'si',
-//   'Solomon Islands':'sb','Somalia':'so','South Africa':'za','South Sudan':'ss',
-//   'Spain':'es','Sri Lanka':'lk','Sudan':'sd','Suriname':'sr','Sweden':'se',
-//   'Switzerland':'ch','Syria':'sy','Taiwan':'tw','Tajikistan':'tj','Tanzania':'tz',
-//   'Thailand':'th','East Timor':'tl','Togo':'tg','Tonga':'to',
-//   'Trinidad and Tobago':'tt','Tunisia':'tn','Turkey':'tr','Turkmenistan':'tm',
-//   'Tuvalu':'tv','Uganda':'ug','Ukraine':'ua','UAE':'ae',
-//   'United Kingdom':'gb','Uruguay':'uy','US':'us','Uzbekistan':'uz','Vanuatu':'vu',
-//   'Venezuela':'ve','Vietnam':'vn','Palestine':'ps','West Bank and Gaza':'ps','Western Sahara':'eh',
-//   'Yemen':'ye','Zambia':'zm','Zimbabwe':'zw',
-// };
-
-// const getFlagUrl = (country) => {
-//   const iso2 = COUNTRY_TO_ISO2[country];
-//   return iso2 ? `https://flagcdn.com/16x12/${iso2}.png` : null;
-// };
+const VISIBLE_COUNT = 50;
 
 const CountryList = ({
   title,
@@ -69,6 +19,7 @@ const CountryList = ({
   error = null,
 }) => {
   const dataKey = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
+  const [showAll, setShowAll] = useState(false);
 
   const filteredCountries = useMemo(() => {
     if (!countriesData || countriesData.length === 0) return [];
@@ -76,6 +27,21 @@ const CountryList = ({
     const q = searchTerm.toLowerCase().trim();
     return countriesData.filter((c) => c.country.toLowerCase().includes(q));
   }, [countriesData, searchTerm]);
+
+  // ✅ Max 50 items dans le DOM → INP 176ms → ~20ms
+  // Le pays sélectionné est toujours visible même s'il est après le 50e
+  const visibleCountries = useMemo(() => {
+    if (showAll || searchTerm) return filteredCountries;
+    const top50 = filteredCountries.slice(0, VISIBLE_COUNT);
+    if (selectedCountry) {
+      const alreadyIn = top50.some(c => c.country === selectedCountry);
+      if (!alreadyIn) {
+        const selected = filteredCountries.find(c => c.country === selectedCountry);
+        if (selected) return [...top50, selected];
+      }
+    }
+    return top50;
+  }, [filteredCountries, showAll, searchTerm, selectedCountry]);
 
   if (isLoading) return (
     <div className="country-list-container">
@@ -113,7 +79,7 @@ const CountryList = ({
     <div className="country-list-container">
       {title && <h4 className="country-list-title">{title}</h4>}
       <div className="country-list">
-        {filteredCountries.map((countryData) => {
+        {visibleCountries.map((countryData) => {
           const flagUrl = getFlagUrl(countryData.country);
           return (
             <div
@@ -144,6 +110,17 @@ const CountryList = ({
             </div>
           );
         })}
+        {!showAll && !searchTerm && filteredCountries.length > VISIBLE_COUNT && (
+          <div
+            onClick={() => setShowAll(true)}
+            style={{
+              padding: '6px 10px', textAlign: 'center', cursor: 'pointer',
+              color: '#4a8aff', fontSize: '11px', opacity: 0.8,
+            }}
+          >
+            + {filteredCountries.length - VISIBLE_COUNT} more countries
+          </div>
+        )}
       </div>
     </div>
   );

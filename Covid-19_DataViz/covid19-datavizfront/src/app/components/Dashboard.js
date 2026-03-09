@@ -105,6 +105,7 @@ const Dashboard = () => {
     return { total_cases: currentData.totalCases, total_deaths: currentData.totalDeaths, total_recovered: currentData.totalRecovered };
   }, [currentData, selectedCountry]);
 
+  // ✅ Direct comme dans compare.js — pas de useTransition qui ajoute de la latence
   const handlePeriodChange    = useCallback((p) => setSelectedPeriod(p), []);
   const handleCountryClick    = useCallback((geoName) => {
     if (!preCalculatedIndex?.countryLookup) return;
@@ -115,7 +116,6 @@ const Dashboard = () => {
   const handleAdminLevelChange = useCallback((level) => setAdminLevel(level), []);
   const handleCompareClick    = useCallback(() => router.push('/compare'), [router]);
 
-  // Loading : seulement si les données réseau ne sont PAS encore arrivées
   if (isLoading) {
     return (
       <div className="dashboard-grid">
@@ -147,7 +147,6 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-grid">
-      {/* ─── Bannière pays sélectionné ──────────────────────────────────── */}
       {selectedCountry && (
         <div className="country-view-banner">
           <button className="back-to-global-btn" onClick={handleBackToGlobal}>← Back to Global View</button>
@@ -155,10 +154,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ─── Bouton Compare (2+ pays) ────────────────────────────────────── */}
-      <div style={{
-        position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000,
-      }}>
+      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
         <button
           onClick={handleCompareClick}
           style={{

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import CovidData from './models/CovidData.js';
 import covidRoutes from './routes/covidRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorMiddleware.js';
+import { warmupCache, invalidateCache } from './middleware/cacheMiddleware.js';
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] }));
 app.use(express.json());
 
+// ─── MongoDB ──────────────────────────────────────────────────────────────────
 mongoose.connect(process.env.MONGODB_URI)
   .then(async () => {
     console.log('✅ MongoDB connected');
@@ -29,11 +31,12 @@ mongoose.connect(process.env.MONGODB_URI)
   })
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
+// ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api', covidRoutes);
 
 app.get('/', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'COVID-19 DataViz API',
     version: '2.0',
     endpoints: '/api/*'
@@ -43,7 +46,46 @@ app.get('/', (req, res) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+// ─── Invalidation cache quotidienne à minuit ──────────────────────────────────
+// Les données JHU sont mises à jour 1x/jour → on invalide le cache chaque nuit
+// pour que le warmup du lendemain recharge les données fraîches depuis GitHub.
+const scheduleDailyMidnight = () => {
+  const now = new Date();
+  const nextMidnight = new Date(now);
+  nextMidnight.setHours(24, 0, 0, 0);
+  const msUntilMidnight = nextMidnight - now;
+
+  setTimeout(async () => {
+    try {
+      console.log('🗑️  Daily cache invalidation at midnight...');
+      await invalidateCache('covid:cache:*');
+      console.log('✅ Cache cleared — will be refilled on next requests');
+    } catch (err) {
+      console.warn('⚠️  Cache invalidation failed:', err.message);
+    }
+    scheduleDailyMidnight(); // re-planifier pour le lendemain
+  }, msUntilMidnight);
+
+  const h = Math.floor(msUntilMidnight / 3600000);
+  const m = Math.floor((msUntilMidnight % 3600000) / 60000);
+  console.log(`⏰ Next cache invalidation in ${h}h${m}m (at midnight)`);
+};
+
+// ─── Démarrage serveur ────────────────────────────────────────────────────────
+app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📡 API available at http://localhost:${PORT}/api`);
+
+  // ✅ Warmup cache 2s après boot — pré-charge get_all_timeseries (~50MB) en
+  //    Redis avant le premier utilisateur → zéro lag au chargement initial
+  setTimeout(async () => {
+    try {
+      await warmupCache();
+    } catch (err) {
+      console.warn('⚠️  Cache warmup failed (non-fatal):', err.message);
+    }
+  }, 2000);
+
+  // ✅ Invalidation quotidienne à minuit
+  scheduleDailyMidnight();
 });
