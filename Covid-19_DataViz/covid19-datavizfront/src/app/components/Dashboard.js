@@ -105,16 +105,15 @@ const Dashboard = () => {
     return { total_cases: currentData.totalCases, total_deaths: currentData.totalDeaths, total_recovered: currentData.totalRecovered };
   }, [currentData, selectedCountry]);
 
-  // ✅ Direct comme dans compare.js — pas de useTransition qui ajoute de la latence
-  const handlePeriodChange    = useCallback((p) => setSelectedPeriod(p), []);
-  const handleCountryClick    = useCallback((geoName) => {
+  const handlePeriodChange     = useCallback((p) => setSelectedPeriod(p), []);
+  const handleCountryClick     = useCallback((geoName) => {
     if (!preCalculatedIndex?.countryLookup) return;
     setSelectedCountry(resolveCountryName(geoName, preCalculatedIndex.countryLookup));
   }, [preCalculatedIndex]);
-  const handleBackToGlobal    = useCallback(() => setSelectedCountry(null), []);
-  const handleSearchChange    = useCallback((term) => setSearchTerm(term), []);
+  const handleBackToGlobal     = useCallback(() => setSelectedCountry(null), []);
+  const handleSearchChange     = useCallback((term) => setSearchTerm(term), []);
   const handleAdminLevelChange = useCallback((level) => setAdminLevel(level), []);
-  const handleCompareClick    = useCallback(() => router.push('/compare'), [router]);
+  const handleCompareClick     = useCallback(() => router.push('/compare'), [router]);
 
   if (isLoading) {
     return (
@@ -154,25 +153,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
-        <button
-          onClick={handleCompareClick}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            padding: '12px 20px',
-            background: 'linear-gradient(135deg, #4a8aff, #2a5acc)',
-            color: 'white', border: 'none', borderRadius: '12px',
-            fontSize: '14px', fontWeight: '600', cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(74,138,255,0.4)',
-            transition: 'transform 0.15s, box-shadow 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(74,138,255,0.6)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(74,138,255,0.4)'; }}
-        >
-          ⚖️ Compare Countries
-        </button>
-      </div>
-
       <div className="left-panel">
         <CountrySearch onSearchChange={handleSearchChange} resultsCount={0} />
         <StatsCard label={selectedCountry ? `${selectedCountry} — Total Confirmed` : 'Total Confirmed'} type="cases" selectedCountry={selectedCountry} globalStats={globalStats} isLoading={false} error={null} currentDate={targetDate} colorClass="red-text" />
@@ -204,6 +184,26 @@ const Dashboard = () => {
         </div>
 
         <div className="chart-panel-with-timeline">
+          {/* ✅ SEUL CHANGEMENT : bouton déplacé ici, intégré au panneau */}
+          <div style={{ padding: '8px 12px 4px 12px' }}>
+            <button
+              onClick={handleCompareClick}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                width: '100%', padding: '10px 16px',
+                background: 'linear-gradient(135deg, #4a8aff, #2a5acc)',
+                color: 'white', border: 'none', borderRadius: '8px',
+                fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                boxShadow: '0 2px 12px rgba(74,138,255,0.3)',
+                transition: 'transform 0.15s, box-shadow 0.15s',
+                justifyContent: 'center',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(74,138,255,0.5)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(74,138,255,0.3)'; }}
+            >
+              ⚖️ Compare Countries
+            </button>
+          </div>
           <div className="timeline-above-chart">
             <TimelineSlider onPeriodChange={handlePeriodChange} />
           </div>
