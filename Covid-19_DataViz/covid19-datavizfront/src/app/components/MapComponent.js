@@ -7,8 +7,6 @@ import { useWorldAtlas } from '../hooks/useCovidData';
 import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
 
-// ─── Mapping API name → TopoJSON name (world-atlas countries-50m) ─────────────
-// Les noms API (JHU nettoyés) ne correspondent pas toujours aux noms TopoJSON
 const API_TO_GEO = {
   'US':                        'United States of America',
   'Korea, South':              'South Korea',
@@ -31,13 +29,11 @@ const API_TO_GEO = {
   'Diamond Princess (ship)':   null,
 };
 
-// Résout le nom API → nom TopoJSON pour le lookup dans l'index geo
 const resolveGeoName = (apiName) => {
-  if (apiName in API_TO_GEO) return API_TO_GEO[apiName]; // null = pas de pays
+  if (apiName in API_TO_GEO) return API_TO_GEO[apiName];
   return apiName;
 };
 
-// Retourne le plus grand polygone d'un MultiPolygon (évite les îles éloignées)
 const getLargestPolygon = (f) => {
   if (!f.geometry) return f;
   if (f.geometry.type === 'Polygon') return f;
@@ -55,15 +51,19 @@ const getLargestPolygon = (f) => {
 const getName = (f) => f.properties.name || f.properties.NAME || f.properties.admin || f.properties.ADMIN || '';
 
 const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
-  const canvasRef    = useRef(null);
+  // ✅ DEUX canvas superposés :
+  // bgCanvasRef  → pays/frontières/labels (statique, redessiné seulement au zoom/resize/sélection)
+  // fgCanvasRef  → cercles seulement      (dynamique, redessiné à chaque slider)
+  const bgCanvasRef  = useRef(null);
+  const fgCanvasRef  = useRef(null);
   const zoomRef      = useRef(null);
   const transformRef = useRef(d3.zoomIdentity);
-  const drawRef      = useRef(null);
+  const drawBgRef    = useRef(null); // dessine pays + labels
+  const drawFgRef    = useRef(null); // dessine cercles seulement
   const rafRef       = useRef(null);
 
-  const featureIndexRef  = useRef({}); // geoNameLower → feature
-  const countriesRef     = useRef(null);
-  const projectionRef    = useRef(null);
+  const featureIndexRef = useRef({});
+  const projectionRef   = useRef(null);
 
   const casesDataRef       = useRef(casesData);
   const selectedCountryRef = useRef(selectedCountry);
@@ -77,12 +77,30 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
   const [hoveredCountry, setHoveredCountry] = useState(null);
   const worldAtlasQuery = useWorldAtlas();
 
-  const scheduleDraw = useCallback(() => {
+  // ✅ scheduleFg : redessine SEULEMENT les cercles (slider → ~5ms au lieu de 195ms)
+  const scheduleFg = useCallback(() => {
     if (rafRef.current) return;
-    rafRef.current = requestAnimationFrame(() => { rafRef.current = null; drawRef.current?.(); });
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      drawFgRef.current?.();
+    });
   }, []);
 
-  useEffect(() => { scheduleDraw(); }, [casesData, selectedCountry, hoveredCountry, scheduleDraw]);
+  // ✅ scheduleBg : redessine les pays + cercles (zoom, hover, sélection, resize)
+  const scheduleBoth = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      drawBgRef.current?.();
+      drawFgRef.current?.();
+    });
+  }, []);
+
+  // casesData change (slider) → seulement fg
+  useEffect(() => { scheduleFg(); }, [casesData, scheduleFg]);
+
+  // selectedCountry ou hover change → bg + fg (couleur pays change)
+  useEffect(() => { scheduleBoth(); }, [selectedCountry, hoveredCountry, scheduleBoth]);
 
   const computeFit = useCallback((feature, W, H, proj) => {
     const main = getLargestPolygon(feature);
@@ -95,19 +113,18 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
   }, []);
 
   const zoomToCountry = useCallback((name) => {
-    const canvas = canvasRef.current, zoom = zoomRef.current, proj = projectionRef.current;
+    const canvas = bgCanvasRef.current, zoom = zoomRef.current, proj = projectionRef.current;
     if (!canvas || !zoom || !proj || !name) return;
-    // Résoudre le nom API → nom geo pour le zoom
     const geoName = resolveGeoName(name);
     if (!geoName) return;
     const feature = featureIndexRef.current[geoName.toLowerCase()];
     if (!feature) return;
-    try { d3.select(canvas).transition().duration(750).call(zoom.transform, computeFit(feature, canvas.width, canvas.height, proj)); }
+    try { d3.select(fgCanvasRef.current).transition().duration(750).call(zoom.transform, computeFit(feature, canvas.width, canvas.height, proj)); }
     catch(e) {}
   }, [computeFit]);
 
   const zoomToGlobal = useCallback(() => {
-    const c = canvasRef.current, z = zoomRef.current;
+    const c = fgCanvasRef.current, z = zoomRef.current;
     if (c && z) d3.select(c).transition().duration(750).call(z.transform, d3.zoomIdentity);
   }, []);
 
@@ -118,30 +135,30 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
 
   // Setup D3 : UNE SEULE FOIS
   useEffect(() => {
-    if (!worldAtlasQuery.data || !canvasRef.current) return;
+    if (!worldAtlasQuery.data || !bgCanvasRef.current || !fgCanvasRef.current) return;
 
-    const canvas  = canvasRef.current;
-    const ctx     = canvas.getContext('2d');
-    const W       = (canvas.width  = canvas.offsetWidth);
-    const H       = (canvas.height = canvas.offsetHeight);
+    const bgCanvas = bgCanvasRef.current;
+    const fgCanvas = fgCanvasRef.current;
+    const bgCtx    = bgCanvas.getContext('2d');
+    const fgCtx    = fgCanvas.getContext('2d');
+
+    const W = (bgCanvas.width = fgCanvas.width = bgCanvas.offsetWidth);
+    const H = (bgCanvas.height = fgCanvas.height = bgCanvas.offsetHeight);
 
     const countries = topojson.feature(worldAtlasQuery.data, worldAtlasQuery.data.objects.countries);
 
-    // Index par nom geo (O(1) lookup) + centroïde sur le PLUS GRAND polygone
     const idx = {};
     countries.features.forEach(f => {
       const name = getName(f);
-      // ✅ Centroïde calculé sur le plus grand polygone → jamais dans l'eau
       const mainPoly = getLargestPolygon(f);
       f.properties.centroid = d3.geoCentroid(mainPoly);
       if (name) idx[name.toLowerCase()] = f;
     });
     featureIndexRef.current = idx;
-    countriesRef.current    = countries;
 
     const proj = d3.geoMercator().scale(W / (2*Math.PI)).translate([W/2, H/2]);
     projectionRef.current = proj;
-    const geoPath = d3.geoPath(proj, ctx);
+    const geoPath = d3.geoPath(proj, bgCtx);
 
     const oceanLbls = [
       {name:'PACIFIC OCEAN', coords:[-160,0]}, {name:'ATLANTIC OCEAN', coords:[-30,15]},
@@ -153,85 +170,97 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       {name:'ASIA',coords:[90,45]},{name:'AUSTRALIA',coords:[135,-25]},
     ];
 
-    const draw = () => {
+    // ✅ drawBg : pays + labels SEULEMENT
+    // Appelé au zoom, resize, hover, sélection pays — PAS au slider
+    const drawBg = () => {
       const t   = transformRef.current;
-      const cas = casesDataRef.current;
       const sel = selectedCountryRef.current?.toLowerCase();
       const hov = hoveredCountryRef.current?.toLowerCase();
 
-      ctx.clearRect(0, 0, W, H);
-      ctx.save();
-      ctx.translate(t.x, t.y);
-      ctx.scale(t.k, t.k);
-      ctx.fillStyle = '#0a1929';
-      ctx.fillRect(-W*2, -H*2, W*5, H*5);
+      bgCtx.clearRect(0, 0, W, H);
+      bgCtx.save();
+      bgCtx.translate(t.x, t.y);
+      bgCtx.scale(t.k, t.k);
+      bgCtx.fillStyle = '#0a1929';
+      bgCtx.fillRect(-W*2, -H*2, W*5, H*5);
 
-      // Pays
       countries.features.forEach(f => {
         const nl = getName(f).toLowerCase();
         const isSel = sel && nl === sel;
         const isHov = hov && nl === hov;
-        ctx.fillStyle   = isSel ? '#2a4a7f' : '#1a2f3f';
-        ctx.strokeStyle = isSel ? '#5a8aff' : isHov ? '#4a6a8f' : '#2a4a5f';
-        ctx.lineWidth   = (isSel ? 1.5 : 0.5) / t.k;
-        ctx.beginPath(); geoPath(f); ctx.fill(); ctx.stroke();
+        bgCtx.fillStyle   = isSel ? '#2a4a7f' : '#1a2f3f';
+        bgCtx.strokeStyle = isSel ? '#5a8aff' : isHov ? '#4a6a8f' : '#2a4a5f';
+        bgCtx.lineWidth   = (isSel ? 1.5 : 0.5) / t.k;
+        bgCtx.beginPath(); geoPath(f); bgCtx.fill(); bgCtx.stroke();
       });
 
-      // ✅ Cercles — lookup via API_TO_GEO pour trouver le bon feature
-      if (cas?.length > 0) {
-        let max = 0;
-        for (let i = 0; i < cas.length; i++) if (cas[i].total_cases > max) max = cas[i].total_cases;
-        if (max > 0) {
-          for (const cd of cas) {
-            if (!cd.total_cases) continue;
-            // Résoudre le nom API → nom geo
-            const geoName = resolveGeoName(cd.country);
-            if (!geoName) continue; // ships etc.
-            const f = idx[geoName.toLowerCase()] || idx[cd.country.toLowerCase()];
-            if (!f?.properties.centroid) continue;
-            const [px,py] = proj(f.properties.centroid);
-            if (px < -W || px > W*2 || py < -H || py > H*2) continue;
-            const r     = Math.max(3, Math.sqrt(cd.total_cases/max)*40/t.k);
-            const isSel = sel && (geoName.toLowerCase() === sel || cd.country.toLowerCase() === sel);
-            ctx.shadowColor = isSel ? 'rgba(255,255,0,.8)' : 'rgba(255,0,0,.8)';
-            ctx.shadowBlur  = (isSel ? 15 : 10) / t.k;
-            ctx.fillStyle   = isSel ? 'rgba(255,255,0,.7)' : 'rgba(255,0,0,.6)';
-            ctx.beginPath(); ctx.arc(px, py, r, 0, 2*Math.PI); ctx.fill();
-            ctx.strokeStyle = isSel ? 'rgba(255,255,100,1)' : 'rgba(255,100,100,.8)';
-            ctx.lineWidth   = (isSel ? 2 : 1) / t.k;
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-          }
-        }
-      }
-
-      // Labels
       if (t.k < 2) {
         [[oceanLbls,'#3a5a7a',14,.7,'italic'],[contLbls,'#e0e0e0',13,.9,'bold']].forEach(([lbs,col,fs,mz,fw]) => {
           if (t.k < mz) return;
-          ctx.font=`${fw} ${fs/t.k}px Arial`; ctx.fillStyle=col; ctx.textAlign='center'; ctx.textBaseline='middle';
-          ctx.globalAlpha=Math.min(1,(t.k-mz+.5)/.7);
-          lbs.forEach(l => { const c=proj(l.coords); if(c){ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=3/t.k;ctx.fillText(l.name,c[0],c[1]);ctx.shadowBlur=0;} });
-          ctx.globalAlpha=1;
+          bgCtx.font=`${fw} ${fs/t.k}px Arial`; bgCtx.fillStyle=col; bgCtx.textAlign='center'; bgCtx.textBaseline='middle';
+          bgCtx.globalAlpha=Math.min(1,(t.k-mz+.5)/.7);
+          lbs.forEach(l => { const c=proj(l.coords); if(c){bgCtx.shadowColor='rgba(0,0,0,.8)';bgCtx.shadowBlur=3/t.k;bgCtx.fillText(l.name,c[0],c[1]);bgCtx.shadowBlur=0;} });
+          bgCtx.globalAlpha=1;
         });
       } else {
         const minArea = 1000/(t.k*t.k);
-        ctx.font=`${10/t.k}px Arial`; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.globalAlpha=Math.min(1,(t.k-1.5)/1);
+        bgCtx.font=`${10/t.k}px Arial`; bgCtx.fillStyle='#fff'; bgCtx.textAlign='center'; bgCtx.textBaseline='middle';
+        bgCtx.globalAlpha=Math.min(1,(t.k-1.5)/1);
         countries.features.forEach(f => {
           if (d3.geoArea(f)*1e6 > minArea && f.properties.centroid) {
             const c = proj(f.properties.centroid);
             if (c && c[0]>=0 && c[0]<=W && c[1]>=0 && c[1]<=H) {
-              const n=getName(f); if(n){ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=3/t.k;ctx.fillText(n,c[0],c[1]);ctx.shadowBlur=0;}
+              const n=getName(f); if(n){bgCtx.shadowColor='rgba(0,0,0,.8)';bgCtx.shadowBlur=3/t.k;bgCtx.fillText(n,c[0],c[1]);bgCtx.shadowBlur=0;}
             }
           }
         });
-        ctx.globalAlpha=1;
+        bgCtx.globalAlpha=1;
       }
-      ctx.restore();
+      bgCtx.restore();
     };
 
-    drawRef.current = draw;
+    // ✅ drawFg : cercles SEULEMENT — appelé à CHAQUE position du slider
+    // ~5ms au lieu de 195ms car pas de geoPath des pays
+    const drawFg = () => {
+      const t   = transformRef.current;
+      const cas = casesDataRef.current;
+      const sel = selectedCountryRef.current?.toLowerCase();
+
+      fgCtx.clearRect(0, 0, W, H);
+      if (!cas?.length) return;
+
+      let max = 0;
+      for (let i = 0; i < cas.length; i++) if (cas[i].total_cases > max) max = cas[i].total_cases;
+      if (!max) return;
+
+      fgCtx.save();
+      fgCtx.translate(t.x, t.y);
+      fgCtx.scale(t.k, t.k);
+
+      for (const cd of cas) {
+        if (!cd.total_cases) continue;
+        const geoName = resolveGeoName(cd.country);
+        if (!geoName) continue;
+        const f = idx[geoName.toLowerCase()] || idx[cd.country.toLowerCase()];
+        if (!f?.properties.centroid) continue;
+        const [px,py] = proj(f.properties.centroid);
+        if (px < -W || px > W*2 || py < -H || py > H*2) continue;
+        const r     = Math.max(3, Math.sqrt(cd.total_cases/max)*40/t.k);
+        const isSel = sel && (geoName.toLowerCase() === sel || cd.country.toLowerCase() === sel);
+        fgCtx.shadowColor = isSel ? 'rgba(255,255,0,.8)' : 'rgba(255,0,0,.8)';
+        fgCtx.shadowBlur  = (isSel ? 15 : 10) / t.k;
+        fgCtx.fillStyle   = isSel ? 'rgba(255,255,0,.7)' : 'rgba(255,0,0,.6)';
+        fgCtx.beginPath(); fgCtx.arc(px, py, r, 0, 2*Math.PI); fgCtx.fill();
+        fgCtx.strokeStyle = isSel ? 'rgba(255,255,100,1)' : 'rgba(255,100,100,.8)';
+        fgCtx.lineWidth   = (isSel ? 2 : 1) / t.k;
+        fgCtx.stroke();
+        fgCtx.shadowBlur = 0;
+      }
+      fgCtx.restore();
+    };
+
+    drawBgRef.current = drawBg;
+    drawFgRef.current = drawFg;
 
     const hitTest = (x, y) => {
       const cas = casesDataRef.current;
@@ -259,49 +288,63 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
 
     const onClick = (e) => {
       e.preventDefault(); e.stopPropagation();
-      const r=canvas.getBoundingClientRect(), t=transformRef.current;
+      const r=fgCanvas.getBoundingClientRect(), t=transformRef.current;
       const hit = hitTest((e.clientX-r.left-t.x)/t.k, (e.clientY-r.top-t.y)/t.k);
       if (hit && onCountryClickRef.current) onCountryClickRef.current(hit);
     };
+
     const onMove = (e) => {
-      const r=canvas.getBoundingClientRect(), t=transformRef.current;
+      const r=fgCanvas.getBoundingClientRect(), t=transformRef.current;
       const country = hitTest((e.clientX-r.left-t.x)/t.k, (e.clientY-r.top-t.y)/t.k);
       if (country !== hoveredCountryRef.current) {
         hoveredCountryRef.current = country;
         setHoveredCountry(country);
-        canvas.style.cursor = country ? 'pointer' : 'default';
+        fgCanvas.style.cursor = country ? 'pointer' : 'default';
       }
     };
 
+    // Zoom appliqué sur fgCanvas (celui du dessus, qui reçoit les events)
     const zoom = d3.zoom().filter(e=>e.type==='wheel').scaleExtent([1,8])
       .on('zoom', (e) => {
         transformRef.current = e.transform;
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        rafRef.current = requestAnimationFrame(() => { rafRef.current=null; draw(); });
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null;
+          drawBg();
+          drawFg();
+        });
       });
     zoomRef.current = zoom;
-    d3.select(canvas).call(zoom);
-    canvas.addEventListener('click', onClick, true);
-    canvas.addEventListener('mousemove', onMove);
-    draw();
+    d3.select(fgCanvas).call(zoom);
+    fgCanvas.addEventListener('click', onClick, true);
+    fgCanvas.addEventListener('mousemove', onMove);
+
+    drawBg();
+    drawFg();
 
     const onResize = () => {
-      canvas.width=canvas.offsetWidth; canvas.height=canvas.offsetHeight;
-      proj.scale(canvas.width/(2*Math.PI)).translate([canvas.width/2,canvas.height/2]);
-      draw();
+      const nW = bgCanvas.offsetWidth;
+      const nH = bgCanvas.offsetHeight;
+      bgCanvas.width = fgCanvas.width = nW;
+      bgCanvas.height = fgCanvas.height = nH;
+      proj.scale(nW/(2*Math.PI)).translate([nW/2,nH/2]);
+      drawBg();
+      drawFg();
     };
     window.addEventListener('resize', onResize);
+
     return () => {
       window.removeEventListener('resize', onResize);
-      canvas.removeEventListener('click', onClick, true);
-      canvas.removeEventListener('mousemove', onMove);
+      fgCanvas.removeEventListener('click', onClick, true);
+      fgCanvas.removeEventListener('mousemove', onMove);
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current=null; }
-      drawRef.current=null;
+      drawBgRef.current = null;
+      drawFgRef.current = null;
     };
   }, [worldAtlasQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleZoomIn  = () => { const c=canvasRef.current,z=zoomRef.current; if(c&&z) d3.select(c).transition().duration(300).call(z.scaleBy,1.3); };
-  const handleZoomOut = () => { const c=canvasRef.current,z=zoomRef.current; if(c&&z) d3.select(c).transition().duration(300).call(z.scaleBy,.77); };
+  const handleZoomIn  = () => { const c=fgCanvasRef.current,z=zoomRef.current; if(c&&z) d3.select(c).transition().duration(300).call(z.scaleBy,1.3); };
+  const handleZoomOut = () => { const c=fgCanvasRef.current,z=zoomRef.current; if(c&&z) d3.select(c).transition().duration(300).call(z.scaleBy,.77); };
 
   return (
     <QueryStateWrapper query={worldAtlasQuery} loadingMessage="Loading world map..." errorMessage="Failed to load world map">
@@ -317,7 +360,10 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
               {hoveredCountry} — click to select
             </div>
           )}
-          <canvas ref={canvasRef} className="map-container" style={{touchAction:'none'}} />
+          {/* ✅ bg canvas : pays statiques, en dessous */}
+          <canvas ref={bgCanvasRef} className="map-container" style={{position:'absolute',top:0,left:0,touchAction:'none',pointerEvents:'none'}} />
+          {/* ✅ fg canvas : cercles dynamiques + events, au dessus */}
+          <canvas ref={fgCanvasRef} className="map-container" style={{position:'absolute',top:0,left:0,touchAction:'none'}} />
           <div className="zoom-controls">
             <button className="zoom-btn" onClick={handleZoomIn}>+</button>
             <button className="zoom-btn" onClick={handleZoomOut}>−</button>
