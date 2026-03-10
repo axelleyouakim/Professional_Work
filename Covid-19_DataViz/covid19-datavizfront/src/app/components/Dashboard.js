@@ -159,6 +159,24 @@ const Dashboard = () => {
         <AdminLevelSelector selectedLevel={adminLevel} onLevelChange={handleAdminLevelChange} />
         <CountryList title="Confirmed Cases by Country/Region/Sovereignty" type="cases" countriesData={currentData.casesPerCountry} isLoading={false} error={null} searchTerm={searchTerm} selectedCountry={selectedCountry} onCountryClick={handleCountryClick} colorClass="red-text" />
         <LastUpdatedDisplay timestamp="4/2/2020 9:02:01 AM" />
+        {/* ✅ SEUL CHANGEMENT : bouton en bas du panneau gauche */}
+        <button
+          onClick={handleCompareClick}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            width: '100%', padding: '10px 16px', marginTop: '8px',
+            background: 'linear-gradient(135deg, #4a8aff, #2a5acc)',
+            color: 'white', border: 'none', borderRadius: '8px',
+            fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+            boxShadow: '0 2px 12px rgba(74,138,255,0.3)',
+            transition: 'transform 0.15s, box-shadow 0.15s',
+            justifyContent: 'center',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(74,138,255,0.5)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(74,138,255,0.3)'; }}
+        >
+          ⚖️ Compare Countries
+        </button>
       </div>
 
       <QueryStateWrapper query={fakeQuery} loadingMessage="Loading map data...">
@@ -184,26 +202,6 @@ const Dashboard = () => {
         </div>
 
         <div className="chart-panel-with-timeline">
-          {/* ✅ SEUL CHANGEMENT : bouton déplacé ici, intégré au panneau */}
-          <div style={{ padding: '8px 12px 4px 12px' }}>
-            <button
-              onClick={handleCompareClick}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                width: '100%', padding: '10px 16px',
-                background: 'linear-gradient(135deg, #4a8aff, #2a5acc)',
-                color: 'white', border: 'none', borderRadius: '8px',
-                fontSize: '13px', fontWeight: '600', cursor: 'pointer',
-                boxShadow: '0 2px 12px rgba(74,138,255,0.3)',
-                transition: 'transform 0.15s, box-shadow 0.15s',
-                justifyContent: 'center',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(74,138,255,0.5)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(74,138,255,0.3)'; }}
-            >
-              ⚖️ Compare Countries
-            </button>
-          </div>
           <div className="timeline-above-chart">
             <TimelineSlider onPeriodChange={handlePeriodChange} />
           </div>
