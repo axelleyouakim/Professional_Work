@@ -7,30 +7,24 @@ export const covidKeys = {
   totalCases: (period) => [...covidKeys.globalStats(period), 'total-cases'],
   totalDeaths: (period) => [...covidKeys.globalStats(period), 'total-deaths'],
   totalRecovered: (period) => [...covidKeys.globalStats(period), 'total-recovered'],
-  
   perCountry: (period) => period ? [...covidKeys.all, 'per-country', period] : [...covidKeys.all, 'per-country'],
   casesPerCountry: (period) => [...covidKeys.perCountry(period), 'cases'],
   deathsPerCountry: (period) => [...covidKeys.perCountry(period), 'deaths'],
   recoveredPerCountry: (period) => [...covidKeys.perCountry(period), 'recovered'],
-  
-  timeSeriesCountry: (country, period) => country 
+  timeSeriesCountry: (country, period) => country
     ? [...covidKeys.all, 'time-series', country, period || 'all']
     : covidKeys.casesTimeSeries(period),
-  
   period28Days: () => [...covidKeys.all, '28-days'],
   cases28Day: () => [...covidKeys.period28Days(), 'cases'],
   deaths28Day: () => [...covidKeys.period28Days(), 'deaths'],
   cases28DayPerCountry: () => [...covidKeys.period28Days(), 'cases-per-country'],
   deaths28DayPerCountry: () => [...covidKeys.period28Days(), 'deaths-per-country'],
-  
   vaccines: () => [...covidKeys.all, 'vaccines'],
   totalVaccines: () => [...covidKeys.vaccines(), 'total'],
   vaccines28Day: () => [...covidKeys.vaccines(), '28-days'],
   vaccines28DayPerCountry: () => [...covidKeys.vaccines(), '28-days-per-country'],
-  
   timeSeries: () => [...covidKeys.all, 'time-series'],
   casesTimeSeries: (period) => period ? [...covidKeys.timeSeries(), 'cases', period] : [...covidKeys.timeSeries(), 'cases'],
-  
   worldAtlas: () => ['world-atlas'],
 };
 
@@ -43,7 +37,7 @@ export const useWorldAtlas = () => {
       return response.json();
     },
     staleTime: Infinity,
-    cacheTime: Infinity,
+    gcTime: Infinity, // ✅ v5 : gcTime remplace cacheTime
   });
 };
 
@@ -105,7 +99,6 @@ export const useTotalCasesPerCountry = (periodOrDate = null) => {
         const response = await api.getDataAtSpecificDate(periodOrDate);
         return response?.data || [];
       }
-
       const data = await api.getTotalCasesPerCountry(periodOrDate);
       return data?.data || [];
     },
@@ -189,21 +182,12 @@ export const useCasesTimeSeries = (period = null, country = null, maxDate = null
       if (country) {
         const response = await api.getCasesTimeSeriesByCountry(country, period);
         let data = response?.data || [];
-        
-        if (maxDate && data.length > 0) {
-          data = data.filter(item => item.date <= maxDate);
-        }
-        
+        if (maxDate && data.length > 0) data = data.filter(item => item.date <= maxDate);
         return data;
       }
-      
       const response = await api.getCasesTimeSeries(period);
       let data = response?.data || [];
-      
-      if (maxDate && data.length > 0) {
-        data = data.filter(item => item.date <= maxDate);
-      }
-      
+      if (maxDate && data.length > 0) data = data.filter(item => item.date <= maxDate);
       return data;
     },
     enabled: true,
@@ -217,7 +201,8 @@ export const useAllTimeSeriesData = () => {
       return await api.getAllTimeSeriesData();
     },
     staleTime: Infinity,
-    cacheTime: Infinity,
+    gcTime: Infinity, // ✅ v5 : gcTime remplace cacheTime — données gardées en mémoire indéfiniment
+                      //    → après le premier chargement, refresh = zéro refetch réseau
   });
 };
 
@@ -244,18 +229,12 @@ export const useGlobalTotalsAtDate = (dateString) => {
   });
 };
 
-// ─── Prefetch les données d'un pays au survol pour éviter le lag au clic ──────
-// Appelé avec le pays survolé → met les données en cache avant le clic
 export const usePrefetchCountryData = (countryName, selectedPeriod) => {
   const queryClient = useQueryClient();
-  
   const queryParam = selectedPeriod?.dateString ? null : null;
-
   if (countryName) {
     const queryKey = covidKeys.timeSeriesCountry(countryName, queryParam);
     const cached   = queryClient.getQueryData(queryKey);
-
-    // Seulement si pas déjà en cache
     if (!cached) {
       queryClient.prefetchQuery({
         queryKey,
@@ -263,7 +242,7 @@ export const usePrefetchCountryData = (countryName, selectedPeriod) => {
           const response = await api.getCasesTimeSeriesByCountry(countryName, queryParam);
           return response?.data || [];
         },
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 5 * 60 * 1000,
       });
     }
   }
@@ -273,37 +252,23 @@ export const useCovidDashboardData = (period = null) => {
   const totalCases = useGlobalTotalCases(period);
   const totalDeaths = useGlobalTotalDeaths(period);
   const totalRecovered = useGlobalTotalRecovered(period);
-  
   const cases28Day = use28DayCases();
   const deaths28Day = use28DayDeaths();
-  
   const totalCasesPerCountry = useTotalCasesPerCountry(period);
   const totalDeathsPerCountry = useTotalDeathsPerCountry(period);
   const totalRecoveredPerCountry = useTotalRecoveredPerCountry(period);
-  
   const cases28DayPerCountry = use28DayCasesPerCountry();
   const deaths28DayPerCountry = use28DayDeathsPerCountry();
-  
   const totalVaccineDoses = useTotalVaccineDoses();
   const vaccines28Day = use28DayVaccineDoses();
   const vaccines28DayPerCountry = use28DayVaccineDosesPerCountry();
-  
   const chartData = useCasesTimeSeries(period);
-
   return {
-    totalCases,
-    totalDeaths,
-    totalRecovered,
-    cases28Day,
-    deaths28Day,
-    totalCasesPerCountry,
-    totalDeathsPerCountry,
-    totalRecoveredPerCountry,
-    cases28DayPerCountry,
-    deaths28DayPerCountry,
-    totalVaccineDoses,
-    vaccines28Day,
-    vaccines28DayPerCountry,
+    totalCases, totalDeaths, totalRecovered,
+    cases28Day, deaths28Day,
+    totalCasesPerCountry, totalDeathsPerCountry, totalRecoveredPerCountry,
+    cases28DayPerCountry, deaths28DayPerCountry,
+    totalVaccineDoses, vaccines28Day, vaccines28DayPerCountry,
     chartData,
   };
 };

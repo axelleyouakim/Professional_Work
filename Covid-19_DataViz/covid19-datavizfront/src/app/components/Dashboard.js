@@ -54,7 +54,7 @@ const Dashboard = () => {
   const [adminLevel, setAdminLevel]           = useState("admin0");
   const [searchTerm, setSearchTerm]           = useState('');
 
-  const { preCalculatedIndex, isLoading, error } = usePreCalculatedData();
+  const { preCalculatedIndex, error } = usePreCalculatedData();
 
   const isSliderMode = !!selectedPeriod?.dateString;
   const hasNoData    = selectedPeriod?.hasData === false;
@@ -115,18 +115,7 @@ const Dashboard = () => {
   const handleAdminLevelChange = useCallback((level) => setAdminLevel(level), []);
   const handleCompareClick     = useCallback(() => router.push('/compare'), [router]);
 
-  if (isLoading) {
-    return (
-      <div className="dashboard-grid">
-        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: '16px' }}>
-          <div className="spinner" style={{ width: '48px', height: '48px' }} />
-          <p style={{ color: '#7a9abc', fontSize: '16px', margin: 0 }}>Loading COVID-19 data…</p>
-          <p style={{ color: '#4a6a8a', fontSize: '13px', margin: 0 }}>First load only — everything instant after</p>
-        </div>
-      </div>
-    );
-  }
-
+  // ✅ Erreur réseau uniquement — pas de spinner, pas de bloc isLoading
   if (error) {
     return (
       <div className="dashboard-grid">
@@ -159,7 +148,6 @@ const Dashboard = () => {
         <AdminLevelSelector selectedLevel={adminLevel} onLevelChange={handleAdminLevelChange} />
         <CountryList title="Confirmed Cases by Country/Region/Sovereignty" type="cases" countriesData={currentData.casesPerCountry} isLoading={false} error={null} searchTerm={searchTerm} selectedCountry={selectedCountry} onCountryClick={handleCountryClick} colorClass="red-text" />
         <LastUpdatedDisplay timestamp="4/2/2020 9:02:01 AM" />
-        {/* ✅ SEUL CHANGEMENT : bouton en bas du panneau gauche */}
         <button
           onClick={handleCompareClick}
           style={{

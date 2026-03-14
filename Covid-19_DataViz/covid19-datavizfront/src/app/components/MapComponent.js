@@ -50,16 +50,24 @@ const getLargestPolygon = (f) => {
 
 const getName = (f) => f.properties.name || f.properties.NAME || f.properties.admin || f.properties.ADMIN || '';
 
+// ✅ Pays qui traversent l'antiméridien (180°) — zoom manuel avec centroïde fixe
+// d3.geoPath.bounds() retourne des bornes cassées pour ces pays
+const ANTIMERIDIAN_COUNTRIES = {
+  'russia':    { center: [100, 65],  scale: 2.5 },
+  'us':        { center: [-100, 40], scale: 3.5 },
+  'united states of america': { center: [-100, 40], scale: 3.5 },
+  'fiji':      { center: [178, -18], scale: 8   },
+  'kiribati':  { center: [-168, 0],  scale: 6   },
+  'new zealand': { center: [172, -42], scale: 5 },
+};
+
 const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
-  // ✅ DEUX canvas superposés :
-  // bgCanvasRef  → pays/frontières/labels (statique, redessiné seulement au zoom/resize/sélection)
-  // fgCanvasRef  → cercles seulement      (dynamique, redessiné à chaque slider)
   const bgCanvasRef  = useRef(null);
   const fgCanvasRef  = useRef(null);
   const zoomRef      = useRef(null);
   const transformRef = useRef(d3.zoomIdentity);
-  const drawBgRef    = useRef(null); // dessine pays + labels
-  const drawFgRef    = useRef(null); // dessine cercles seulement
+  const drawBgRef    = useRef(null);
+  const drawFgRef    = useRef(null);
   const rafRef       = useRef(null);
 
   const featureIndexRef = useRef({});
@@ -77,7 +85,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
   const [hoveredCountry, setHoveredCountry] = useState(null);
   const worldAtlasQuery = useWorldAtlas();
 
-  // ✅ scheduleFg : redessine SEULEMENT les cercles (slider → ~5ms au lieu de 195ms)
   const scheduleFg = useCallback(() => {
     if (rafRef.current) return;
     rafRef.current = requestAnimationFrame(() => {
@@ -86,7 +93,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     });
   }, []);
 
-  // ✅ scheduleBg : redessine les pays + cercles (zoom, hover, sélection, resize)
   const scheduleBoth = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
@@ -96,20 +102,32 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     });
   }, []);
 
-  // casesData change (slider) → seulement fg
   useEffect(() => { scheduleFg(); }, [casesData, scheduleFg]);
-
-  // selectedCountry ou hover change → bg + fg (couleur pays change)
   useEffect(() => { scheduleBoth(); }, [selectedCountry, hoveredCountry, scheduleBoth]);
 
+  // ✅ computeFit corrigé : détecte les pays antiméridiens et utilise
+  //    des coordonnées fixes au lieu de geoPath.bounds() qui est cassé pour eux
   const computeFit = useCallback((feature, W, H, proj) => {
+    const name = getName(feature).toLowerCase();
+    const anti = ANTIMERIDIAN_COUNTRIES[name];
+
+    if (anti) {
+      // Zoom manuel basé sur coordonnées connues
+      const [cx, cy] = proj(anti.center);
+      return d3.zoomIdentity
+        .translate(W / 2, H / 2)
+        .scale(anti.scale)
+        .translate(-cx, -cy);
+    }
+
+    // Pays normaux : utilise le plus grand polygone pour éviter les îles
     const main = getLargestPolygon(feature);
     const [cx, cy] = proj(d3.geoCentroid(main));
-    const [[x0,y0],[x1,y1]] = d3.geoPath(proj).bounds(main);
-    const hw = Math.max(Math.abs(cx-x0), Math.abs(x1-cx), 1);
-    const hh = Math.max(Math.abs(cy-y0), Math.abs(y1-cy), 1);
-    const s  = Math.min((W/2)/hw, (H/2)/hh, 8);
-    return d3.zoomIdentity.translate(W/2, H/2).scale(s).translate(-cx, -cy);
+    const [[x0, y0], [x1, y1]] = d3.geoPath(proj).bounds(main);
+    const hw = Math.max(Math.abs(cx - x0), Math.abs(x1 - cx), 1);
+    const hh = Math.max(Math.abs(cy - y0), Math.abs(y1 - cy), 1);
+    const s  = Math.min((W / 2) / hw, (H / 2) / hh, 8);
+    return d3.zoomIdentity.translate(W / 2, H / 2).scale(s).translate(-cx, -cy);
   }, []);
 
   const zoomToCountry = useCallback((name) => {
@@ -119,8 +137,11 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     if (!geoName) return;
     const feature = featureIndexRef.current[geoName.toLowerCase()];
     if (!feature) return;
-    try { d3.select(fgCanvasRef.current).transition().duration(750).call(zoom.transform, computeFit(feature, canvas.width, canvas.height, proj)); }
-    catch(e) {}
+    try {
+      d3.select(fgCanvasRef.current)
+        .transition().duration(750)
+        .call(zoom.transform, computeFit(feature, canvas.width, canvas.height, proj));
+    } catch(e) {}
   }, [computeFit]);
 
   const zoomToGlobal = useCallback(() => {
@@ -133,7 +154,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     else zoomToGlobal();
   }, [selectedCountry, zoomToCountry, zoomToGlobal]);
 
-  // Setup D3 : UNE SEULE FOIS
   useEffect(() => {
     if (!worldAtlasQuery.data || !bgCanvasRef.current || !fgCanvasRef.current) return;
 
@@ -156,7 +176,7 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     });
     featureIndexRef.current = idx;
 
-    const proj = d3.geoMercator().scale(W / (2*Math.PI)).translate([W/2, H/2]);
+    const proj = d3.geoMercator().scale(W / (2 * Math.PI)).translate([W / 2, H / 2]);
     projectionRef.current = proj;
     const geoPath = d3.geoPath(proj, bgCtx);
 
@@ -170,8 +190,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       {name:'ASIA',coords:[90,45]},{name:'AUSTRALIA',coords:[135,-25]},
     ];
 
-    // ✅ drawBg : pays + labels SEULEMENT
-    // Appelé au zoom, resize, hover, sélection pays — PAS au slider
     const drawBg = () => {
       const t   = transformRef.current;
       const sel = selectedCountryRef.current?.toLowerCase();
@@ -219,8 +237,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       bgCtx.restore();
     };
 
-    // ✅ drawFg : cercles SEULEMENT — appelé à CHAQUE position du slider
-    // ~5ms au lieu de 195ms car pas de geoPath des pays
     const drawFg = () => {
       const t   = transformRef.current;
       const cas = casesDataRef.current;
@@ -245,7 +261,7 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
         if (!f?.properties.centroid) continue;
         const [px,py] = proj(f.properties.centroid);
         if (px < -W || px > W*2 || py < -H || py > H*2) continue;
-        const r     = Math.max(3, Math.sqrt(cd.total_cases/max)*40/t.k);
+        const r     = Math.max(3, Math.sqrt(cd.total_cases / max) * 40 / t.k);
         const isSel = sel && (geoName.toLowerCase() === sel || cd.country.toLowerCase() === sel);
         fgCtx.shadowColor = isSel ? 'rgba(255,255,0,.8)' : 'rgba(255,0,0,.8)';
         fgCtx.shadowBlur  = (isSel ? 15 : 10) / t.k;
@@ -303,7 +319,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       }
     };
 
-    // Zoom appliqué sur fgCanvas (celui du dessus, qui reçoit les events)
     const zoom = d3.zoom().filter(e=>e.type==='wheel').scaleExtent([1,8])
       .on('zoom', (e) => {
         transformRef.current = e.transform;
@@ -360,9 +375,7 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
               {hoveredCountry} — click to select
             </div>
           )}
-          {/* ✅ bg canvas : pays statiques, en dessous */}
           <canvas ref={bgCanvasRef} className="map-container" style={{position:'absolute',top:0,left:0,touchAction:'none',pointerEvents:'none'}} />
-          {/* ✅ fg canvas : cercles dynamiques + events, au dessus */}
           <canvas ref={fgCanvasRef} className="map-container" style={{position:'absolute',top:0,left:0,touchAction:'none'}} />
           <div className="zoom-controls">
             <button className="zoom-btn" onClick={handleZoomIn}>+</button>

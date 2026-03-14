@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAllTimeSeriesData } from './useCovidData';
 
-// ─── Nettoyage des noms de pays JHU ──────────────────────────────────────────
 const COUNTRY_FIXED = {
   "Cote d'Ivoire":         "Côte d'Ivoire",
   'Sao Tome and Principe': 'São Tomé and Príncipe',
@@ -12,8 +11,8 @@ const COUNTRY_FIXED = {
   'United Arab Emirates':  'UAE',
   'MS Zaandam':            'MS Zaandam (ship)',
   'Diamond Princess':      'Diamond Princess (ship)',
-  'Korea, South':          'Korea, South',  // ← AJOUTER
-  'Korea, North':          'Korea, North',  // ← AJOUTER
+  'Korea, South':          'Korea, South',
+  'Korea, North':          'Korea, North',
 };
 const DIRECTIONS = new Set(['North', 'South', 'East', 'West']);
 const cleanName = (name) => {
@@ -22,7 +21,7 @@ const cleanName = (name) => {
   while (name.length > 0 && (name[0] === '"' || name[0] === "'")) name = name.slice(1).trim();
   while (name.length > 0 && (name[name.length-1] === '"' || name[name.length-1] === "'")) name = name.slice(0,-1).trim();
   name = name.replace(/\*+$/, '').trim();
-  if (COUNTRY_FIXED[name]) return COUNTRY_FIXED[name]; // ← VÉRIFIER EN PREMIER
+  if (COUNTRY_FIXED[name]) return COUNTRY_FIXED[name];
   if (name.includes(',')) {
     const commaIdx = name.indexOf(',');
     const base   = name.slice(0, commaIdx).trim();
@@ -32,13 +31,11 @@ const cleanName = (name) => {
   return name;
 };
 
-// Renomme toutes les clés du dict countries en une seule passe
 const renameCountries = (countries) => {
   const result = {};
   for (const [key, value] of Object.entries(countries)) {
     const clean = cleanName(key);
     if (result[clean]) {
-      // Fusionner si deux noms bruts donnent le même nom propre
       for (const date of Object.keys(value.cases)) {
         result[clean].cases[date]     = (result[clean].cases[date]     || 0) + (value.cases[date]     || 0);
         result[clean].deaths[date]    = (result[clean].deaths[date]    || 0) + (value.deaths[date]    || 0);
@@ -50,17 +47,19 @@ const renameCountries = (countries) => {
   }
   return result;
 };
-// ─────────────────────────────────────────────────────────────────────────────
+
+// ✅ CHUNK plus grand : 150 dates au lieu de 50
+// → 3x moins d'itérations setTimeout → précalcul 2-3x plus rapide
+const CHUNK_SIZE = 150;
 
 const precalcAsync = (countries, dates) => new Promise((resolve) => {
   const countryNames = Object.keys(countries);
   const totalsIndex  = {};
   const sortedIndex  = {};
-  const CHUNK = 50;
   let i = 0;
 
   const processChunk = () => {
-    const end = Math.min(i + CHUNK, dates.length);
+    const end = Math.min(i + CHUNK_SIZE, dates.length);
     for (; i < end; i++) {
       const date = dates[i];
       let totalCases = 0, totalDeaths = 0, totalRecovered = 0;
@@ -93,7 +92,10 @@ const precalcAsync = (countries, dates) => new Promise((resolve) => {
     }
 
     if (i < dates.length) {
-      setTimeout(processChunk, 0);
+      // ✅ messageChannel au lieu de setTimeout(0) — plus rapide, moins de latence
+      const mc = new MessageChannel();
+      mc.port1.onmessage = processChunk;
+      mc.port2.postMessage(null);
     } else {
       const globalChartFull = [];
       const dateToGlobalChartIdx = {};
@@ -155,7 +157,6 @@ export const usePreCalculatedData = () => {
     const t0 = performance.now();
     console.log('🔥 [PRE-CALC] Starting async precalculation...');
 
-    // ✅ Nettoyer les noms ici, avant le précalcul — garanti peu importe le cache backend
     const cleanedCountries = renameCountries(allTimeSeriesData.data.countries);
 
     precalcAsync(cleanedCountries, allTimeSeriesData.data.dates)
@@ -168,6 +169,8 @@ export const usePreCalculatedData = () => {
 
   return {
     preCalculatedIndex,
+    // ✅ isLoading true SEULEMENT si réseau en cours ET pas encore de données
+    // → spinner affiché seulement pendant le fetch réseau, pas pendant le précalcul
     isLoading: allTimeSeriesData.isLoading && !allTimeSeriesData.data,
     isCalcDone,
     error: allTimeSeriesData.error,
