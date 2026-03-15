@@ -48,9 +48,7 @@ const renameCountries = (countries) => {
   return result;
 };
 
-// ✅ CHUNK plus grand : 150 dates au lieu de 50
-// → 3x moins d'itérations setTimeout → précalcul 2-3x plus rapide
-const CHUNK_SIZE = 150;
+const CHUNK_SIZE = 50;
 
 const precalcAsync = (countries, dates) => new Promise((resolve) => {
   const countryNames = Object.keys(countries);
@@ -92,10 +90,7 @@ const precalcAsync = (countries, dates) => new Promise((resolve) => {
     }
 
     if (i < dates.length) {
-      // ✅ messageChannel au lieu de setTimeout(0) — plus rapide, moins de latence
-      const mc = new MessageChannel();
-      mc.port1.onmessage = processChunk;
-      mc.port2.postMessage(null);
+      setTimeout(processChunk, 0);
     } else {
       const globalChartFull = [];
       const dateToGlobalChartIdx = {};
@@ -169,8 +164,6 @@ export const usePreCalculatedData = () => {
 
   return {
     preCalculatedIndex,
-    // ✅ isLoading true SEULEMENT si réseau en cours ET pas encore de données
-    // → spinner affiché seulement pendant le fetch réseau, pas pendant le précalcul
     isLoading: allTimeSeriesData.isLoading && !allTimeSeriesData.data,
     isCalcDone,
     error: allTimeSeriesData.error,

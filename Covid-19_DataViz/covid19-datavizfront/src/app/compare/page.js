@@ -109,6 +109,16 @@ const FlagImg = ({ country, size = 20 }) => {
   );
 };
 
+// ─── Barre de progression colorée ────────────────────────────────────────────
+const MetricBar = ({ value, max, color }) => {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+  return (
+    <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginTop: '4px' }}>
+      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '2px', transition: 'width 0.3s' }} />
+    </div>
+  );
+};
+
 export default function ComparePage() {
   const allTimeSeriesData = useAllTimeSeriesData();
 
@@ -116,9 +126,8 @@ export default function ComparePage() {
   const [searchInput, setSearchInput]             = useState('');
   const [searchResults, setSearchResults]         = useState([]);
   const [selectedPeriod, setSelectedPeriod]       = useState(null);
-  const [activeTab, setActiveTab]                 = useState('chart');
+  const [activeTab, setActiveTab]                 = useState('compare');
 
-  // Liste triée avec noms d'affichage
   const allCountries = useMemo(() => {
     if (!allTimeSeriesData.data?.countries) return [];
     return Object.keys(allTimeSeriesData.data.countries).sort((a, b) =>
@@ -139,7 +148,7 @@ export default function ComparePage() {
     );
   }, [searchInput, allCountries, selectedCountries]);
 
-  const addCountry    = useCallback((country) => {
+  const addCountry = useCallback((country) => {
     if (selectedCountries.length >= 8) return;
     setSelectedCountries(prev => [...prev, country]);
     setSearchInput(''); setSearchResults([]);
@@ -169,7 +178,9 @@ export default function ComparePage() {
     return selectedCountries.map((country, idx) => {
       const d = countries[country];
       if (!d) return { country, cases: 0, deaths: 0, recovered: 0, color: COUNTRY_COLORS[idx] };
-      const cases = d.cases?.[refDate] || 0, deaths = d.deaths?.[refDate] || 0, recovered = d.recovered?.[refDate] || 0;
+      const cases     = d.cases?.[refDate]     || 0;
+      const deaths    = d.deaths?.[refDate]    || 0;
+      const recovered = d.recovered?.[refDate] || 0;
       return {
         country, cases, deaths, recovered, color: COUNTRY_COLORS[idx],
         mortality: cases > 0 ? ((deaths / cases) * 100).toFixed(2) : '—',
@@ -177,6 +188,11 @@ export default function ComparePage() {
       };
     }).sort((a, b) => b.cases - a.cases);
   }, [allTimeSeriesData.data, selectedCountries, selectedPeriod]);
+
+  // Maxima pour les barres de progression
+  const maxCases     = useMemo(() => Math.max(...tableData.map(r => r.cases), 1),     [tableData]);
+  const maxDeaths    = useMemo(() => Math.max(...tableData.map(r => r.deaths), 1),    [tableData]);
+  const maxRecovered = useMemo(() => Math.max(...tableData.map(r => r.recovered), 1), [tableData]);
 
   const formatXAxis = useCallback((dateStr) => {
     const [m,,y] = dateStr.split('/');
@@ -243,9 +259,98 @@ export default function ComparePage() {
         {!allTimeSeriesData.isLoading && selectedCountries.length > 0 && (
           <>
             <div className="compare-tabs">
+              {/* ✅ Onglet Compare style OpenAI en premier */}
+              <button className={`compare-tab ${activeTab === 'compare' ? 'active' : ''}`} onClick={() => setActiveTab('compare')}>⚖️ Compare</button>
               <button className={`compare-tab ${activeTab === 'chart' ? 'active' : ''}`} onClick={() => setActiveTab('chart')}>📈 Chart</button>
               <button className={`compare-tab ${activeTab === 'table' ? 'active' : ''}`} onClick={() => setActiveTab('table')}>📋 Data Table</button>
             </div>
+
+            {/* ✅ Onglet Compare — colonnes côte à côte style OpenAI */}
+            {activeTab === 'compare' && (
+              <div style={{ overflowX: 'auto', paddingBottom: '16px' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: `200px repeat(${tableData.length}, minmax(180px, 1fr))`,
+                  gap: '0',
+                  minWidth: `${200 + tableData.length * 180}px`,
+                }}>
+                  {/* Header row — labels + pays */}
+                  <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }} />
+                  {tableData.map((row, idx) => (
+                    <div key={row.country} style={{
+                      padding: '16px 12px',
+                      borderBottom: '1px solid rgba(255,255,255,0.08)',
+                      borderLeft: '1px solid rgba(255,255,255,0.06)',
+                      textAlign: 'center',
+                    }}>
+                      {/* Bande couleur en haut */}
+                      <div style={{ height: '4px', background: row.color, borderRadius: '2px', marginBottom: '12px' }} />
+                      <FlagImg country={row.country} size={28} />
+                      <div style={{ marginTop: '8px', fontWeight: '700', fontSize: '15px', color: '#e0e0e0' }}>
+                        {getDisplayName(row.country)}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Ligne : Total Cases */}
+                  <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
+                    🦠 Total Cases
+                  </div>
+                  {tableData.map((row) => (
+                    <div key={row.country} style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '700', color: '#ff6b6b' }}>{formatNum(row.cases)}</div>
+                      <MetricBar value={row.cases} max={maxCases} color={row.color} />
+                    </div>
+                  ))}
+
+                  {/* Ligne : Total Deaths */}
+                  <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
+                    💀 Total Deaths
+                  </div>
+                  {tableData.map((row) => (
+                    <div key={row.country} style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '700', color: '#e0e0e0' }}>{formatNum(row.deaths)}</div>
+                      <MetricBar value={row.deaths} max={maxDeaths} color={row.color} />
+                    </div>
+                  ))}
+
+                  {/* Ligne : Total Recovered */}
+                  <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
+                    💚 Total Recovered
+                  </div>
+                  {tableData.map((row) => (
+                    <div key={row.country} style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '700', color: '#00b894' }}>{formatNum(row.recovered)}</div>
+                      <MetricBar value={row.recovered} max={maxRecovered} color={row.color} />
+                    </div>
+                  ))}
+
+                  {/* Ligne : Mortality Rate */}
+                  <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
+                    📊 Mortality Rate
+                  </div>
+                  {tableData.map((row) => (
+                    <div key={row.country} style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '700', color: '#fdcb6e' }}>
+                        {row.mortality !== '—' ? `${row.mortality}%` : '—'}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Ligne : Recovery Rate */}
+                  <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
+                    ✅ Recovery Rate
+                  </div>
+                  {tableData.map((row) => (
+                    <div key={row.country} style={{ padding: '14px 12px', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '700', color: '#55efc4' }}>
+                        {row.recovery !== '—' ? `${row.recovery}%` : '—'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {activeTab === 'chart' && (
               <div className="compare-chart-section">
