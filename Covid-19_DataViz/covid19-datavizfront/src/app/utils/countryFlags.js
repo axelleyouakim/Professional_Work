@@ -1,4 +1,3 @@
-// Mapping COMPLET JHU CSSE → ISO2 pour flagcdn.com
 export const COUNTRY_TO_ISO2 = {
   'Afghanistan':'af','Albania':'al','Algeria':'dz','Andorra':'ad','Angola':'ao',
   'Antigua and Barbuda':'ag','Argentina':'ar','Armenia':'am','Australia':'au','Austria':'at',

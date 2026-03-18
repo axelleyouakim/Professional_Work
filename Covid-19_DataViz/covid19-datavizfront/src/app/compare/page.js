@@ -109,7 +109,6 @@ const FlagImg = ({ country, size = 20 }) => {
   );
 };
 
-// ─── Barre de progression colorée ────────────────────────────────────────────
 const MetricBar = ({ value, max, color }) => {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
@@ -189,7 +188,6 @@ export default function ComparePage() {
     }).sort((a, b) => b.cases - a.cases);
   }, [allTimeSeriesData.data, selectedCountries, selectedPeriod]);
 
-  // Maxima pour les barres de progression
   const maxCases     = useMemo(() => Math.max(...tableData.map(r => r.cases), 1),     [tableData]);
   const maxDeaths    = useMemo(() => Math.max(...tableData.map(r => r.deaths), 1),    [tableData]);
   const maxRecovered = useMemo(() => Math.max(...tableData.map(r => r.recovered), 1), [tableData]);
@@ -207,14 +205,13 @@ export default function ComparePage() {
 
       <div className="compare-container">
         <div className="compare-header">
-          <h1 className="compare-title"><span className="compare-title-icon">⚖️</span>Country Comparison</h1>
+          <h1 className="compare-title"><span className="compare-title-icon"></span>Country Comparison</h1>
           <p className="compare-subtitle">Compare COVID-19 data across multiple countries — add 2 to 8 countries</p>
         </div>
 
-        {/* Sélecteur */}
         <div className="country-selector-section">
           <div className="search-wrapper">
-            <input type="text" className="country-search-input" placeholder="🔍  Search and add a country..."
+            <input type="text" className="country-search-input" placeholder="Search and add a country..."
               value={searchInput} onChange={e => setSearchInput(e.target.value)} disabled={selectedCountries.length >= 8} />
             {searchResults.length > 0 && (
               <ul className="search-dropdown">
@@ -239,7 +236,6 @@ export default function ComparePage() {
           </div>
         </div>
 
-        {/* Slider */}
         <div className="compare-slider-section">
           <TimelineSlider onPeriodChange={setSelectedPeriod} />
         </div>
@@ -250,7 +246,6 @@ export default function ComparePage() {
 
         {!allTimeSeriesData.isLoading && selectedCountries.length === 0 && (
           <div className="compare-empty">
-            <div className="compare-empty-icon">🌍</div>
             <h2>Start by adding countries</h2>
             <p>Use the search bar above to add 2–8 countries to compare</p>
           </div>
@@ -259,13 +254,11 @@ export default function ComparePage() {
         {!allTimeSeriesData.isLoading && selectedCountries.length > 0 && (
           <>
             <div className="compare-tabs">
-              {/* ✅ Onglet Compare style OpenAI en premier */}
               <button className={`compare-tab ${activeTab === 'compare' ? 'active' : ''}`} onClick={() => setActiveTab('compare')}>⚖️ Compare</button>
               <button className={`compare-tab ${activeTab === 'chart' ? 'active' : ''}`} onClick={() => setActiveTab('chart')}>📈 Chart</button>
               <button className={`compare-tab ${activeTab === 'table' ? 'active' : ''}`} onClick={() => setActiveTab('table')}>📋 Data Table</button>
             </div>
 
-            {/* ✅ Onglet Compare — colonnes côte à côte style OpenAI */}
             {activeTab === 'compare' && (
               <div style={{ overflowX: 'auto', paddingBottom: '16px' }}>
                 <div style={{
@@ -274,7 +267,6 @@ export default function ComparePage() {
                   gap: '0',
                   minWidth: `${200 + tableData.length * 180}px`,
                 }}>
-                  {/* Header row — labels + pays */}
                   <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }} />
                   {tableData.map((row, idx) => (
                     <div key={row.country} style={{
@@ -283,7 +275,6 @@ export default function ComparePage() {
                       borderLeft: '1px solid rgba(255,255,255,0.06)',
                       textAlign: 'center',
                     }}>
-                      {/* Bande couleur en haut */}
                       <div style={{ height: '4px', background: row.color, borderRadius: '2px', marginBottom: '12px' }} />
                       <FlagImg country={row.country} size={28} />
                       <div style={{ marginTop: '8px', fontWeight: '700', fontSize: '15px', color: '#e0e0e0' }}>
@@ -292,9 +283,8 @@ export default function ComparePage() {
                     </div>
                   ))}
 
-                  {/* Ligne : Total Cases */}
                   <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
-                    🦠 Total Cases
+                    Total Cases
                   </div>
                   {tableData.map((row) => (
                     <div key={row.country} style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
@@ -303,9 +293,8 @@ export default function ComparePage() {
                     </div>
                   ))}
 
-                  {/* Ligne : Total Deaths */}
                   <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
-                    💀 Total Deaths
+                    Total Deaths
                   </div>
                   {tableData.map((row) => (
                     <div key={row.country} style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
@@ -314,9 +303,8 @@ export default function ComparePage() {
                     </div>
                   ))}
 
-                  {/* Ligne : Total Recovered */}
                   <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
-                    💚 Total Recovered
+                    Total Recovered
                   </div>
                   {tableData.map((row) => (
                     <div key={row.country} style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
@@ -325,9 +313,8 @@ export default function ComparePage() {
                     </div>
                   ))}
 
-                  {/* Ligne : Mortality Rate */}
                   <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
-                    📊 Mortality Rate
+                    Mortality Rate
                   </div>
                   {tableData.map((row) => (
                     <div key={row.country} style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
@@ -337,9 +324,8 @@ export default function ComparePage() {
                     </div>
                   ))}
 
-                  {/* Ligne : Recovery Rate */}
                   <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', color: '#7a9abc', fontSize: '13px', fontWeight: '600' }}>
-                    ✅ Recovery Rate
+                    Recovery Rate
                   </div>
                   {tableData.map((row) => (
                     <div key={row.country} style={{ padding: '14px 12px', borderLeft: '1px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>

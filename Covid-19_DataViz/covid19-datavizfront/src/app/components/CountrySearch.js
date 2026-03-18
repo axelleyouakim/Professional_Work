@@ -18,7 +18,6 @@ const CountrySearch = ({ onSearchChange, resultsCount }) => {
   return (
     <div className="country-search">
       <div className="search-input-wrapper">
-        <span className="search-icon">🔍</span>
         <input
           type="text"
           className="search-input"

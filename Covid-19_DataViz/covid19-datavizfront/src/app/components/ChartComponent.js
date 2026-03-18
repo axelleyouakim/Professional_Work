@@ -8,7 +8,6 @@ import {
 import { useCasesTimeSeries } from '../hooks/useCovidData';
 import './Dashboard.css';
 
-// Formate une date "m/d/yy" → { date: "Jan 2020", fullDate: "Jan 22, 2020" }
 const formatDateStr = (dateStr) => {
   const parts = dateStr.split('/');
   if (parts.length !== 3) return { date: dateStr, fullDate: dateStr };
@@ -36,13 +35,9 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
     return apiQuery.data || [];
   }, [shouldUseTimeline, timelineData, apiQuery.data]);
 
-  // ─── Sous-échantillonnage + formatage ────────────────────────────────────
-  // On affiche 1 point tous les 7 jours (hebdomadaire) → ~175 points au lieu de 1200
-  // Le chart re-render est 7x plus rapide, visuellement identique
   const formattedData = useMemo(() => {
     if (!rawData || rawData.length === 0) return [];
 
-    // Sous-échantillonner : 1 point / 7 jours
     const sampled = rawData.filter((_, i) => i % 7 === 0 || i === rawData.length - 1);
 
     return sampled.map(item => {
@@ -51,7 +46,6 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
     });
   }, [rawData]);
 
-  // ─── Peak : calculé sur données brutes pour être précis ──────────────────
   const peakInfo = useMemo(() => {
     if (!formattedData || formattedData.length === 0) return null;
     let maxCases = 0, peakIndex = 0;
@@ -94,7 +88,7 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
     <div className="chart-content">
       {selectedCountry && (
         <div style={{ padding: '10px 20px', color: '#999', fontSize: '14px', borderBottom: '1px solid #333' }}>
-          📊 {selectedCountry} - Confirmed Cases Timeline
+          {selectedCountry} - Confirmed Cases Timeline
         </div>
       )}
 
@@ -149,7 +143,6 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
   );
 };
 
-// React.memo : ne re-render que si timelineData ou selectedCountry changent
 export default React.memo(ChartComponent, (prev, next) =>
   prev.timelineData === next.timelineData &&
   prev.selectedCountry === next.selectedCountry &&

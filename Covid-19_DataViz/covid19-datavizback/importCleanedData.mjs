@@ -11,17 +11,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function importCleanedDataToMongoDB() {
-  console.log('🚀 Starting import of cleaned data to MongoDB...\n');
+  console.log('Starting import of cleaned data to MongoDB...\n');
 
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ MongoDB connected for import\n');
+    console.log('MongoDB connected for import\n');
 
-    console.log('🗑️  Clearing existing data...');
+    console.log('Clearing existing data...');
     const deleteResult = await CovidData.deleteMany({});
     console.log(`   Deleted ${deleteResult.deletedCount} existing documents\n`);
 
-    console.log('📂 Loading cleaned JSON files...');
+    console.log('Loading cleaned JSON files...');
     const cleanedDir = path.join(__dirname, 'data', 'cleaned');
 
     const confirmedData = JSON.parse(
@@ -36,11 +36,11 @@ async function importCleanedDataToMongoDB() {
       await fs.readFile(path.join(cleanedDir, 'recovered_cleaned.json'), 'utf-8')
     );
 
-    console.log(`   ✅ Confirmed: ${confirmedData.data.length} countries`);
-    console.log(`   ✅ Deaths: ${deathsData.data.length} countries`);
-    console.log(`   ✅ Recovered: ${recoveredData.data.length} countries\n`);
+    console.log(`   Confirmed: ${confirmedData.data.length} countries`);
+    console.log(`   Deaths: ${deathsData.data.length} countries`);
+    console.log(`   Recovered: ${recoveredData.data.length} countries\n`);
 
-    console.log('🔨 Building MongoDB documents...');
+    console.log('Building MongoDB documents...');
     const documents = [];
 
     const sampleCountry = confirmedData.data[0];
@@ -87,9 +87,9 @@ async function importCleanedDataToMongoDB() {
       }
     }
 
-    console.log(`   ✅ Built ${documents.length} documents\n`);
+    console.log(`   Built ${documents.length} documents\n`);
 
-    console.log('💾 Inserting into MongoDB...');
+    console.log('Inserting into MongoDB...');
     const batchSize = 5000;
     let inserted = 0;
 
@@ -103,20 +103,20 @@ async function importCleanedDataToMongoDB() {
         inserted += batch.length;
         console.log(`   Batch ${batchNum}/${totalBatches} inserted (${inserted}/${documents.length})`);
       } catch (error) {
-        console.error(`   ⚠️  Batch ${batchNum} had some errors (duplicates?)`);
+        console.error(`   Batch ${batchNum} had some errors (duplicates?)`);
       }
     }
 
-    console.log(`\n✅ Import completed!\n`);
+    console.log(`\nImport completed!\n`);
 
-    console.log('🔍 Verifying import...');
+    console.log('Verifying import...');
     const totalDocs = await CovidData.countDocuments();
     const distinctCountries = await CovidData.distinct('Country_Region');
     const confirmedCount = await CovidData.countDocuments({ Confirmed: { $gt: 0 } });
     const deathsCount = await CovidData.countDocuments({ Deaths: { $gt: 0 } });
 
     console.log('\n' + '='.repeat(60));
-    console.log('📊 IMPORT STATISTICS');
+    console.log('IMPORT STATISTICS');
     console.log('='.repeat(60));
     console.log(`Total documents:         ${totalDocs.toLocaleString()}`);
     console.log(`Unique countries:        ${distinctCountries.length}`);
@@ -124,25 +124,25 @@ async function importCleanedDataToMongoDB() {
     console.log(`Docs with deaths:        ${deathsCount.toLocaleString()}`);
     console.log('='.repeat(60));
     console.log(`\nCountries (first 20): ${distinctCountries.slice(0, 20).join(', ')}...`);
-    console.log('\n✨ MongoDB now contains cleaned, aggregated data!');
+    console.log('\nMongoDB now contains cleaned, aggregated data!');
 
-    console.log('\n🗑️  Invalidating cache...');
+    console.log('\nInvalidating cache...');
     try {
       const { invalidateCache } = await import('./middleware/cacheMiddleware.js');
       const invalidated = await invalidateCache('covid:cache:*');
-      console.log(`✅ Invalidated ${invalidated} cache entries`);
+      console.log(`Invalidated ${invalidated} cache entries`);
     } catch (error) {
-      console.log(`⚠️  Cache invalidation skipped: ${error.message}`);
+      console.log(`Cache invalidation skipped: ${error.message}`);
       console.log('   (This is OK if Redis is not running)');
     }
 
   } catch (error) {
-    console.error('\n❌ Import failed:', error.message);
+    console.error('\nImport failed:', error.message);
     console.error(error.stack);
     process.exit(1);
   } finally {
     await mongoose.connection.close();
-    console.log('\n👋 MongoDB connection closed');
+    console.log('\nMongoDB connection closed');
   }
 }
 

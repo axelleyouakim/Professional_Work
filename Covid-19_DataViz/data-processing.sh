@@ -1,13 +1,13 @@
 #!/bin/bash
 
-echo "📊 STATISTICAL ANALYSIS — START"
+echo "STATISTICAL ANALYSIS — START"
 
 cd covid19-datavizback || exit 1
 
-echo "🔹 Step 1 — Cleaning data"
+echo "Step 1 — Cleaning data"
 npm run clean
 
-echo "🔹 Step 2 — Import cleaned data"
+echo "Step 2 — Import cleaned data"
 node importCleanedData.mjs
 
-echo "✅ Statistical analysis complete!"
+echo "Statistical analysis complete!"

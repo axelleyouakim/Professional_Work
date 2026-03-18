@@ -29,7 +29,6 @@ const parseCSVLine = (line) => {
   return result;
 };
 
-// ─── Nettoyage des noms de pays JHU ─────────────────────────────────────────
 const COUNTRY_FIXED = {
   "Cote d'Ivoire":         "Côte d'Ivoire",
   'Sao Tome and Principe': 'São Tomé and Príncipe',
@@ -57,7 +56,6 @@ const cleanName = (name) => {
   }
   return name;
 };
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function loadCleanedData(filename) {
   try {
@@ -65,7 +63,7 @@ async function loadCleanedData(filename) {
     const data = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(data);
   } catch (error) {
-    console.error(`❌ Error loading ${filename}:`, error.message);
+    console.error(`Error loading ${filename}:`, error.message);
     return null;
   }
 }
@@ -88,7 +86,7 @@ function getDateColumnsForPeriod(header, period) {
   if (isNaN(periodDays)) return { startIndex: 4, endIndex: header.length - 1 };
   const endIndex = header.length - 1;
   const startIndex = Math.max(4, endIndex - periodDays);
-  console.log(`📅 Filtering by period: ${periodDays} days (columns ${startIndex} to ${endIndex})`);
+  console.log(`Filtering by period: ${periodDays} days (columns ${startIndex} to ${endIndex})`);
   return { startIndex, endIndex };
 }
 
@@ -123,7 +121,7 @@ export const covidService = {
       const periodDays = parseInt(period);
       const targetIndex = Math.max(4, endIndex - periodDays);
       const targetDate = header[targetIndex];
-      console.log(`📊 [getTotalCases] Period: ${periodDays} days, Target date: ${targetDate}, Column: ${targetIndex}/${endIndex}`);
+      console.log(`[getTotalCases] Period: ${periodDays} days, Target date: ${targetDate}, Column: ${targetIndex}/${endIndex}`);
       let globalTotal = 0, countriesProcessed = 0;
       for (let i = 1; i < rows.length; i++) {
         if (!rows[i].trim()) continue;
@@ -132,10 +130,10 @@ export const covidService = {
         const casesAtDate = parseInt(columns[targetIndex], 10) || 0;
         if (casesAtDate > 0) { globalTotal += casesAtDate; countriesProcessed++; }
       }
-      console.log(`📊 [getTotalCases] Total: ${globalTotal.toLocaleString()}, Countries: ${countriesProcessed}`);
+      console.log(`[getTotalCases] Total: ${globalTotal.toLocaleString()}, Countries: ${countriesProcessed}`);
       return { total_cases: globalTotal, reference_date: targetDate, period_days: periodDays, countries_count: countriesProcessed };
     } catch (error) {
-      console.error('❌ [getTotalCases] Error:', error);
+      console.error('[getTotalCases] Error:', error);
       throw new AppError('Failed to fetch total cases', 500);
     }
   },
@@ -159,10 +157,10 @@ export const covidService = {
         const deathsAtDate = parseInt(columns[targetIndex], 10) || 0;
         if (deathsAtDate > 0) { globalTotalDeaths += deathsAtDate; countriesProcessed++; }
       }
-      console.log(`📊 [getTotalDeaths] Total: ${globalTotalDeaths.toLocaleString()}, Countries: ${countriesProcessed}`);
+      console.log(`[getTotalDeaths] Total: ${globalTotalDeaths.toLocaleString()}, Countries: ${countriesProcessed}`);
       return { total_deaths: globalTotalDeaths, reference_date: targetDate, period_days: periodDays };
     } catch (error) {
-      console.error('❌ [getTotalDeaths] Error:', error);
+      console.error('[getTotalDeaths] Error:', error);
       throw new AppError('Failed to fetch total deaths', 500);
     }
   },
@@ -171,7 +169,7 @@ export const covidService = {
     try {
       const cleanedData = await loadCleanedData('merged_statistics.json');
       if (cleanedData) {
-        console.log('📊 [getTotalRecovered] Using cleaned data (Recovered stopped in Aug 2021)');
+        console.log('[getTotalRecovered] Using cleaned data (Recovered stopped in Aug 2021)');
         return { total_recovered: cleanedData.globalStats.totalRecovered, latest_date: cleanedData.lastUpdated, note: 'Recovered data collection ended in August 2021' };
       }
       const data = await fetchGitHubCSV('recovered');
@@ -184,7 +182,7 @@ export const covidService = {
       }
       return { total_recovered: globalTotalRecovered, note: 'Recovered data collection ended in August 2021' };
     } catch (error) {
-      console.error('❌ [getTotalRecovered] Error:', error);
+      console.error('[getTotalRecovered] Error:', error);
       throw new AppError('Failed to fetch total recovered', 500);
     }
   },
@@ -218,7 +216,7 @@ export const covidService = {
       const periodDays = parseInt(period);
       const targetIndex = Math.max(4, endIndex - periodDays);
       const targetDate = header[targetIndex];
-      console.log(`📊 [getTotalCasesPerCountry] Period: ${periodDays} days, Column: ${targetIndex}/${endIndex}`);
+      console.log(`[getTotalCasesPerCountry] Period: ${periodDays} days, Column: ${targetIndex}/${endIndex}`);
       const countryCases = {};
       for (let i = 1; i < rows.length; i++) {
         if (!rows[i].trim()) continue;
@@ -233,10 +231,10 @@ export const covidService = {
         .map(([country, total_cases]) => ({ country, total_cases }))
         .filter(c => c.total_cases > 0)
         .sort((a, b) => b.total_cases - a.total_cases);
-      console.log(`📊 [getTotalCasesPerCountry] Countries: ${formattedResult.length}`);
+      console.log(`[getTotalCasesPerCountry] Countries: ${formattedResult.length}`);
       return { data: formattedResult, reference_date: targetDate, period_days: periodDays };
     } catch (error) {
-      console.error('❌ [getTotalCasesPerCountry] Error:', error);
+      console.error('[getTotalCasesPerCountry] Error:', error);
       throw new AppError('Failed to fetch cases per country', 500);
     }
   },
@@ -272,7 +270,7 @@ export const covidService = {
         reference_date: targetDate, period_days: periodDays
       };
     } catch (error) {
-      console.error('❌ [getTotalDeathsPerCountry] Error:', error);
+      console.error('[getTotalDeathsPerCountry] Error:', error);
       throw new AppError('Failed to fetch deaths per country', 500);
     }
   },
@@ -303,7 +301,7 @@ export const covidService = {
         note: 'Recovered data collection ended in August 2021'
       };
     } catch (error) {
-      console.error('❌ [getTotalRecoveredPerCountry] Error:', error);
+      console.error('[getTotalRecoveredPerCountry] Error:', error);
       throw new AppError('Failed to fetch recovered per country', 500);
     }
   },
@@ -369,7 +367,7 @@ export const covidService = {
         const countryData = cleanedData.data.find(c => c.country.toLowerCase() === country.toLowerCase());
         if (!countryData) throw new AppError(`Country "${country}" not found`, 404);
         countryTimeSeries = Object.entries(countryData.timeSeries).map(([date, cases]) => ({ date, cases: cases || 0 }));
-        console.log(`📊 [getCasesTimeSeriesByCountry] Found ${countryTimeSeries.length} data points for ${country}`);
+        console.log(`[getCasesTimeSeriesByCountry] Found ${countryTimeSeries.length} data points for ${country}`);
       } else {
         const data = await fetchGitHubCSV('confirmed');
         const rows = data.split('\n').filter(row => row.trim() !== '');
@@ -416,7 +414,7 @@ export const covidService = {
       return { data: finalData, metadata: { country, lastDate: formattedLastDate, totalPoints: finalData.length, period: period ? parseInt(period) : null } };
     } catch (error) {
       if (error instanceof AppError) throw error;
-      console.error('❌ [getCasesTimeSeriesByCountry] Error:', error);
+      console.error('[getCasesTimeSeriesByCountry] Error:', error);
       throw new AppError(`Failed to fetch time series for ${country}`, 500);
     }
   },
@@ -430,17 +428,17 @@ export const covidService = {
       if (dateColumns.length === 0) throw new AppError('No date columns found', 500);
       const firstDate = dateColumns[0].trim();
       const lastDate = dateColumns[dateColumns.length - 1].trim();
-      console.log(`📅 Available dates: ${firstDate} → ${lastDate} (${dateColumns.length} days)`);
+      console.log(`Available dates: ${firstDate} → ${lastDate} (${dateColumns.length} days)`);
       return { firstDate, lastDate, totalDays: dateColumns.length, allDates: dateColumns.map(d => d.trim()) };
     } catch (error) {
-      console.error('❌ [getAvailableDateRange] Error:', error);
+      console.error('[getAvailableDateRange] Error:', error);
       throw new AppError('Failed to fetch date range', 500);
     }
   },
 
   getAllTimeSeriesData: async () => {
     try {
-      console.log('📊 [getAllTimeSeriesData] Loading ALL time-series data (cases, deaths, recovered)...');
+      console.log('[getAllTimeSeriesData] Loading ALL time-series data (cases, deaths, recovered)...');
 
       const confirmedData = await fetchGitHubCSV('confirmed');
       const deathsData    = await fetchGitHubCSV('deaths');
@@ -464,7 +462,7 @@ export const covidService = {
         preCovidDates.push(`${month}/${day}/${year}`);
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      console.log(`📅 Generated ${preCovidDates.length} pre-COVID dates (Nov 1 2019 → Jan 21 2020)`);
+      console.log(`Generated ${preCovidDates.length} pre-COVID dates (Nov 1 2019 → Jan 21 2020)`);
 
       const allDates = [...preCovidDates, ...realDateColumns.map(d => d.trim())];
 
@@ -479,7 +477,7 @@ export const covidService = {
         }
       }
 
-      console.log(`📊 Found ${allCountries.size} unique countries`);
+      console.log(`Found ${allCountries.size} unique countries`);
 
       allCountries.forEach(country => {
         countriesData[country] = { cases: {}, deaths: {}, recovered: {} };
@@ -490,7 +488,7 @@ export const covidService = {
         });
       });
 
-      console.log(`✅ Initialized ${allCountries.size} countries with 0 for pre-COVID dates`);
+      console.log(`Initialized ${allCountries.size} countries with 0 for pre-COVID dates`);
 
       for (let i = 1; i < confirmedRows.length; i++) {
         if (!confirmedRows[i].trim()) continue;
@@ -528,7 +526,7 @@ export const covidService = {
         }
       }
 
-      console.log('📊 [getAllTimeSeriesData] Filling recovered gaps after Aug 2021...');
+      console.log('[getAllTimeSeriesData] Filling recovered gaps after Aug 2021...');
 
       Object.keys(countriesData).forEach(country => {
         const recoveredDates = Object.keys(countriesData[country].recovered)
@@ -545,27 +543,27 @@ export const covidService = {
         }
       });
 
-      console.log(`✅ Loaded time-series for ${Object.keys(countriesData).length} countries (cases, deaths, recovered)`);
-      console.log(`📅 Total dates: ${allDates.length} (${preCovidDates.length} pre-COVID + ${realDateColumns.length} real data)`);
-      console.log(`📊 Recovered: Last update ~Aug 2021, values repeated until ${allDates[allDates.length - 1]}`);
+      console.log(`Loaded time-series for ${Object.keys(countriesData).length} countries (cases, deaths, recovered)`);
+      console.log(`Total dates: ${allDates.length} (${preCovidDates.length} pre-COVID + ${realDateColumns.length} real data)`);
+      console.log(`Recovered: Last update ~Aug 2021, values repeated until ${allDates[allDates.length - 1]}`);
 
       return { countries: countriesData, dates: allDates, firstDate: allDates[0], lastDate: allDates[allDates.length - 1] };
 
     } catch (error) {
-      console.error('❌ [getAllTimeSeriesData] Error:', error);
+      console.error('[getAllTimeSeriesData] Error:', error);
       throw new AppError('Failed to load all time-series data', 500);
     }
   },
 
   getDataAtSpecificDate: async (dateString) => {
     try {
-      console.log(`📅 [getDataAtSpecificDate] Fetching data for: ${dateString}`);
+      console.log(`[getDataAtSpecificDate] Fetching data for: ${dateString}`);
       const data = await fetchGitHubCSV('confirmed');
       const rows = data.split('\n');
       const header = parseCSVLine(rows[0]);
       const dateIndex = header.findIndex(col => col.trim() === dateString);
       if (dateIndex === -1 || dateIndex < 4) throw new AppError(`Date ${dateString} not found in data`, 404);
-      console.log(`📊 Found date at column ${dateIndex}`);
+      console.log(`Found date at column ${dateIndex}`);
       const countryCases = {};
       for (let i = 1; i < rows.length; i++) {
         if (!rows[i].trim()) continue;
@@ -579,18 +577,18 @@ export const covidService = {
         .map(([country, total_cases]) => ({ country, total_cases }))
         .filter(c => c.total_cases > 0)
         .sort((a, b) => b.total_cases - a.total_cases);
-      console.log(`📊 [getDataAtSpecificDate] Found ${formattedResult.length} countries with cases`);
+      console.log(`[getDataAtSpecificDate] Found ${formattedResult.length} countries with cases`);
       return { data: formattedResult, date: dateString, totalCountries: formattedResult.length };
     } catch (error) {
       if (error instanceof AppError) throw error;
-      console.error('❌ [getDataAtSpecificDate] Error:', error);
+      console.error('[getDataAtSpecificDate] Error:', error);
       throw new AppError('Failed to fetch data at specific date', 500);
     }
   },
 
   getGlobalTotalsAtDate: async (dateString) => {
     try {
-      console.log(`📅 [getGlobalTotalsAtDate] Fetching totals for: ${dateString}`);
+      console.log(`[getGlobalTotalsAtDate] Fetching totals for: ${dateString}`);
       const confirmedData = await fetchGitHubCSV('confirmed');
       const deathsData    = await fetchGitHubCSV('deaths');
       const confirmedRows = confirmedData.split('\n');
@@ -609,11 +607,11 @@ export const covidService = {
         if (!deathsRows[i].trim()) continue;
         totalDeaths += parseInt(parseCSVLine(deathsRows[i])[deathsDateIndex], 10) || 0;
       }
-      console.log(`📊 [getGlobalTotalsAtDate] Cases: ${totalCases.toLocaleString()}, Deaths: ${totalDeaths.toLocaleString()}`);
+      console.log(`[getGlobalTotalsAtDate] Cases: ${totalCases.toLocaleString()}, Deaths: ${totalDeaths.toLocaleString()}`);
       return { total_cases: totalCases, total_deaths: totalDeaths, date: dateString };
     } catch (error) {
       if (error instanceof AppError) throw error;
-      console.error('❌ [getGlobalTotalsAtDate] Error:', error);
+      console.error('[getGlobalTotalsAtDate] Error:', error);
       throw new AppError('Failed to fetch global totals at date', 500);
     }
   },

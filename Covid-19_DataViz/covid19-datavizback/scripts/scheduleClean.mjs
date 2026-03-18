@@ -1,35 +1,35 @@
 import cron from 'node-cron';
 import { runAllCleaningScripts } from './cleanData.mjs';
 
-console.log('⏰ Data cleaning scheduler started');
-console.log('📅 Schedule: Daily at 3:00 AM');
+console.log('Data cleaning scheduler started');
+console.log('Schedule: Daily at 3:00 AM');
 console.log('-----------------------------------\n');
 
 
 cron.schedule('0 3 * * *', async () => {
-  console.log(`\n🕒 [${new Date().toISOString()}] Scheduled cleaning triggered`);
+  console.log(`\n[${new Date().toISOString()}] Scheduled cleaning triggered`);
   
   try {
     await runAllCleaningScripts();
-    console.log('✅ Scheduled cleaning completed successfully\n');
+    console.log('Scheduled cleaning completed successfully\n');
   } catch (error) {
-    console.error('❌ Scheduled cleaning failed:', error.message, '\n');
+    console.error('Scheduled cleaning failed:', error.message, '\n');
   }
 }, {
   timezone: "Europe/Madrid"
 });
 
-console.log('🚀 Running initial data cleaning...\n');
+console.log('Running initial data cleaning...\n');
 runAllCleaningScripts()
   .then(() => {
-    console.log('\n✅ Initial cleaning completed');
-    console.log('⏳ Waiting for next scheduled run (3:00 AM daily)...\n');
+    console.log('\nInitial cleaning completed');
+    console.log('Waiting for next scheduled run (3:00 AM daily)...\n');
   })
   .catch(error => {
-    console.error('❌ Initial cleaning failed:', error.message);
+    console.error('Initial cleaning failed:', error.message);
   });
 
 process.on('SIGINT', () => {
-  console.log('\n👋 Scheduler stopped');
+  console.log('\nScheduler stopped');
   process.exit(0);
 });

@@ -115,12 +115,10 @@ const Dashboard = () => {
   const handleAdminLevelChange = useCallback((level) => setAdminLevel(level), []);
   const handleCompareClick     = useCallback(() => router.push('/compare'), [router]);
 
-  // ✅ Erreur réseau uniquement — pas de spinner, pas de bloc isLoading
   if (error) {
     return (
       <div className="dashboard-grid">
         <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: '20px', color: '#ff4444' }}>
-          <span style={{ fontSize: '48px' }}>⚠️</span>
           <p style={{ fontSize: '18px' }}>Failed to load data</p>
           <button onClick={() => window.location.reload()} style={{ padding: '10px 20px', background: '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Retry</button>
         </div>
@@ -163,7 +161,7 @@ const Dashboard = () => {
           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(74,138,255,0.5)'; }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(74,138,255,0.3)'; }}
         >
-          ⚖️ Compare Countries
+          Compare Countries
         </button>
       </div>
 

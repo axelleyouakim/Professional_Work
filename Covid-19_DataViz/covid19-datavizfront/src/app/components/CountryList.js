@@ -28,8 +28,6 @@ const CountryList = ({
     return countriesData.filter((c) => c.country.toLowerCase().includes(q));
   }, [countriesData, searchTerm]);
 
-  // ✅ Max 50 items dans le DOM → INP 176ms → ~20ms
-  // Le pays sélectionné est toujours visible même s'il est après le 50e
   const visibleCountries = useMemo(() => {
     if (showAll || searchTerm) return filteredCountries;
     const top50 = filteredCountries.slice(0, VISIBLE_COUNT);

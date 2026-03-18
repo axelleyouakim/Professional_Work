@@ -37,7 +37,7 @@ export const useWorldAtlas = () => {
       return response.json();
     },
     staleTime: Infinity,
-    gcTime: Infinity, // ✅ v5 : gcTime remplace cacheTime
+    gcTime: Infinity,
   });
 };
 
@@ -201,8 +201,7 @@ export const useAllTimeSeriesData = () => {
       return await api.getAllTimeSeriesData();
     },
     staleTime: Infinity,
-    gcTime: Infinity, // ✅ v5 : gcTime remplace cacheTime — données gardées en mémoire indéfiniment
-                      //    → après le premier chargement, refresh = zéro refetch réseau
+    gcTime: Infinity,
   });
 };
 

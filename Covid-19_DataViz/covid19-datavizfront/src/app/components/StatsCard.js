@@ -12,7 +12,7 @@ const StatsCard = ({
   colorClass = 'red-text',
   isLoading = false,
   error = null,
-  currentDate = null  // ✅ NOUVEAU : Recevoir la date actuelle du slider
+  currentDate = null
 }) => {
   const displayValue = (() => {
     if (globalStats) {
@@ -27,12 +27,9 @@ const StatsCard = ({
     return 0;
   })();
 
-  // ✅ DÉTERMINER SI ON EST APRÈS AOÛT 2021
   const isAfterRecoveredCutoff = () => {
     if (!currentDate || type !== 'recovered') return false;
     
-    // Date de fin de collecte recovered : 8/4/21 (4 août 2021)
-    // (C'est la dernière date dans le CSV recovered)
     const parts = currentDate.split('/');
     if (parts.length !== 3) return false;
     
@@ -42,7 +39,7 @@ const StatsCard = ({
     if (year < 100) year += 2000;
     
     const currentDateObj = new Date(year, month - 1, day);
-    const cutoffDate = new Date(2021, 7, 4); // 4 août 2021 (mois 7 = août car 0-indexed)
+    const cutoffDate = new Date(2021, 7, 4);
     
     return currentDateObj > cutoffDate;
   };
@@ -70,7 +67,7 @@ const StatsCard = ({
       <div className="stat-box">
         <h3 className="stat-label">{label}</h3>
         <p className={`stat-value`} style={{ color: '#ff4444', fontSize: '16px' }}>
-          ⚠️ Error
+          Error
         </p>
         <p style={{ fontSize: '10px', color: '#999', marginTop: '5px' }}>
           Failed to load data
@@ -86,16 +83,15 @@ const StatsCard = ({
         {displayValue != null ? displayValue.toLocaleString() : "0"}
       </p>
       
-      {/* ✅ NOUVEAU : Afficher warning SEULEMENT après août 2021 */}
       {isAfterRecoveredCutoff() && (
         <p style={{ fontSize: '11px', color: '#ff9800', marginTop: '5px' }}>
-          ⚠️ Data collection ended Aug 4, 2021
+          Data collection ended Aug 4, 2021
         </p>
       )}
       
       {selectedCountry && (
         <p className="stat-country-indicator" style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
-          📍 Country View
+          Country View
         </p>
       )}
     </div>

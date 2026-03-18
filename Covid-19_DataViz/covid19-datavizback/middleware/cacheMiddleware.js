@@ -19,12 +19,9 @@ try {
   isRedisConnected = false;
 }
 
-// ─── TTL par route ────────────────────────────────────────────────────────────
-// get_all_timeseries : données immenses (~50MB) + ne changent jamais → 24h
-// autres routes      : 1h par défaut
 const ROUTE_TTL = {
-  '/get_all_timeseries':              86400, // 24h
-  '/get_total_cases_per_country':      3600, // 1h
+  '/get_all_timeseries':              86400,
+  '/get_total_cases_per_country':      3600,
   '/get_total_deaths_per_country':     3600,
   '/get_total_recovered_per_country':  3600,
   '/get_cases_time_series':            3600,
@@ -38,7 +35,7 @@ const ROUTE_TTL = {
   '/get_total_vaccine_doses':          3600,
   '/get_28_day_vaccine_doses':         3600,
   '/get_28_day_vaccine_doses_per_country': 3600,
-  '/get_data_at_date':                  300, // 5min (paramétré par date)
+  '/get_data_at_date':                  300,
   '/get_global_totals_at_date':         300,
 };
 
@@ -48,7 +45,6 @@ export const cacheMiddleware = (duration = 3600, options = {}) => {
   return async (req, res, next) => {
     if (!isRedisConnected || !redisClient.isOpen) return next();
 
-    // TTL : priorité à la valeur par route, sinon `duration` passé en argument
     const ttl = ROUTE_TTL[req.path] ?? duration;
 
     const queryString = Object.keys(req.query).length > 0
@@ -61,13 +57,13 @@ export const cacheMiddleware = (duration = 3600, options = {}) => {
     try {
       const cachedData = await redisClient.get(key);
       if (cachedData) {
-        console.log(`✅ Cache HIT: ${key}`);
+        console.log(`Cache HIT: ${key}`);
         res.setHeader('X-Cache', 'HIT');
         res.setHeader('X-Cache-Key', key);
         return res.json(JSON.parse(cachedData));
       }
 
-      console.log(`❌ Cache MISS: ${key}`);
+      console.log(`Cache MISS: ${key}`);
       res.setHeader('X-Cache', 'MISS');
 
       const originalJson = res.json.bind(res);
@@ -75,7 +71,7 @@ export const cacheMiddleware = (duration = 3600, options = {}) => {
         const cacheData = JSON.stringify(data);
         redisClient.setEx(key, ttl, cacheData)
           .then(() => {
-            console.log(`💾 Cached: ${key} (TTL: ${ttl}s, size: ${(cacheData.length / 1024).toFixed(2)}KB)`);
+            console.log(`Cached: ${key} (TTL: ${ttl}s, size: ${(cacheData.length / 1024).toFixed(2)}KB)`);
             if (tags.length > 0) {
               tags.forEach(tag => {
                 redisClient.sAdd(`covid:cache:tag:${tag}`, key)
@@ -98,7 +94,6 @@ export const cacheMiddleware = (duration = 3600, options = {}) => {
   };
 };
 
-// ─── Invalidation par pattern ─────────────────────────────────────────────────
 export const invalidateCache = async (pattern = 'covid:cache:*') => {
   try {
     if (!isRedisConnected || !redisClient.isOpen) return 0;
@@ -118,18 +113,17 @@ export const invalidateCache = async (pattern = 'covid:cache:*') => {
 
     if (keys.length > 0) {
       await redisClient.del(keys);
-      console.log(`🗑️  Invalidated ${keys.length} cache keys matching "${pattern}"`);
+      console.log(`Invalidated ${keys.length} cache keys matching "${pattern}"`);
     } else {
-      console.log(`ℹ️  No cache keys found matching "${pattern}"`);
+      console.log(`No cache keys found matching "${pattern}"`);
     }
     return keys.length;
   } catch (error) {
-    console.error('❌ Cache invalidation error:', error.message);
+    console.error('Cache invalidation error:', error.message);
     return 0;
   }
 };
 
-// ─── Invalidation par tag ─────────────────────────────────────────────────────
 export const invalidateCacheByTag = async (tag) => {
   try {
     if (!isRedisConnected || !redisClient.isOpen) return 0;
@@ -138,24 +132,19 @@ export const invalidateCacheByTag = async (tag) => {
     if (keys.length > 0) {
       await redisClient.del(keys);
       await redisClient.del(tagKey);
-      console.log(`🗑️  Invalidated ${keys.length} cache keys with tag "${tag}"`);
+      console.log(`Invalidated ${keys.length} cache keys with tag "${tag}"`);
       return keys.length;
     }
     return 0;
   } catch (error) {
-    console.error('❌ Tag invalidation error:', error.message);
+    console.error('Tag invalidation error:', error.message);
     return 0;
   }
 };
 
-// ─── Warmup cache ─────────────────────────────────────────────────────────────
-// ✅ Utilise le nom du service Docker "backend" (pas localhost) pour éviter
-//    les erreurs de connexion à l'intérieur du réseau Docker
 export const warmupCache = async () => {
-  console.log('🔥 Starting cache warmup...');
+  console.log('Starting cache warmup...');
 
-  // Résolution d'hôte : dans Docker, le service s'appelle "backend" sur le
-  // réseau interne. En dev local, on utilise localhost.
   const host   = process.env.NODE_ENV === 'production' ? 'backend' : 'localhost';
   const port   = process.env.PORT || 5000;
   const base   = `http://${host}:${port}/api`;
@@ -169,23 +158,21 @@ export const warmupCache = async () => {
 
   for (const endpoint of criticalEndpoints) {
     try {
-      // Petit délai pour laisser le serveur finir de démarrer
       await new Promise(r => setTimeout(r, 500));
       const response = await fetch(`${base}${endpoint}`);
       if (response.ok) {
-        console.log(`✅ Warmed up: ${endpoint}`);
+        console.log(`Warmed up: ${endpoint}`);
       } else {
-        console.warn(`⚠️  Warmup non-OK ${endpoint}: ${response.status}`);
+        console.warn(`Warmup non-OK ${endpoint}: ${response.status}`);
       }
     } catch (error) {
-      console.warn(`⚠️  Failed to warmup ${endpoint}:`, error.message);
+      console.warn(`Failed to warmup ${endpoint}:`, error.message);
     }
   }
 
-  console.log('🔥 Cache warmup complete!');
+  console.log('Cache warmup complete!');
 };
 
-// ─── Stats du cache ───────────────────────────────────────────────────────────
 export const getCacheStats = async () => {
   try {
     if (!isRedisConnected || !redisClient.isOpen) return { error: 'Redis not connected' };
@@ -219,10 +206,10 @@ export const getCacheStats = async () => {
       topKeys:          keys.slice(0, 10),
     };
 
-    console.log(`📊 Cache Stats: ${stats.totalKeys} keys, ~${stats.estimatedSizeKB}KB`);
+    console.log(`Cache Stats: ${stats.totalKeys} keys, ~${stats.estimatedSizeKB}KB`);
     return stats;
   } catch (error) {
-    console.error('❌ Error getting cache stats:', error.message);
+    console.error('Error getting cache stats:', error.message);
     return { error: error.message };
   }
 };

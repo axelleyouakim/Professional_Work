@@ -50,8 +50,6 @@ const getLargestPolygon = (f) => {
 
 const getName = (f) => f.properties.name || f.properties.NAME || f.properties.admin || f.properties.ADMIN || '';
 
-// ✅ Pays qui traversent l'antiméridien (180°) — zoom manuel avec centroïde fixe
-// d3.geoPath.bounds() retourne des bornes cassées pour ces pays
 const ANTIMERIDIAN_COUNTRIES = {
   'russia':    { center: [100, 65],  scale: 2.5 },
   'us':        { center: [-100, 40], scale: 3.5 },
@@ -105,14 +103,11 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
   useEffect(() => { scheduleFg(); }, [casesData, scheduleFg]);
   useEffect(() => { scheduleBoth(); }, [selectedCountry, hoveredCountry, scheduleBoth]);
 
-  // ✅ computeFit corrigé : détecte les pays antiméridiens et utilise
-  //    des coordonnées fixes au lieu de geoPath.bounds() qui est cassé pour eux
   const computeFit = useCallback((feature, W, H, proj) => {
     const name = getName(feature).toLowerCase();
     const anti = ANTIMERIDIAN_COUNTRIES[name];
 
     if (anti) {
-      // Zoom manuel basé sur coordonnées connues
       const [cx, cy] = proj(anti.center);
       return d3.zoomIdentity
         .translate(W / 2, H / 2)
@@ -120,7 +115,6 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
         .translate(-cx, -cy);
     }
 
-    // Pays normaux : utilise le plus grand polygone pour éviter les îles
     const main = getLargestPolygon(feature);
     const [cx, cy] = proj(d3.geoCentroid(main));
     const [[x0, y0], [x1, y1]] = d3.geoPath(proj).bounds(main);
@@ -356,7 +350,7 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       drawBgRef.current = null;
       drawFgRef.current = null;
     };
-  }, [worldAtlasQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [worldAtlasQuery.data]);
 
   const handleZoomIn  = () => { const c=fgCanvasRef.current,z=zoomRef.current; if(c&&z) d3.select(c).transition().duration(300).call(z.scaleBy,1.3); };
   const handleZoomOut = () => { const c=fgCanvasRef.current,z=zoomRef.current; if(c&&z) d3.select(c).transition().duration(300).call(z.scaleBy,.77); };

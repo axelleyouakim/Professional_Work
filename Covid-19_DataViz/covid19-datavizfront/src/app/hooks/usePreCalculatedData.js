@@ -150,13 +150,13 @@ export const usePreCalculatedData = () => {
     calcStartedRef.current = true;
 
     const t0 = performance.now();
-    console.log('🔥 [PRE-CALC] Starting async precalculation...');
+    console.log('[PRE-CALC] Starting async precalculation...');
 
     const cleanedCountries = renameCountries(allTimeSeriesData.data.countries);
 
     precalcAsync(cleanedCountries, allTimeSeriesData.data.dates)
       .then((result) => {
-        console.log(`✅ [PRE-CALC] Done in ${(performance.now() - t0).toFixed(0)}ms`);
+        console.log(`[PRE-CALC] Done in ${(performance.now() - t0).toFixed(0)}ms`);
         setPreCalculatedIndex(result);
         setIsCalcDone(true);
       });

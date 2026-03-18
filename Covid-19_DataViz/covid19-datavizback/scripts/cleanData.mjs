@@ -5,7 +5,7 @@ import path from 'path';
 
 
 async function cleanConfirmedCases() {
-  console.log('🧹 Cleaning confirmed cases data...');
+  console.log('Cleaning confirmed cases data...');
   
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
@@ -63,18 +63,18 @@ async function cleanConfirmedCases() {
       data: cleanedData
     });
 
-    console.log(`✅ Cleaned confirmed cases: ${cleanedData.length} countries`);
+    console.log(`Cleaned confirmed cases: ${cleanedData.length} countries`);
     return cleanedData;
 
   } catch (error) {
-    console.error('❌ Error cleaning confirmed cases:', error.message);
+    console.error('Error cleaning confirmed cases:', error.message);
     throw error;
   }
 }
 
 
 async function cleanDeathsData() {
-  console.log('🧹 Cleaning deaths data...');
+  console.log('Cleaning deaths data...');
   
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
@@ -124,18 +124,18 @@ async function cleanDeathsData() {
       data: cleanedData
     });
 
-    console.log(`✅ Cleaned deaths data: ${cleanedData.length} countries`);
+    console.log(`Cleaned deaths data: ${cleanedData.length} countries`);
     return cleanedData;
 
   } catch (error) {
-    console.error('❌ Error cleaning deaths data:', error.message);
+    console.error('Error cleaning deaths data:', error.message);
     throw error;
   }
 }
 
 
 async function cleanRecoveredData() {
-  console.log('🧹 Cleaning recovered data...');
+  console.log('Cleaning recovered data...');
 
   try {
     const url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv';
@@ -186,18 +186,18 @@ async function cleanRecoveredData() {
       data: cleanedData
     });
 
-    console.log(`✅ Cleaned recovered data: ${cleanedData.length} countries`);
+    console.log(`Cleaned recovered data: ${cleanedData.length} countries`);
     return cleanedData;
 
   } catch (error) {
-    console.error('❌ Error cleaning recovered data:', error.message);
+    console.error('Error cleaning recovered data:', error.message);
     throw error;
   }
 }
 
 
 async function mergeAndCalculateStats() {
-  console.log('📊 Merging data and calculating statistics...');
+  console.log('Merging data and calculating statistics...');
 
   try {
     const confirmed = JSON.parse(await fs.readFile('./data/cleaned/confirmed_cases_cleaned.json', 'utf-8'));
@@ -256,11 +256,11 @@ async function mergeAndCalculateStats() {
       data: mergedData
     });
 
-    console.log('✅ Merged statistics calculated and saved');
+    console.log('Merged statistics calculated and saved');
     return mergedData;
 
   } catch (error) {
-    console.error('❌ Error merging statistics:', error.message);
+    console.error('Error merging statistics:', error.message);
     throw error;
   }
 }
@@ -274,12 +274,12 @@ async function saveCleanedData(filename, data) {
   const filePath = path.join(dataDir, filename);
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
   
-  console.log(`💾 Saved: ${filename}`);
+  console.log(`Saved: ${filename}`);
 }
 
 
 async function runAllCleaningScripts() {
-  console.log('🚀 Starting data cleaning pipeline...\n');
+  console.log('Starting data cleaning pipeline...\n');
   
   const startTime = Date.now();
 
@@ -292,11 +292,11 @@ async function runAllCleaningScripts() {
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(2);
 
-    console.log(`\n✅ All cleaning scripts completed in ${duration}s`);
-    console.log('📁 Cleaned data saved to: ./data/cleaned/');
+    console.log(`\nAll cleaning scripts completed in ${duration}s`);
+    console.log('Cleaned data saved to: ./data/cleaned/');
 
   } catch (error) {
-    console.error('\n❌ Cleaning pipeline failed:', error.message);
+    console.error('\nCleaning pipeline failed:', error.message);
     process.exit(1);
   }
 }

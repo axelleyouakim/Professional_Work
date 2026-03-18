@@ -24,7 +24,6 @@ const QueryStateWrapper = ({
     return (
       <div className="query-state-container">
         <div className="query-error">
-          <span className="error-icon">⚠️</span>
           <p>{errorMessage}</p>
           <p className="error-details">{query.error.message}</p>
         </div>
@@ -60,7 +59,6 @@ export const MultiQueryWrapper = ({
     return (
       <div className="query-state-container">
         <div className="query-error">
-          <span className="error-icon">⚠️</span>
           <p>{errorMessage}</p>
           <p className="error-details">{errorQuery.error.message}</p>
         </div>

@@ -44,10 +44,6 @@
   transition: transform 0.3s ease;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   📅 TIMELINE SLIDER - COMPACT MODE
-   ═══════════════════════════════════════════════════════════ */
-
 .timeline-slider-container {
   background: rgba(26, 26, 46, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -56,9 +52,6 @@
   backdrop-filter: blur(10px);
 }
 
-/* ──────────────────────────────────────────────────────────
-   HEADER - Tout sur une ligne (COMPACT)
-   ────────────────────────────────────────────────────────── */
 .timeline-header {
   display: flex;
   justify-content: space-between;
@@ -100,9 +93,6 @@
   white-space: nowrap;
 }
 
-/* ──────────────────────────────────────────────────────────
-   CONTROLS - Boutons compacts sur une ligne
-   ────────────────────────────────────────────────────────── */
 .timeline-controls {
   display: flex;
   gap: 3px;
@@ -135,9 +125,6 @@
   transform: translateY(0);
 }
 
-/* ──────────────────────────────────────────────────────────
-   SLIDER - Compact
-   ────────────────────────────────────────────────────────── */
 .timeline-slider-wrapper {
   position: relative;
   margin-bottom: 6px;
@@ -159,7 +146,6 @@
   text-overflow: ellipsis;
 }
 
-/* Style du slider */
 .timeline-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -172,7 +158,6 @@
   cursor: pointer;
 }
 
-/* Barre de progression */
 .timeline-slider-progress {
   position: absolute;
   top: 50%;
@@ -186,7 +171,6 @@
   transition: width 0.1s ease;
 }
 
-/* Thumb - WebKit */
 .timeline-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -211,7 +195,6 @@
   transform: scale(1.05);
 }
 
-/* Thumb - Firefox */
 .timeline-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
@@ -228,9 +211,6 @@
   box-shadow: 0 2px 6px rgba(255, 70, 70, 0.7);
 }
 
-/* ──────────────────────────────────────────────────────────
-   INFO - Compact en bas
-   ────────────────────────────────────────────────────────── */
 .timeline-info {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -243,9 +223,6 @@
   letter-spacing: 0.2px;
 }
 
-/* ──────────────────────────────────────────────────────────
-   MODAL OVERLAY
-   ────────────────────────────────────────────────────────── */
 .timeline-modal-overlay {
   position: fixed;
   top: 0;
@@ -273,9 +250,6 @@
   }
 }
 
-/* ──────────────────────────────────────────────────────────
-   MODAL
-   ────────────────────────────────────────────────────────── */
 .timeline-modal {
   background: linear-gradient(135deg, rgba(26, 47, 63, 0.98) 0%, rgba(16, 32, 48, 0.98) 100%);
   border: 1px solid rgba(42, 74, 95, 0.6);
@@ -492,9 +466,6 @@
   transform: translateY(0);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   📱 RESPONSIVE
-   ═══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .timeline-slider-container {
     padding: 6px 10px;

@@ -22,7 +22,6 @@ const Navbar = () => {
       top: 0,
       zIndex: 100,
     }}>
-      {/* Home */}
       <Link
         href="/"
         style={{
@@ -37,10 +36,9 @@ const Navbar = () => {
           transition: 'all 0.15s',
         }}
       >
-        🌍 Dashboard
+        Dashboard
       </Link>
 
-      {/* Compare — bouton mis en avant */}
       <Link
         href="/compare"
         style={{
@@ -61,7 +59,7 @@ const Navbar = () => {
           boxShadow: isCompare ? '0 2px 8px rgba(74,138,255,0.3)' : 'none',
         }}
       >
-        ⚖️ Compare Countries
+        Compare Countries
         <span style={{
           fontSize: '10px',
           background: 'rgba(255,255,255,0.2)',

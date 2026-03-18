@@ -482,10 +482,6 @@
   border-radius: 2px;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   🎨 COUNTRY VIEW BANNER - Style moderne et élégant
-   ═══════════════════════════════════════════════════════════ */
-
 .country-view-banner {
   grid-column: 1 / -1;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -503,7 +499,6 @@
   overflow: hidden;
 }
 
-/* Effet de brillance subtil en arrière-plan */
 .country-view-banner::before {
   content: '';
   position: absolute;
@@ -590,9 +585,6 @@
   margin-top: 5px;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   📱 RESPONSIVE
-   ═══════════════════════════════════════════════════════════ */
 
 @media (min-width: 1921px) {
   .dashboard-grid {

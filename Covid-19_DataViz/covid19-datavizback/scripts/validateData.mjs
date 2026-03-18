@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 async function validateCleanedData() {
-  console.log('🔍 Starting data validation...\n');
+  console.log('Starting data validation...\n');
 
   const issues = [];
   const warnings = [];
@@ -17,18 +17,18 @@ async function validateCleanedData() {
       'merged_statistics.json'
     ];
 
-    console.log('📁 Checking required files...');
+    console.log('Checking required files...');
     for (const file of requiredFiles) {
       try {
         await fs.access(path.join(dataDir, file));
-        console.log(`  ✅ ${file}`);
+        console.log(`  ${file}`);
       } catch (error) {
         issues.push(`Missing file: ${file}`);
-        console.log(`  ❌ ${file} - NOT FOUND`);
+        console.log(`  ${file} - NOT FOUND`);
       }
     }
 
-    console.log('\n📊 Validating confirmed cases...');
+    console.log('\nValidating confirmed cases...');
     const confirmed = JSON.parse(
       await fs.readFile(path.join(dataDir, 'confirmed_cases_cleaned.json'), 'utf-8')
     );
@@ -60,7 +60,7 @@ async function validateCleanedData() {
       }
     }
 
-    console.log('\n📈 Validating merged statistics...');
+    console.log('\nValidating merged statistics...');
     const merged = JSON.parse(
       await fs.readFile(path.join(dataDir, 'merged_statistics.json'), 'utf-8')
     );
@@ -79,7 +79,7 @@ async function validateCleanedData() {
       }
     }
 
-    console.log('\n🔗 Checking data consistency...');
+    console.log('\nChecking data consistency...');
     const deaths = JSON.parse(
       await fs.readFile(path.join(dataDir, 'deaths_cleaned.json'), 'utf-8')
     );
@@ -91,20 +91,20 @@ async function validateCleanedData() {
     });
 
     console.log('\n' + '='.repeat(50));
-    console.log('📋 VALIDATION REPORT');
+    console.log('VALIDATION REPORT');
     console.log('='.repeat(50));
 
     if (issues.length === 0 && warnings.length === 0) {
-      console.log('✅ All validations passed!');
-      console.log('✨ Data quality: EXCELLENT');
+      console.log('All validations passed!');
+      console.log('Data quality: EXCELLENT');
     } else {
       if (issues.length > 0) {
-        console.log('\n❌ CRITICAL ISSUES:');
+        console.log('\nCRITICAL ISSUES:');
         issues.forEach(issue => console.log(`  • ${issue}`));
       }
 
       if (warnings.length > 0) {
-        console.log('\n⚠️  WARNINGS:');
+        console.log('\nWARNINGS:');
         warnings.forEach(warning => console.log(`  • ${warning}`));
       }
     }
@@ -128,14 +128,14 @@ async function validateCleanedData() {
       JSON.stringify(report, null, 2)
     );
 
-    console.log('💾 Validation report saved to: validation_report.json\n');
+    console.log('Validation report saved to: validation_report.json\n');
 
     if (issues.length > 0) {
       process.exit(1);
     }
 
   } catch (error) {
-    console.error('❌ Validation failed:', error.message);
+    console.error('Validation failed:', error.message);
     process.exit(1);
   }
 }

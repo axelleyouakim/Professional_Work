@@ -30,10 +30,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
   const [sliderIndex, setSliderIndex] = useState(allDates.length - 1);
   const latestIndexRef = useRef(allDates.length - 1);
 
-  // ─── Throttle TanStack Pacer ──────────────────────────────────────────────
-  // wait: 150ms  → max ~6 updates/sec pendant le drag (fluide sans surcharge)
-  // leading: true  → fire immédiatement au premier mouvement (pas de délai perçu)
-  // trailing: true → garantit que la dernière position est toujours envoyée
   const throttledPeriodChange = useThrottledCallback(
     (periodData) => {
       if (onPeriodChange) onPeriodChange(periodData);
@@ -45,11 +41,9 @@ const TimelineSlider = ({ onPeriodChange }) => {
     const newIndex = parseInt(e.target.value, 10);
     latestIndexRef.current = newIndex;
 
-    // UI : mise à jour immédiate, jamais throttlée
     setSliderIndex(newIndex);
 
     const date = allDates[newIndex];
-    // onPeriodChange : throttlé → max 1 update / 150ms
     throttledPeriodChange({
       dateString:  date.dateString,
       dateObj:     date.dateObj,
@@ -60,7 +54,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
     });
   }, [allDates, throttledPeriodChange]);
 
-  // Flush à mouseup/touchend : garantit que la valeur finale est toujours envoyée
   const handleSliderEnd = useCallback(() => {
     const idx  = latestIndexRef.current;
     const date = allDates[idx];
@@ -99,7 +92,7 @@ const TimelineSlider = ({ onPeriodChange }) => {
     <div className="timeline-slider-container">
       <div className="timeline-header">
         <div className="timeline-date-display">
-          <span className="timeline-label">📅 Selected Date:</span>
+          <span className="timeline-label">Selected Date:</span>
           <span className="timeline-date">{selectedDate?.displayDate}</span>
         </div>
         <div className="timeline-progress">
@@ -136,10 +129,10 @@ const TimelineSlider = ({ onPeriodChange }) => {
       </div>
 
       <div className="timeline-info">
-        {!selectedDate?.hasData && '⚪ Before COVID-19 - No cases recorded'}
-        {selectedDate?.hasData && sliderIndex <= 100 && `📊 Early pandemic - Data starting ${selectedDate?.displayDate}`}
-        {selectedDate?.hasData && sliderIndex > 100 && sliderIndex < allDates.length - 1 && `📊 Cumulative data up to ${selectedDate?.displayDate}`}
-        {sliderIndex === allDates.length - 1 && '✅ Most recent data available'}
+        {!selectedDate?.hasData && 'Before COVID-19 - No cases recorded'}
+        {selectedDate?.hasData && sliderIndex <= 100 && `Early pandemic - Data starting ${selectedDate?.displayDate}`}
+        {selectedDate?.hasData && sliderIndex > 100 && sliderIndex < allDates.length - 1 && `Cumulative data up to ${selectedDate?.displayDate}`}
+        {sliderIndex === allDates.length - 1 && 'Most recent data available'}
       </div>
     </div>
   );
