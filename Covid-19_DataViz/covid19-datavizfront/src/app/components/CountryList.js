@@ -17,6 +17,10 @@ const CountryList = ({
   colorClass = 'red-text',
   isLoading = false,
   error = null,
+  // Live value for the selected country row (follows slider).
+  // Shape: { total_cases, total_deaths, total_recovered }
+  // All other rows keep their frozen globalDate value.
+  selectedCountryOverride = null,
 }) => {
   const dataKey = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
   const [showAll, setShowAll] = useState(false);
@@ -78,15 +82,23 @@ const CountryList = ({
       {title && <h4 className="country-list-title">{title}</h4>}
       <div className="country-list">
         {visibleCountries.map((countryData) => {
+          const isSelected = selectedCountry === countryData.country;
           const flagUrl = getFlagUrl(countryData.country);
+
+          // Only the selected country row uses the live slider value.
+          // Every other row stays frozen at globalDate.
+          const displayValue = (isSelected && selectedCountryOverride != null)
+            ? (selectedCountryOverride[dataKey] ?? 0)
+            : (countryData[dataKey] ?? 0);
+
           return (
             <div
               key={countryData.country}
-              className={`country-item ${selectedCountry === countryData.country ? 'selected' : ''}`}
+              className={`country-item ${isSelected ? 'selected' : ''}`}
               onClick={() => onCountryClick?.(countryData.country)}
             >
               <span className={`country-cases ${colorClass}`}>
-                {countryData[dataKey]?.toLocaleString() || '0'}
+                {displayValue.toLocaleString()}
               </span>
               {labelSuffix ? (
                 <><span> </span><span className="country-name-small">{labelSuffix}</span><br /></>
@@ -130,6 +142,7 @@ export default React.memo(CountryList, (prev, next) => {
     prev.selectedCountry === next.selectedCountry &&
     prev.searchTerm === next.searchTerm &&
     prev.isLoading === next.isLoading &&
-    prev.error === next.error
+    prev.error === next.error &&
+    prev.selectedCountryOverride === next.selectedCountryOverride
   );
 });

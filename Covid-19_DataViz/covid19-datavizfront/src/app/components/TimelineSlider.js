@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useTransition } from 'react';
 import { useThrottledCallback } from '@tanstack/react-pacer';
 import './TimelineSlider.css';
 
@@ -27,12 +27,25 @@ const TimelineSlider = ({ onPeriodChange }) => {
     return dates;
   }, []);
 
+  // sliderIndex only drives the visual slider position — updates instantly
   const [sliderIndex, setSliderIndex] = useState(allDates.length - 1);
   const latestIndexRef = useRef(allDates.length - 1);
 
+  // useTransition: marks onPeriodChange updates as non-urgent
+  // React will keep the slider responsive and defer the heavy Dashboard re-render
+  const [, startTransition] = useTransition();
+
+  // Throttle the actual data callback to max once per 150 ms
+  // leading:true  → first move fires immediately (no visible delay)
+  // trailing:true → last position is always sent after dragging stops
   const throttledPeriodChange = useThrottledCallback(
     (periodData) => {
-      if (onPeriodChange) onPeriodChange(periodData);
+      if (onPeriodChange) {
+        // Wrap in startTransition so Dashboard re-renders are deferred
+        startTransition(() => {
+          onPeriodChange(periodData);
+        });
+      }
     },
     { wait: 150, leading: true, trailing: true }
   );
@@ -41,6 +54,7 @@ const TimelineSlider = ({ onPeriodChange }) => {
     const newIndex = parseInt(e.target.value, 10);
     latestIndexRef.current = newIndex;
 
+    // Update the slider thumb position immediately (no transition needed)
     setSliderIndex(newIndex);
 
     const date = allDates[newIndex];
@@ -54,32 +68,41 @@ const TimelineSlider = ({ onPeriodChange }) => {
     });
   }, [allDates, throttledPeriodChange]);
 
+  // On mouse/touch release always flush the exact final position
   const handleSliderEnd = useCallback(() => {
     const idx  = latestIndexRef.current;
     const date = allDates[idx];
-    if (onPeriodChange) onPeriodChange({
-      dateString:  date.dateString,
-      dateObj:     date.dateObj,
-      displayDate: date.displayDate,
-      dayIndex:    idx,
-      totalDays:   allDates.length,
-      hasData:     date.hasData,
-    });
-  }, [allDates, onPeriodChange]);
+    if (onPeriodChange) {
+      startTransition(() => {
+        onPeriodChange({
+          dateString:  date.dateString,
+          dateObj:     date.dateObj,
+          displayDate: date.displayDate,
+          dayIndex:    idx,
+          totalDays:   allDates.length,
+          hasData:     date.hasData,
+        });
+      });
+    }
+  }, [allDates, onPeriodChange, startTransition]);
 
   const fireDirect = useCallback((idx) => {
     setSliderIndex(idx);
     latestIndexRef.current = idx;
     const date = allDates[idx];
-    if (onPeriodChange) onPeriodChange({
-      dateString:  date.dateString,
-      dateObj:     date.dateObj,
-      displayDate: date.displayDate,
-      dayIndex:    idx,
-      totalDays:   allDates.length,
-      hasData:     date.hasData,
-    });
-  }, [allDates, onPeriodChange]);
+    if (onPeriodChange) {
+      startTransition(() => {
+        onPeriodChange({
+          dateString:  date.dateString,
+          dateObj:     date.dateObj,
+          displayDate: date.displayDate,
+          dayIndex:    idx,
+          totalDays:   allDates.length,
+          hasData:     date.hasData,
+        });
+      });
+    }
+  }, [allDates, onPeriodChange, startTransition]);
 
   const goToStart    = useCallback(() => fireDirect(0), [fireDirect]);
   const goToEnd      = useCallback(() => fireDirect(allDates.length - 1), [fireDirect, allDates.length]);

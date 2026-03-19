@@ -31,6 +31,16 @@ const GEO_TO_API = {
   'Palestine':                 'West Bank and Gaza',
   'Somaliland':                'Somalia',
   'Swaziland':                 'Eswatini',
+  'eSwatini':                  'Eswatini',
+  'S. Sudan':                  'South Sudan',
+  'Central African Rep.':      'Central African Republic',
+  'Dominican Rep.':            'Dominican Republic',
+  'Eq. Guinea':                'Equatorial Guinea',
+  'Bosnia and Herz.':          'Bosnia and Herzegovina',
+  'Solomon Is.':               'Solomon Islands',
+  'Antigua and Barb.':         'Antigua and Barbuda',
+  'St. Kitts and Nevis':       'Saint Kitts and Nevis',
+  'St. Vin. and Gren.':        'Saint Vincent and the Grenadines',
 };
 
 const resolveCountryName = (geoName, countryLookup) => {
@@ -56,54 +66,112 @@ const Dashboard = () => {
 
   const { preCalculatedIndex, error } = usePreCalculatedData();
 
-  const isSliderMode = !!selectedPeriod?.dateString;
-  const hasNoData    = selectedPeriod?.hasData === false;
+  const hasNoData = selectedPeriod?.hasData === false;
 
-  const targetDate = useMemo(() => {
+  // globalDate: always the last available date — used for lists & map (frozen)
+  const globalDate = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return INITIAL_PERIOD.dateString;
-    return isSliderMode
-      ? selectedPeriod.dateString
-      : preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
-  }, [preCalculatedIndex, selectedPeriod, isSliderMode]);
+    return preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+  }, [preCalculatedIndex]);
 
-  const currentData = useMemo(() => {
+  // countryDate: follows the slider — used ONLY for the selected country
+  const countryDate = useMemo(() => {
+    if (!preCalculatedIndex?.isReady) return INITIAL_PERIOD.dateString;
+    if (hasNoData) return globalDate;
+    return selectedPeriod.dateString;
+  }, [preCalculatedIndex, selectedPeriod, hasNoData, globalDate]);
+
+  // globalData: in global view follows the slider, in country view frozen at globalDate
+  const globalData = useMemo(() => {
     if (!preCalculatedIndex?.isReady) {
       return { casesPerCountry: EMPTY_ARR, deathsPerCountry: EMPTY_ARR, recoveredPerCountry: EMPTY_ARR, totalCases: 0, totalDeaths: 0, totalRecovered: 0, isReady: false };
     }
-    if (hasNoData) {
-      const empty = preCalculatedIndex.countryNames.map(c => ({ country: c, total_cases: 0 }));
-      return { casesPerCountry: empty, deathsPerCountry: empty.map(c => ({ country: c.country, total_deaths: 0 })), recoveredPerCountry: empty.map(c => ({ country: c.country, total_recovered: 0 })), totalCases: 0, totalDeaths: 0, totalRecovered: 0, isReady: true };
-    }
-    const sorted = preCalculatedIndex.sortedIndex[targetDate];
-    const totals = preCalculatedIndex.totalsIndex[targetDate];
+    // When a country is selected, lists are frozen at globalDate.
+    // When in global view, lists follow the slider (countryDate).
+    const dateToUse = selectedCountry ? globalDate : countryDate;
+    const sorted = preCalculatedIndex.sortedIndex[dateToUse];
+    const totals = preCalculatedIndex.totalsIndex[dateToUse];
     if (!sorted || !totals) return { casesPerCountry: EMPTY_ARR, deathsPerCountry: EMPTY_ARR, recoveredPerCountry: EMPTY_ARR, totalCases: 0, totalDeaths: 0, totalRecovered: 0, isReady: true };
-    return { casesPerCountry: sorted.casesPerCountry, deathsPerCountry: sorted.deathsPerCountry, recoveredPerCountry: sorted.recoveredPerCountry, totalCases: totals.totalCases, totalDeaths: totals.totalDeaths, totalRecovered: totals.totalRecovered, isReady: true };
-  }, [preCalculatedIndex, targetDate, hasNoData]);
+    return {
+      casesPerCountry:     sorted.casesPerCountry,
+      deathsPerCountry:    sorted.deathsPerCountry,
+      recoveredPerCountry: sorted.recoveredPerCountry,
+      totalCases:          totals.totalCases,
+      totalDeaths:         totals.totalDeaths,
+      totalRecovered:      totals.totalRecovered,
+      isReady: true,
+    };
+  }, [preCalculatedIndex, globalDate, countryDate, selectedCountry]);
 
+  // countryStats: live value at countryDate for the selected country only
+  // → passed as selectedCountryOverride to CountryList (only that row updates)
+  // → also used for the StatsCards header when in country view
+  const countryStats = useMemo(() => {
+    if (!preCalculatedIndex?.isReady || !selectedCountry) return null;
+    // Before first COVID date, hasNoData=true → show 0 for everything
+    if (hasNoData) return { total_cases: 0, total_deaths: 0, total_recovered: 0 };
+    const sorted = preCalculatedIndex.sortedIndex[countryDate];
+    if (!sorted) return { total_cases: 0, total_deaths: 0, total_recovered: 0 };
+    const lc = selectedCountry.toLowerCase();
+    const findVal = (arr, key) =>
+      (arr.find(c => c.country === selectedCountry) ||
+       arr.find(c => c.country.toLowerCase() === lc))?.[key] || 0;
+    return {
+      total_cases:     findVal(sorted.casesPerCountry,     'total_cases'),
+      total_deaths:    findVal(sorted.deathsPerCountry,    'total_deaths'),
+      total_recovered: findVal(sorted.recoveredPerCountry, 'total_recovered'),
+    };
+  }, [preCalculatedIndex, selectedCountry, countryDate, hasNoData]);
+
+  // globalStats for StatsCards:
+  // - global view  → global totals at globalDate (frozen, no slider)
+  // - country view → countryStats at countryDate (follows slider)
+  const globalStats = useMemo(() => {
+    if (selectedCountry) return countryStats;
+    if (!globalData.isReady) return null;
+    return { total_cases: globalData.totalCases, total_deaths: globalData.totalDeaths, total_recovered: globalData.totalRecovered };
+  }, [selectedCountry, countryStats, globalData]);
+
+  // Chart: country series up to countryDate OR global series (full, no slider)
   const chartTimelineData = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return null;
     const { globalChartFull, dateToGlobalChartIdx, countryChartFull } = preCalculatedIndex;
-    if (hasNoData) return [{ date: targetDate, cases: 0 }];
-    const endIdx = (dateToGlobalChartIdx[targetDate] ?? globalChartFull.length - 1) + 1;
-    if (selectedCountry && countryChartFull[selectedCountry])
+    if (selectedCountry && countryChartFull[selectedCountry]) {
+      const endIdx = (dateToGlobalChartIdx[hasNoData ? globalDate : countryDate] ?? globalChartFull.length - 1) + 1;
       return countryChartFull[selectedCountry].slice(0, endIdx);
-    return globalChartFull.slice(0, endIdx);
-  }, [preCalculatedIndex, targetDate, selectedCountry, hasNoData]);
-
-  const globalStats = useMemo(() => {
-    if (!currentData.isReady) return null;
-    if (selectedCountry) {
-      const lc = selectedCountry.toLowerCase();
-      const findVal = (arr, key) =>
-        (arr.find(c => c.country === selectedCountry) || arr.find(c => c.country.toLowerCase() === lc))?.[key] || 0;
-      return {
-        total_cases:     findVal(currentData.casesPerCountry,     'total_cases'),
-        total_deaths:    findVal(currentData.deathsPerCountry,    'total_deaths'),
-        total_recovered: findVal(currentData.recoveredPerCountry, 'total_recovered'),
-      };
     }
-    return { total_cases: currentData.totalCases, total_deaths: currentData.totalDeaths, total_recovered: currentData.totalRecovered };
-  }, [currentData, selectedCountry]);
+    return globalChartFull;
+  }, [preCalculatedIndex, selectedCountry, countryDate, hasNoData, globalDate]);
+
+  // mapCasesData:
+  // - global view: all bubbles follow slider (countryDate)
+  // - country view: other countries frozen at globalDate, selected country follows slider
+  const mapCasesData = useMemo(() => {
+    if (!preCalculatedIndex?.isReady) return EMPTY_ARR;
+
+    if (!selectedCountry) {
+      // Global view: everything follows the slider
+      const sorted = preCalculatedIndex.sortedIndex[countryDate];
+      return sorted?.casesPerCountry || EMPTY_ARR;
+    }
+
+    // Country view: freeze others at globalDate, selected country at countryDate
+    const globalSorted = preCalculatedIndex.sortedIndex[globalDate];
+    if (!globalSorted) return EMPTY_ARR;
+    const countrySorted = preCalculatedIndex.sortedIndex[hasNoData ? globalDate : countryDate];
+    const lc = selectedCountry.toLowerCase();
+
+    // Build a zero-entry for when the country has no data at countryDate
+    const zeroEntry = { country: selectedCountry, total_cases: 0 };
+
+    const countryEntry = countrySorted?.casesPerCountry.find(
+      c => c.country === selectedCountry || c.country.toLowerCase() === lc
+    ) || zeroEntry;
+
+    return globalSorted.casesPerCountry.map(c =>
+      (c.country === selectedCountry || c.country.toLowerCase() === lc) ? countryEntry : c
+    );
+  }, [preCalculatedIndex, globalDate, countryDate, selectedCountry, hasNoData]);
 
   const handlePeriodChange     = useCallback((p) => setSelectedPeriod(p), []);
   const handleCountryClick     = useCallback((geoName) => {
@@ -126,7 +194,7 @@ const Dashboard = () => {
     );
   }
 
-  const fakeQuery = { data: currentData.casesPerCountry, isLoading: false, error: null };
+  const fakeQuery = { data: mapCasesData, isLoading: false, error: null };
   const geoSelectedCountry = selectedCountry
     ? (Object.entries(GEO_TO_API).find(([, api]) => api === selectedCountry)?.[0] || selectedCountry)
     : null;
@@ -142,9 +210,29 @@ const Dashboard = () => {
 
       <div className="left-panel">
         <CountrySearch onSearchChange={handleSearchChange} resultsCount={0} />
-        <StatsCard label={selectedCountry ? `${selectedCountry} — Total Confirmed` : 'Total Confirmed'} type="cases" selectedCountry={selectedCountry} globalStats={globalStats} isLoading={false} error={null} currentDate={targetDate} colorClass="red-text" />
+        <StatsCard
+          label={selectedCountry ? `${selectedCountry} — Total Confirmed` : 'Total Confirmed'}
+          type="cases"
+          selectedCountry={selectedCountry}
+          globalStats={globalStats}
+          isLoading={false}
+          error={null}
+          currentDate={selectedCountry ? countryDate : globalDate}
+          colorClass="red-text"
+        />
         <AdminLevelSelector selectedLevel={adminLevel} onLevelChange={handleAdminLevelChange} />
-        <CountryList title="Confirmed Cases by Country/Region/Sovereignty" type="cases" countriesData={currentData.casesPerCountry} isLoading={false} error={null} searchTerm={searchTerm} selectedCountry={selectedCountry} onCountryClick={handleCountryClick} colorClass="red-text" />
+        <CountryList
+          title="Confirmed Cases by Country/Region/Sovereignty"
+          type="cases"
+          countriesData={globalData.casesPerCountry}
+          isLoading={false}
+          error={null}
+          searchTerm={searchTerm}
+          selectedCountry={selectedCountry}
+          onCountryClick={handleCountryClick}
+          colorClass="red-text"
+          selectedCountryOverride={countryStats}
+        />
         <LastUpdatedDisplay timestamp="4/2/2020 9:02:01 AM" />
         <button
           onClick={handleCompareClick}
@@ -178,12 +266,52 @@ const Dashboard = () => {
       <div className="right-panels-container-narrow">
         <div className="right-stats-column">
           <div className="right-stat-panel">
-            <StatsCard label={selectedCountry ? `${selectedCountry} — Total Deaths` : 'Total Deaths'} type="deaths" selectedCountry={selectedCountry} globalStats={globalStats} isLoading={false} error={null} currentDate={targetDate} colorClass="white-text" />
-            <CountryList type="deaths" countriesData={currentData.deathsPerCountry} isLoading={false} error={null} searchTerm={searchTerm} selectedCountry={selectedCountry} onCountryClick={handleCountryClick} labelSuffix="deaths" colorClass="white-text" />
+            <StatsCard
+              label={selectedCountry ? `${selectedCountry} — Total Deaths` : 'Total Deaths'}
+              type="deaths"
+              selectedCountry={selectedCountry}
+              globalStats={globalStats}
+              isLoading={false}
+              error={null}
+              currentDate={selectedCountry ? countryDate : globalDate}
+              colorClass="white-text"
+            />
+            <CountryList
+              type="deaths"
+              countriesData={globalData.deathsPerCountry}
+              isLoading={false}
+              error={null}
+              searchTerm={searchTerm}
+              selectedCountry={selectedCountry}
+              onCountryClick={handleCountryClick}
+              labelSuffix="deaths"
+              colorClass="white-text"
+              selectedCountryOverride={countryStats}
+            />
           </div>
           <div className="right-stat-panel">
-            <StatsCard label={selectedCountry ? `${selectedCountry} — Total Recovered` : 'Total Recovered'} type="recovered" selectedCountry={selectedCountry} globalStats={globalStats} isLoading={false} error={null} currentDate={targetDate} colorClass="green-text" />
-            <CountryList type="recovered" countriesData={currentData.recoveredPerCountry} isLoading={false} error={null} searchTerm={searchTerm} selectedCountry={selectedCountry} onCountryClick={handleCountryClick} labelSuffix="recovered" colorClass="green-text" />
+            <StatsCard
+              label={selectedCountry ? `${selectedCountry} — Total Recovered` : 'Total Recovered'}
+              type="recovered"
+              selectedCountry={selectedCountry}
+              globalStats={globalStats}
+              isLoading={false}
+              error={null}
+              currentDate={selectedCountry ? countryDate : globalDate}
+              colorClass="green-text"
+            />
+            <CountryList
+              type="recovered"
+              countriesData={globalData.recoveredPerCountry}
+              isLoading={false}
+              error={null}
+              searchTerm={searchTerm}
+              selectedCountry={selectedCountry}
+              onCountryClick={handleCountryClick}
+              labelSuffix="recovered"
+              colorClass="green-text"
+              selectedCountryOverride={countryStats}
+            />
           </div>
         </div>
 
@@ -192,7 +320,11 @@ const Dashboard = () => {
             <TimelineSlider onPeriodChange={handlePeriodChange} />
           </div>
           <div className="chart-scrollable-container">
-            <ChartComponent period={null} selectedCountry={selectedCountry} timelineData={chartTimelineData} />
+            <ChartComponent
+              period={null}
+              selectedCountry={selectedCountry}
+              timelineData={chartTimelineData}
+            />
           </div>
         </div>
       </div>
