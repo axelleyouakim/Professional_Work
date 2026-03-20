@@ -7,44 +7,26 @@ import { useWorldAtlas } from '../hooks/useCovidData';
 import QueryStateWrapper from './QueryStateWrapper';
 import './Dashboard.css';
 
-// ─── JHU API name → Natural Earth exact name ─────────────────────────────────
-// Natural Earth names verified against world-atlas@2 countries-50m.json
-// (241 features, source: https://github.com/topojson/world-atlas)
-// Every entry here was cross-checked against the actual topology property names.
 const API_TO_GEO = {
-  // Country renames / abbreviations used by Natural Earth
   'US':                              'United States of America',
   'Korea, South':                    'South Korea',
   'Korea, North':                    'North Korea',
   'Congo (Kinshasa)':                'Dem. Rep. Congo',
   'Congo (Brazzaville)':             'Congo',
   "Cote d'Ivoire":                   "Côte d'Ivoire",
-
-  // FIX: Natural Earth uses 'Czechia', NOT 'Czech Republic'
   'Czechia':                         'Czechia',
-
   'North Macedonia':                 'Macedonia',
   'UAE':                             'United Arab Emirates',
   'Taiwan*':                         'Taiwan',
   'West Bank and Gaza':              'Palestine',
-
-  // FIX: Natural Earth uses 'eSwatini' (capital S), not 'Swaziland'
   'Eswatini':                        'eSwatini',
-
   'East Timor':                      'Timor-Leste',
   'Myanmar':                         'Myanmar',
-  // Burma is the old JHU name for Myanmar (pre-rename in dataset)
   'Burma':                           'Myanmar',
-
   'Vatican City':                    'Vatican',
-
-  // FIX: Natural Earth uses 'São Tomé and Principe' (no accent on e)
   'São Tomé and Príncipe':           'São Tomé and Principe',
   'Sao Tome and Principe':           'São Tomé and Principe',
-
   'Cape Verde':                      'Cabo Verde',
-
-  // FIX: Natural Earth abbreviates these
   'South Sudan':                     'S. Sudan',
   'Central African Republic':        'Central African Rep.',
   'Dominican Republic':              'Dominican Rep.',
@@ -54,13 +36,9 @@ const API_TO_GEO = {
   'Antigua and Barbuda':             'Antigua and Barb.',
   'Saint Kitts and Nevis':           'St. Kitts and Nevis',
   'Saint Vincent and the Grenadines':'St. Vin. and Gren.',
-  'Saint Lucia':                     'Saint Lucia',   // exact match in NE
-
-  // US territories — Natural Earth uses abbreviated names
+  'Saint Lucia':                     'Saint Lucia',
   'Virgin Islands':                  'U.S. Virgin Is.',
   'Northern Mariana Islands':        'N. Mariana Is.',
-
-  // Ships — no map position, intentionally null
   'MS Zaandam (ship)':               null,
   'Diamond Princess (ship)':         null,
 };
@@ -95,10 +73,8 @@ const ANTIMERIDIAN_COUNTRIES = {
   'new zealand': { center: [172, -42], scale: 5 },
 };
 
-// Minimum hit radius in screen pixels — keeps small countries/bubbles clickable
 const MIN_HIT_PX = 12;
 
-// Features to EXCLUDE from country name labels (non-sovereign, disputed, glaciers…)
 const LABEL_EXCLUDE = new Set([
   'Siachen Glacier','Somaliland','N. Cyprus','W. Sahara','Antarctica',
   'Ashmore and Cartier Is.','Br. Indian Ocean Ter.','Heard I. and McDonald Is.',
@@ -110,6 +86,37 @@ const LABEL_EXCLUDE = new Set([
   'Cayman Is.','Anguilla','Bermuda','British Virgin Is.','Macao','Åland',
 ]);
 
+const GRID_N = 36;
+
+const buildSpatialGrid = (features) => {
+  const grid = Array.from({ length: GRID_N * GRID_N }, () => []);
+  const lngToCol = (lng) => Math.floor((lng + 180) / 360 * GRID_N);
+  const latToRow = (lat) => Math.floor((85 - lat) / 170 * GRID_N);
+  features.forEach(f => {
+    if (!f.geometry) return;
+    try {
+      const [[x0, y0], [x1, y1]] = d3.geoBounds(f);
+      const col0 = Math.max(0, lngToCol(x0));
+      const col1 = Math.min(GRID_N - 1, lngToCol(x1));
+      const row0 = Math.max(0, latToRow(y1));
+      const row1 = Math.min(GRID_N - 1, latToRow(y0));
+      for (let r = row0; r <= row1; r++) {
+        for (let c = col0; c <= col1; c++) {
+          grid[r * GRID_N + c].push(f);
+        }
+      }
+    } catch (_) {}
+  });
+  return {
+    grid,
+    getCandidates: (lng, lat) => {
+      const col = Math.max(0, Math.min(GRID_N - 1, lngToCol(lng)));
+      const row = Math.max(0, Math.min(GRID_N - 1, latToRow(lat)));
+      return grid[row * GRID_N + col];
+    },
+  };
+};
+
 const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
   const bgCanvasRef  = useRef(null);
   const fgCanvasRef  = useRef(null);
@@ -120,13 +127,11 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
   const rafRef       = useRef(null);
   const hoverRafRef  = useRef(null);
 
-  const featureIndexRef = useRef({});
-  const projectionRef   = useRef(null);
-  // Bubble cache: rebuilt on every drawFg, used by hitTest
-  const bubbleCacheRef  = useRef([]);
-  const allFeaturesRef  = useRef([]);
-  // Global max cases across ALL dates — computed once after preCalc finishes.
-  // Used for ABSOLUTE bubble sizing so US circle grows visibly over time.
+  const featureIndexRef   = useRef({});
+  const projectionRef     = useRef(null);
+  const bubbleCacheRef    = useRef([]);
+  const allFeaturesRef    = useRef([]);
+  const spatialGridRef    = useRef(null);
   const globalMaxCasesRef = useRef(0);
 
   const casesDataRef       = useRef(casesData);
@@ -159,7 +164,17 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     });
   }, []);
 
-  useEffect(() => { scheduleFg(); }, [casesData, scheduleFg]);
+  useEffect(() => {
+    if (casesData?.length) {
+      for (let i = 0; i < casesData.length; i++) {
+        if (casesData[i].total_cases > globalMaxCasesRef.current) {
+          globalMaxCasesRef.current = casesData[i].total_cases;
+        }
+      }
+    }
+    scheduleFg();
+  }, [casesData, scheduleFg]);
+
   useEffect(() => { scheduleBoth(); }, [selectedCountry, scheduleBoth]);
 
   const computeFit = useCallback((feature, W, H, proj) => {
@@ -225,13 +240,17 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     });
     featureIndexRef.current = idx;
 
+    spatialGridRef.current = buildSpatialGrid(countries.features);
+
     const proj = d3.geoMercator().scale(W / (2 * Math.PI)).translate([W / 2, H / 2]);
     projectionRef.current = proj;
     const geoPath = d3.geoPath(proj, bgCtx);
 
     const oceanLbls = [
-      {name:'PACIFIC OCEAN', coords:[-160,0]}, {name:'ATLANTIC OCEAN', coords:[-30,15]},
-      {name:'INDIAN OCEAN',  coords:[75,-15]}, {name:'ARCTIC OCEAN',   coords:[0,75]},
+      {name:'PACIFIC OCEAN', coords:[-160,0]},
+      {name:'ATLANTIC OCEAN', coords:[-35,10]},
+      {name:'INDIAN OCEAN',  coords:[75,-25]},
+      {name:'ARCTIC OCEAN',  coords:[0,82]},
     ];
     const contLbls = [
       {name:'NORTH AMERICA',coords:[-100,45]},{name:'SOUTH AMERICA',coords:[-60,-15]},
@@ -277,10 +296,10 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
           if (d3.geoArea(f)*1e6 > minArea && f.properties.centroid) {
             const c = proj(f.properties.centroid);
             if (c && c[0]>=0 && c[0]<=W && c[1]>=0 && c[1]<=H) {
-              const n=getName(f);
+              const n = getName(f);
               if (n && !LABEL_EXCLUDE.has(n)) {
-                bgCtx.shadowColor='rgba(0,0,0,.8)';bgCtx.shadowBlur=3/t.k;
-                bgCtx.fillText(n,c[0],c[1]);
+                bgCtx.shadowColor='rgba(0,0,0,.8)'; bgCtx.shadowBlur=3/t.k;
+                bgCtx.fillText(n, c[0], c[1]);
                 bgCtx.shadowBlur=0;
               }
             }
@@ -299,16 +318,20 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       fgCtx.clearRect(0, 0, W, H);
       if (!cas?.length) return;
 
-      // Absolute normalization: track the highest single-country value ever seen.
-      // This means bubble sizes are comparable across dates — as new highs appear
-      // (e.g. US grows), all circles rescale proportionally and US visibly grows.
-      let dateMax = 0;
-      for (let i = 0; i < cas.length; i++) if (cas[i].total_cases > dateMax) dateMax = cas[i].total_cases;
-      if (dateMax > globalMaxCasesRef.current) globalMaxCasesRef.current = dateMax;
       const max = globalMaxCasesRef.current;
       if (!max) return;
 
+      for (let i = 0; i < cas.length; i++) {
+        if (cas[i].total_cases > globalMaxCasesRef.current) {
+          globalMaxCasesRef.current = cas[i].total_cases;
+        }
+      }
+
       fgCtx.save();
+      fgCtx.beginPath();
+      fgCtx.rect(0, 0, W, H);
+      fgCtx.clip();
+
       fgCtx.translate(t.x, t.y);
       fgCtx.scale(t.k, t.k);
 
@@ -320,11 +343,14 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
         if (!geoName) continue;
         const f = idx[geoName.toLowerCase()] || idx[cd.country.toLowerCase()];
         if (!f?.properties.centroid) continue;
-        const [px,py] = proj(f.properties.centroid);
+        const [px, py] = proj(f.properties.centroid);
         if (px < -W || px > W*2 || py < -H || py > H*2) continue;
-        const r     = Math.max(3, Math.sqrt(cd.total_cases / max) * 40 / t.k);
-        const isSel = sel && (geoName.toLowerCase() === sel || cd.country.toLowerCase() === sel);
 
+        const ratio = Math.sqrt(cd.total_cases / globalMaxCasesRef.current);
+        const r = ratio * 40 / t.k;
+        if (r < 0.5 / t.k) continue;
+
+        const isSel = sel && (geoName.toLowerCase() === sel || cd.country.toLowerCase() === sel);
         cache.push({ px, py, r, name: getName(f) });
 
         fgCtx.shadowColor = isSel ? 'rgba(255,255,0,.8)' : 'rgba(255,0,0,.8)';
@@ -344,76 +370,127 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     drawBgRef.current = drawBg;
     drawFgRef.current = drawFg;
 
-    // ─── hitTest — 3 layers ───────────────────────────────────────────────────
-    //
-    // Layer 1 — Bubble cache (O(n), fast)
-    //   Covers all countries that have covid data at the current date.
-    //   Uses MIN_HIT_PX minimum radius so even tiny bubbles are clickable.
-    //
-    // Layer 2 — Polygon (d3.geoContains)
-    //   Covers ALL countries including those with zero cases at this date.
-    //   Reliable for any country whose polygon exists in 50m topology.
-    //
-    // Layer 3 — Centroid proximity (micro-states fallback)
-    //   For Monaco, Vatican, Liechtenstein etc. whose polygons are absent
-    //   from the simplified 50m topology. Only active when zoomed in (k≥3).
-    //
-    const hitTest = (x, y) => {
-      const k = transformRef.current.k;
-      const minHitWorld = MIN_HIT_PX / k;
+    const pickCanvas  = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    pickCanvas.width  = W * dpr;
+    pickCanvas.height = H * dpr;
+    const pickCtx = pickCanvas.getContext('2d', { willReadFrequently: true });
+    pickCtx.imageSmoothingEnabled = false;
+    pickCtx.scale(dpr, dpr);
 
-      // Layer 1: bubble cache
-      const cache = bubbleCacheRef.current;
-      for (let i = 0; i < cache.length; i++) {
-        const { px, py, r, name } = cache[i];
-        if (Math.hypot(x - px, y - py) <= Math.max(r, minHitWorld)) return name;
-      }
+    const pickColors = {};
+    const pickIndex  = {};
 
-      // Layer 2: polygon containment
-      const pt = proj.invert([x, y]);
-      if (pt && isFinite(pt[0]) && isFinite(pt[1])) {
-        const features = allFeaturesRef.current;
-        for (let i = 0; i < features.length; i++) {
-          if (d3.geoContains(features[i], pt)) return getName(features[i]);
+    const drawPickCanvas = () => {
+      const t = transformRef.current;
+      pickCtx.clearRect(0, 0, W, H);
+      pickCtx.save();
+      pickCtx.translate(t.x, t.y);
+      pickCtx.scale(t.k, t.k);
+      pickCtx.imageSmoothingEnabled = false;
+      const pickPath = d3.geoPath(proj, pickCtx);
+
+      countries.features.forEach((f, i) => {
+        const name = getName(f);
+        if (!name) return;
+        if (!pickColors[name]) {
+          const id = (i + 1) * 10;
+          const r = id & 0xff;
+          const g = (id >> 8) & 0xff;
+          const b = (id >> 16) & 0xff;
+          pickColors[name] = [r, g, b];
+          pickIndex[`${r},${g},${b}`] = name;
         }
+        const [r, g, b] = pickColors[name];
+        const color = `rgb(${r},${g},${b})`;
+        pickCtx.fillStyle = color;
+        pickCtx.strokeStyle = color;
+        pickCtx.lineWidth = 2 / t.k;
+        pickCtx.beginPath();
+        pickPath(f);
+        pickCtx.fill();
+        pickCtx.stroke();
+      });
+
+      const smallCountries = countries.features
+        .filter(f => {
+          const name = getName(f);
+          if (!name || !pickColors[name] || !f.properties.centroid) return false;
+          return d3.geoArea(f) * 1e6 <= 50000;
+        })
+        .sort((a, b) => d3.geoArea(b) - d3.geoArea(a));
+
+      const minHitWorld = 8 / t.k;
+      smallCountries.forEach(f => {
+        const name = getName(f);
+        const [r, g, b] = pickColors[name];
+        const [cx, cy] = proj(f.properties.centroid);
+        pickCtx.fillStyle = `rgb(${r},${g},${b})`;
+        pickCtx.beginPath();
+        pickCtx.arc(cx, cy, minHitWorld, 0, 2 * Math.PI);
+        pickCtx.fill();
+      });
+
+      pickCtx.restore();
+    };
+
+    drawPickCanvas();
+
+    const hitTest = (screenX, screenY) => {
+      const dpr = window.devicePixelRatio || 1;
+      const ix = Math.round(screenX * dpr);
+      const iy = Math.round(screenY * dpr);
+      const PW = pickCanvas.width;
+      const PH = pickCanvas.height;
+      if (ix < 0 || ix >= PW || iy < 0 || iy >= PH) return null;
+
+      const radius = Math.round(5 * dpr);
+      const x0 = Math.max(0, ix - radius);
+      const y0 = Math.max(0, iy - radius);
+      const x1 = Math.min(PW - 1, ix + radius);
+      const y1 = Math.min(PH - 1, iy + radius);
+      const imgData = pickCtx.getImageData(x0, y0, x1 - x0 + 1, y1 - y0 + 1).data;
+
+      const cx = ix - x0, cy = iy - y0;
+      const w = x1 - x0 + 1;
+      const ci = (cy * w + cx) * 4;
+      if (imgData[ci + 3] > 0) {
+        const key = `${imgData[ci]},${imgData[ci+1]},${imgData[ci+2]}`;
+        const name = pickIndex[key];
+        if (name) return name;
       }
 
-      // Layer 3: centroid proximity (only when zoomed, for micro-states)
-      if (k >= 3) {
-        let bestName = null, bestDist = minHitWorld * 2;
-        const features = allFeaturesRef.current;
-        for (let i = 0; i < features.length; i++) {
-          const c = features[i].properties.centroid;
-          if (!c) continue;
-          const [cx, cy] = proj(c);
-          const d = Math.hypot(x - cx, y - cy);
-          if (d < bestDist) { bestDist = d; bestName = getName(features[i]); }
-        }
-        if (bestName) return bestName;
+      const votes = {};
+      let bestKey = null, bestCount = 0;
+      for (let i = 0; i < imgData.length; i += 4) {
+        if (imgData[i + 3] === 0) continue;
+        const key = `${imgData[i]},${imgData[i+1]},${imgData[i+2]}`;
+        if (!pickIndex[key]) continue;
+        votes[key] = (votes[key] || 0) + 1;
+        if (votes[key] > bestCount) { bestCount = votes[key]; bestKey = key; }
       }
-
-      return null;
+      return bestKey ? (pickIndex[bestKey] || null) : null;
     };
 
     const onClick = (e) => {
       e.preventDefault(); e.stopPropagation();
-      const r = fgCanvas.getBoundingClientRect();
-      const t = transformRef.current;
-      const hit = hitTest((e.clientX - r.left - t.x) / t.k, (e.clientY - r.top - t.y) / t.k);
+      const [mx, my] = d3.pointer(e, fgCanvasRef.current);
+      const hit = hitTest(mx, my);
       if (hit && onCountryClickRef.current) onCountryClickRef.current(hit);
     };
 
-    const HOVER_MS = 40;
+    const HOVER_MS = 16;
 
-    const processMove = (clientX, clientY) => {
-      const r = fgCanvas.getBoundingClientRect();
-      const t = transformRef.current;
-      const country = hitTest((clientX - r.left - t.x) / t.k, (clientY - r.top - t.y) / t.k);
+    const processMove = (e) => {
+      const canvas = fgCanvasRef.current;
+      if (!canvas) return;
+      const [mx, my] = d3.pointer(e, canvas);
+      const country = hitTest(mx, my);
 
       if (country === hoveredCountryRef.current) return;
 
       hoveredCountryRef.current = country;
-      fgCanvas.style.cursor = country ? 'pointer' : 'default';
+      canvas.style.cursor = country ? 'pointer' : 'default';
       setHoveredLabel(country);
 
       if (hoverRafRef.current) cancelAnimationFrame(hoverRafRef.current);
@@ -429,13 +506,13 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
       if (s.trailingId !== null) { clearTimeout(s.trailingId); s.trailingId = null; }
       if (now - s.lastMs >= HOVER_MS) {
         s.lastMs = now;
-        processMove(e.clientX, e.clientY);
+        processMove(e);
       } else {
-        const cx = e.clientX, cy = e.clientY;
+        const captured = e;
         s.trailingId = setTimeout(() => {
           s.trailingId = null;
           s.lastMs = Date.now();
-          processMove(cx, cy);
+          processMove(captured);
         }, HOVER_MS - (now - s.lastMs));
       }
     };
@@ -448,6 +525,7 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
           rafRef.current = null;
           drawBg();
           drawFg();
+          drawPickCanvas();
         });
       });
     zoomRef.current = zoom;
@@ -461,11 +539,17 @@ const MapComponent = ({ casesData, selectedCountry, onCountryClick }) => {
     const onResize = () => {
       const nW = bgCanvas.offsetWidth;
       const nH = bgCanvas.offsetHeight;
+      const dpr2 = window.devicePixelRatio || 1;
       bgCanvas.width = fgCanvas.width = nW;
       bgCanvas.height = fgCanvas.height = nH;
+      pickCanvas.width = nW * dpr2;
+      pickCanvas.height = nH * dpr2;
+      pickCtx.imageSmoothingEnabled = false;
+      pickCtx.scale(dpr2, dpr2);
       proj.scale(nW/(2*Math.PI)).translate([nW/2,nH/2]);
       drawBg();
       drawFg();
+      drawPickCanvas();
     };
     window.addEventListener('resize', onResize);
 

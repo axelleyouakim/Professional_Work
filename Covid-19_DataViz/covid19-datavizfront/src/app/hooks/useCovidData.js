@@ -175,7 +175,7 @@ export const use28DayVaccineDosesPerCountry = () => {
   });
 };
 
-export const useCasesTimeSeries = (period = null, country = null, maxDate = null) => {
+export const useCasesTimeSeries = (period = null, country = null, maxDate = null, enabled = true) => {
   return useQuery({
     queryKey: covidKeys.timeSeriesCountry(country, period),
     queryFn: async () => {
@@ -190,7 +190,7 @@ export const useCasesTimeSeries = (period = null, country = null, maxDate = null
       if (maxDate && data.length > 0) data = data.filter(item => item.date <= maxDate);
       return data;
     },
-    enabled: true,
+    enabled,
   });
 };
 

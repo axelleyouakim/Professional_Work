@@ -17,9 +17,6 @@ const CountryList = ({
   colorClass = 'red-text',
   isLoading = false,
   error = null,
-  // Live value for the selected country row (follows slider).
-  // Shape: { total_cases, total_deaths, total_recovered }
-  // All other rows keep their frozen globalDate value.
   selectedCountryOverride = null,
 }) => {
   const dataKey = type === 'deaths' ? 'total_deaths' : type === 'recovered' ? 'total_recovered' : 'total_cases';
@@ -61,7 +58,7 @@ const CountryList = ({
     <div className="country-list-container">
       {title && <h4 className="country-list-title">{title}</h4>}
       <div className="country-list">
-        <p style={{ color: '#ff4444', padding: '10px', fontSize: '12px' }}>⚠️ Failed to load countries</p>
+        <p style={{ color: '#ff4444', padding: '10px', fontSize: '12px' }}>Failed to load countries</p>
       </div>
     </div>
   );
@@ -85,8 +82,6 @@ const CountryList = ({
           const isSelected = selectedCountry === countryData.country;
           const flagUrl = getFlagUrl(countryData.country);
 
-          // Only the selected country row uses the live slider value.
-          // Every other row stays frozen at globalDate.
           const displayValue = (isSelected && selectedCountryOverride != null)
             ? (selectedCountryOverride[dataKey] ?? 0)
             : (countryData[dataKey] ?? 0);

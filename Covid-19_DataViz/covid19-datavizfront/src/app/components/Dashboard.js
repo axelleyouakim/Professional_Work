@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePreCalculatedData } from '../hooks/usePreCalculatedData';
 import QueryStateWrapper from './QueryStateWrapper';
@@ -23,11 +23,11 @@ const GEO_TO_API = {
   'DR Congo':                  'Congo (Kinshasa)',
   'Republic of the Congo':     'Congo (Brazzaville)',
   'Democratic Republic of the Congo': 'Congo (Kinshasa)',
-  'Ivory Coast':               "Cote d'Ivoire",
-  "Côte d'Ivoire":             "Cote d'Ivoire",
+  'Ivory Coast':               "Côte d'Ivoire",
+  "Côte d'Ivoire":             "Côte d'Ivoire",
   'Czech Republic':            'Czechia',
   'Macedonia':                 'North Macedonia',
-  'Taiwan':                    'Taiwan*',
+  'Taiwan':                    'Taiwan',
   'Palestine':                 'West Bank and Gaza',
   'Somaliland':                'Somalia',
   'Swaziland':                 'Eswatini',
@@ -57,37 +57,42 @@ const INITIAL_PERIOD = {
 
 const EMPTY_ARR = [];
 
+const findCountryVal = (arr, country, key) => {
+  if (!arr?.length) return 0;
+  const lc = country.toLowerCase();
+  return (arr.find(c => c.country === country) ||
+          arr.find(c => c.country.toLowerCase() === lc))?.[key] || 0;
+};
+
 const Dashboard = () => {
   const router = useRouter();
+
   const [selectedPeriod, setSelectedPeriod]   = useState(INITIAL_PERIOD);
   const [selectedCountry, setSelectedCountry] = useState(null);
-  const [adminLevel, setAdminLevel]           = useState("admin0");
+  const [adminLevel, setAdminLevel]           = useState('admin0');
   const [searchTerm, setSearchTerm]           = useState('');
+
+  const [, startTransition] = useTransition();
 
   const { preCalculatedIndex, error } = usePreCalculatedData();
 
   const hasNoData = selectedPeriod?.hasData === false;
 
-  // globalDate: always the last available date — used for lists & map (frozen)
   const globalDate = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return INITIAL_PERIOD.dateString;
     return preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
   }, [preCalculatedIndex]);
 
-  // countryDate: follows the slider — used ONLY for the selected country
   const countryDate = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return INITIAL_PERIOD.dateString;
     if (hasNoData) return globalDate;
     return selectedPeriod.dateString;
   }, [preCalculatedIndex, selectedPeriod, hasNoData, globalDate]);
 
-  // globalData: in global view follows the slider, in country view frozen at globalDate
   const globalData = useMemo(() => {
     if (!preCalculatedIndex?.isReady) {
       return { casesPerCountry: EMPTY_ARR, deathsPerCountry: EMPTY_ARR, recoveredPerCountry: EMPTY_ARR, totalCases: 0, totalDeaths: 0, totalRecovered: 0, isReady: false };
     }
-    // When a country is selected, lists are frozen at globalDate.
-    // When in global view, lists follow the slider (countryDate).
     const dateToUse = selectedCountry ? globalDate : countryDate;
     const sorted = preCalculatedIndex.sortedIndex[dateToUse];
     const totals = preCalculatedIndex.totalsIndex[dateToUse];
@@ -103,67 +108,61 @@ const Dashboard = () => {
     };
   }, [preCalculatedIndex, globalDate, countryDate, selectedCountry]);
 
-  // countryStats: live value at countryDate for the selected country only
-  // → passed as selectedCountryOverride to CountryList (only that row updates)
-  // → also used for the StatsCards header when in country view
   const countryStats = useMemo(() => {
     if (!preCalculatedIndex?.isReady || !selectedCountry) return null;
-    // Before first COVID date, hasNoData=true → show 0 for everything
     if (hasNoData) return { total_cases: 0, total_deaths: 0, total_recovered: 0 };
     const sorted = preCalculatedIndex.sortedIndex[countryDate];
     if (!sorted) return { total_cases: 0, total_deaths: 0, total_recovered: 0 };
-    const lc = selectedCountry.toLowerCase();
-    const findVal = (arr, key) =>
-      (arr.find(c => c.country === selectedCountry) ||
-       arr.find(c => c.country.toLowerCase() === lc))?.[key] || 0;
     return {
-      total_cases:     findVal(sorted.casesPerCountry,     'total_cases'),
-      total_deaths:    findVal(sorted.deathsPerCountry,    'total_deaths'),
-      total_recovered: findVal(sorted.recoveredPerCountry, 'total_recovered'),
+      total_cases:     findCountryVal(sorted.casesPerCountry,     selectedCountry, 'total_cases'),
+      total_deaths:    findCountryVal(sorted.deathsPerCountry,    selectedCountry, 'total_deaths'),
+      total_recovered: findCountryVal(sorted.recoveredPerCountry, selectedCountry, 'total_recovered'),
     };
   }, [preCalculatedIndex, selectedCountry, countryDate, hasNoData]);
 
-  // globalStats for StatsCards:
-  // - global view  → global totals at globalDate (frozen, no slider)
-  // - country view → countryStats at countryDate (follows slider)
   const globalStats = useMemo(() => {
     if (selectedCountry) return countryStats;
     if (!globalData.isReady) return null;
     return { total_cases: globalData.totalCases, total_deaths: globalData.totalDeaths, total_recovered: globalData.totalRecovered };
   }, [selectedCountry, countryStats, globalData]);
 
-  // Chart: country series up to countryDate OR global series (full, no slider)
   const chartTimelineData = useMemo(() => {
-    if (!preCalculatedIndex?.isReady) return null;
-    const { globalChartFull, dateToGlobalChartIdx, countryChartFull } = preCalculatedIndex;
-    if (selectedCountry && countryChartFull[selectedCountry]) {
-      const endIdx = (dateToGlobalChartIdx[hasNoData ? globalDate : countryDate] ?? globalChartFull.length - 1) + 1;
-      return countryChartFull[selectedCountry].slice(0, endIdx);
-    }
-    return globalChartFull;
-  }, [preCalculatedIndex, selectedCountry, countryDate, hasNoData, globalDate]);
+  if (!preCalculatedIndex?.isReady) return null;
+  const { globalChartFull, dateToGlobalChartIdx, countryChartFull } = preCalculatedIndex;
+  
+  if (hasNoData) {
+    const safeDate = globalChartFull?.[0]?.date || '1/22/20';
+    return [{ date: safeDate, cases: 0 }];
+  }
 
-  // mapCasesData:
-  // - global view: all bubbles follow slider (countryDate)
-  // - country view: other countries frozen at globalDate, selected country follows slider
+  const endIdx = (dateToGlobalChartIdx[countryDate] ?? globalChartFull.length - 1) + 1;
+  if (selectedCountry && countryChartFull[selectedCountry])
+    return countryChartFull[selectedCountry].slice(0, endIdx);
+  return globalChartFull.slice(0, endIdx);
+}, [preCalculatedIndex, selectedCountry, countryDate, hasNoData, globalDate]);
+
   const mapCasesData = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return EMPTY_ARR;
 
     if (!selectedCountry) {
-      // Global view: everything follows the slider
+      if (hasNoData) return EMPTY_ARR;
       const sorted = preCalculatedIndex.sortedIndex[countryDate];
       return sorted?.casesPerCountry || EMPTY_ARR;
     }
 
-    // Country view: freeze others at globalDate, selected country at countryDate
     const globalSorted = preCalculatedIndex.sortedIndex[globalDate];
     if (!globalSorted) return EMPTY_ARR;
-    const countrySorted = preCalculatedIndex.sortedIndex[hasNoData ? globalDate : countryDate];
-    const lc = selectedCountry.toLowerCase();
 
-    // Build a zero-entry for when the country has no data at countryDate
+    const lc = selectedCountry.toLowerCase();
     const zeroEntry = { country: selectedCountry, total_cases: 0 };
 
+    if (hasNoData) {
+      return globalSorted.casesPerCountry.map(c =>
+        (c.country === selectedCountry || c.country.toLowerCase() === lc) ? zeroEntry : c
+      );
+    }
+
+    const countrySorted = preCalculatedIndex.sortedIndex[countryDate];
     const countryEntry = countrySorted?.casesPerCountry.find(
       c => c.country === selectedCountry || c.country.toLowerCase() === lc
     ) || zeroEntry;
@@ -173,12 +172,19 @@ const Dashboard = () => {
     );
   }, [preCalculatedIndex, globalDate, countryDate, selectedCountry, hasNoData]);
 
-  const handlePeriodChange     = useCallback((p) => setSelectedPeriod(p), []);
-  const handleCountryClick     = useCallback((geoName) => {
+  const handlePeriodChange = useCallback((p) => setSelectedPeriod(p), []);
+
+  const handleCountryClick = useCallback((geoName) => {
     if (!preCalculatedIndex?.countryLookup) return;
-    setSelectedCountry(resolveCountryName(geoName, preCalculatedIndex.countryLookup));
-  }, [preCalculatedIndex]);
-  const handleBackToGlobal     = useCallback(() => setSelectedCountry(null), []);
+    startTransition(() => {
+      setSelectedCountry(resolveCountryName(geoName, preCalculatedIndex.countryLookup));
+    });
+  }, [preCalculatedIndex, startTransition]);
+
+  const handleBackToGlobal = useCallback(() => {
+    startTransition(() => setSelectedCountry(null));
+  }, [startTransition]);
+
   const handleSearchChange     = useCallback((term) => setSearchTerm(term), []);
   const handleAdminLevelChange = useCallback((level) => setAdminLevel(level), []);
   const handleCompareClick     = useCallback(() => router.push('/compare'), [router]);
@@ -256,7 +262,9 @@ const Dashboard = () => {
       <QueryStateWrapper query={fakeQuery} loadingMessage="Loading map data...">
         {(casesData) => (
           <MapComponent
-            casesData={searchTerm ? casesData.filter(c => c.country.toLowerCase().includes(searchTerm.toLowerCase())) : casesData}
+            casesData={searchTerm
+              ? casesData.filter(c => c.country.toLowerCase().includes(searchTerm.toLowerCase()))
+              : casesData}
             selectedCountry={geoSelectedCountry}
             onCountryClick={handleCountryClick}
           />

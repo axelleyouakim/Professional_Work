@@ -158,35 +158,55 @@ export default function ComparePage() {
   }, []);
 
   const chartData = useMemo(() => {
-    if (!allTimeSeriesData.data || selectedCountries.length === 0) return [];
-    const { countries, dates } = allTimeSeriesData.data;
-    if (!dates) return [];
-    const target = selectedPeriod?.dateString;
-    const filtered = target ? dates.filter(d => d <= target) : dates;
-    return filtered.filter((_, i) => i % 7 === 0).map(date => {
-      const point = { date };
-      selectedCountries.forEach(c => { point[getDisplayName(c)] = countries[c]?.cases[date] || 0; });
-      return point;
+  if (!allTimeSeriesData.data || selectedCountries.length === 0) return [];
+  const { countries, dates } = allTimeSeriesData.data;
+  if (!dates) return [];
+
+  const parseDate = (s) => {
+    const [m, d, y] = s.split('/');
+    return new Date(2000 + parseInt(y), parseInt(m) - 1, parseInt(d)).getTime();
+  };
+
+  const targetTs = selectedPeriod?.dateString ? parseDate(selectedPeriod.dateString) : Infinity;
+  const firstCovidTs = parseDate('1/22/20');
+  const beforeCovid = targetTs < firstCovidTs;
+
+  const filtered = dates.filter(d => parseDate(d) <= targetTs);
+
+  return filtered.filter((_, i) => i % 7 === 0).map(date => {
+    const point = { date };
+    selectedCountries.forEach(c => {
+      point[getDisplayName(c)] = beforeCovid ? 0 : (countries[c]?.cases[date] || 0);
     });
-  }, [allTimeSeriesData.data, selectedCountries, selectedPeriod]);
+    return point;
+  });
+}, [allTimeSeriesData.data, selectedCountries, selectedPeriod]);
 
   const tableData = useMemo(() => {
-    if (!allTimeSeriesData.data || selectedCountries.length === 0) return [];
-    const { countries, dates } = allTimeSeriesData.data;
-    const refDate = selectedPeriod?.dateString || dates?.[dates.length - 1];
-    return selectedCountries.map((country, idx) => {
-      const d = countries[country];
-      if (!d) return { country, cases: 0, deaths: 0, recovered: 0, color: COUNTRY_COLORS[idx] };
-      const cases     = d.cases?.[refDate]     || 0;
-      const deaths    = d.deaths?.[refDate]    || 0;
-      const recovered = d.recovered?.[refDate] || 0;
-      return {
-        country, cases, deaths, recovered, color: COUNTRY_COLORS[idx],
-        mortality: cases > 0 ? ((deaths / cases) * 100).toFixed(2) : '—',
-        recovery:  cases > 0 ? ((recovered / cases) * 100).toFixed(2) : '—',
-      };
-    }).sort((a, b) => b.cases - a.cases);
-  }, [allTimeSeriesData.data, selectedCountries, selectedPeriod]);
+  if (!allTimeSeriesData.data || selectedCountries.length === 0) return [];
+  const { countries, dates } = allTimeSeriesData.data;
+
+  if (selectedPeriod?.hasData === false) {
+    return selectedCountries.map((country, idx) => ({
+      country, cases: 0, deaths: 0, recovered: 0,
+      color: COUNTRY_COLORS[idx], mortality: '—', recovery: '—',
+    }));
+  }
+
+  const refDate = selectedPeriod?.dateString || dates?.[dates.length - 1];
+  return selectedCountries.map((country, idx) => {
+    const d = countries[country];
+    if (!d) return { country, cases: 0, deaths: 0, recovered: 0, color: COUNTRY_COLORS[idx], mortality: '—', recovery: '—' };
+    const cases     = d.cases?.[refDate]     || 0;
+    const deaths    = d.deaths?.[refDate]    || 0;
+    const recovered = d.recovered?.[refDate] || 0;
+    return {
+      country, cases, deaths, recovered, color: COUNTRY_COLORS[idx],
+      mortality: cases > 0 ? ((deaths / cases) * 100).toFixed(2) : '—',
+      recovery:  cases > 0 ? ((recovered / cases) * 100).toFixed(2) : '—',
+    };
+  }).sort((a, b) => b.cases - a.cases);
+}, [allTimeSeriesData.data, selectedCountries, selectedPeriod]);
 
   const maxCases     = useMemo(() => Math.max(...tableData.map(r => r.cases), 1),     [tableData]);
   const maxDeaths    = useMemo(() => Math.max(...tableData.map(r => r.deaths), 1),    [tableData]);
@@ -254,9 +274,9 @@ export default function ComparePage() {
         {!allTimeSeriesData.isLoading && selectedCountries.length > 0 && (
           <>
             <div className="compare-tabs">
-              <button className={`compare-tab ${activeTab === 'compare' ? 'active' : ''}`} onClick={() => setActiveTab('compare')}>⚖️ Compare</button>
-              <button className={`compare-tab ${activeTab === 'chart' ? 'active' : ''}`} onClick={() => setActiveTab('chart')}>📈 Chart</button>
-              <button className={`compare-tab ${activeTab === 'table' ? 'active' : ''}`} onClick={() => setActiveTab('table')}>📋 Data Table</button>
+              <button className={`compare-tab ${activeTab === 'compare' ? 'active' : ''}`} onClick={() => setActiveTab('compare')}>Compare</button>
+              <button className={`compare-tab ${activeTab === 'chart' ? 'active' : ''}`} onClick={() => setActiveTab('chart')}>Chart</button>
+              <button className={`compare-tab ${activeTab === 'table' ? 'active' : ''}`} onClick={() => setActiveTab('table')}>Data Table</button>
             </div>
 
             {activeTab === 'compare' && (

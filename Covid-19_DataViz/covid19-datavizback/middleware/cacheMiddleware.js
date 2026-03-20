@@ -5,38 +5,38 @@ const REDIS_URL = process.env.REDIS_URL ||
 
 const redisClient = redis.createClient({ url: REDIS_URL });
 
-redisClient.on('error', (err) => console.error('❌ Redis Error:', err.message));
-redisClient.on('connect', () => console.log('✅ Redis connected'));
+redisClient.on('error', (err) => console.error('Redis Error:', err.message));
+redisClient.on('connect', () => console.log('Redis connected'));
 
 let isRedisConnected = false;
 
 try {
   await redisClient.connect();
   isRedisConnected = true;
-  console.log(`✅ Connected to Redis at ${REDIS_URL}`);
+  console.log(`Connected to Redis at ${REDIS_URL}`);
 } catch (error) {
-  console.error(`⚠️  Redis connection failed: ${error.message}`);
+  console.error(`Redis connection failed: ${error.message}`);
   isRedisConnected = false;
 }
 
 const ROUTE_TTL = {
-  '/get_all_timeseries':              86400,
-  '/get_total_cases_per_country':      3600,
-  '/get_total_deaths_per_country':     3600,
-  '/get_total_recovered_per_country':  3600,
-  '/get_cases_time_series':            3600,
-  '/get_total_cases':                  3600,
-  '/get_total_deaths':                 3600,
-  '/get_total_recovered':              3600,
-  '/get_28_day_cases':                 3600,
-  '/get_28_day_deaths':                3600,
-  '/get_28_day_cases_per_country':     3600,
-  '/get_28_day_deaths_per_country':    3600,
-  '/get_total_vaccine_doses':          3600,
-  '/get_28_day_vaccine_doses':         3600,
-  '/get_28_day_vaccine_doses_per_country': 3600,
-  '/get_data_at_date':                  300,
-  '/get_global_totals_at_date':         300,
+  '/get_all_timeseries':                   86400,
+  '/get_total_cases_per_country':           3600,
+  '/get_total_deaths_per_country':          3600,
+  '/get_total_recovered_per_country':       3600,
+  '/get_cases_time_series':                 3600,
+  '/get_total_cases':                       3600,
+  '/get_total_deaths':                      3600,
+  '/get_total_recovered':                   3600,
+  '/get_28_day_cases':                      3600,
+  '/get_28_day_deaths':                     3600,
+  '/get_28_day_cases_per_country':          3600,
+  '/get_28_day_deaths_per_country':         3600,
+  '/get_total_vaccine_doses':               3600,
+  '/get_28_day_vaccine_doses':              3600,
+  '/get_28_day_vaccine_doses_per_country':  3600,
+  '/get_data_at_date':                       300,
+  '/get_global_totals_at_date':              300,
 };
 
 export const cacheMiddleware = (duration = 3600, options = {}) => {
@@ -142,33 +142,53 @@ export const invalidateCacheByTag = async (tag) => {
   }
 };
 
+const TOP_COUNTRIES = [
+  'US', 'India', 'France', 'Germany', 'Brazil', 'Japan', 'Korea, South',
+  'Italy', 'United Kingdom', 'Russia', 'Turkey', 'Spain', 'Vietnam',
+  'Australia', 'Argentina', 'Netherlands', 'Iran', 'Mexico', 'Indonesia',
+  'Poland', 'Colombia', 'Austria', 'Portugal', 'Ukraine', 'Greece',
+  'Canada', 'Chile', 'Belgium', 'Sweden', 'China',
+];
+
 export const warmupCache = async () => {
   console.log('Starting cache warmup...');
 
-  const host   = process.env.NODE_ENV === 'production' ? 'backend' : 'localhost';
-  const port   = process.env.PORT || 5000;
-  const base   = `http://${host}:${port}/api`;
+  const host = process.env.NODE_ENV === 'production' ? 'backend' : 'localhost';
+  const port = process.env.PORT || 5000;
+  const base = `http://${host}:${port}/api`;
 
-  const criticalEndpoints = [
+  const coreEndpoints = [
     '/get_total_cases_per_country',
     '/get_total_deaths_per_country',
     '/get_total_recovered_per_country',
     '/get_all_timeseries',
   ];
 
-  for (const endpoint of criticalEndpoints) {
+  for (const endpoint of coreEndpoints) {
     try {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 300));
       const response = await fetch(`${base}${endpoint}`);
-      if (response.ok) {
-        console.log(`Warmed up: ${endpoint}`);
-      } else {
-        console.warn(`Warmup non-OK ${endpoint}: ${response.status}`);
-      }
+      if (response.ok) console.log(`Warmed up: ${endpoint}`);
+      else console.warn(`Warmup non-OK ${endpoint}: ${response.status}`);
     } catch (error) {
       console.warn(`Failed to warmup ${endpoint}:`, error.message);
     }
   }
+
+  console.log('Warming up per-country time series cache (background)...');
+  (async () => {
+    for (const country of TOP_COUNTRIES) {
+      try {
+        await new Promise(r => setTimeout(r, 200));
+        const url = `${base}/get_cases_time_series/${encodeURIComponent(country)}`;
+        const response = await fetch(url);
+        if (response.ok) console.log(`Warmed up: /get_cases_time_series/${country}`);
+      } catch (error) {
+        console.warn(`Country warmup failed for ${country}:`, error.message);
+      }
+    }
+    console.log('Per-country warmup complete!');
+  })();
 
   console.log('Cache warmup complete!');
 };

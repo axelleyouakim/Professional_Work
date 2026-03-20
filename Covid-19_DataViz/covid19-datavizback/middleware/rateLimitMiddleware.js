@@ -26,7 +26,6 @@ export const rateLimitMiddleware = (options = {}) => {
   const {
     windowMs = RATE_LIMIT_WINDOW * 1000,
     max = RATE_LIMIT_MAX_REQUESTS,
-    // If true, cached responses (X-Cache: HIT) don't count against the limit
     skipCacheHits = true,
   } = options;
 
@@ -39,9 +38,6 @@ export const rateLimitMiddleware = (options = {}) => {
     const key = `rate_limit:${identifier}`;
 
     try {
-      // We intercept res.json to check if this ended up being a cache hit,
-      // and if so we do NOT count it (skipCacheHits=true by default).
-      // For non-cache-hit responses, we count normally.
       const requests = await redisClient.incr(key);
 
       if (requests === 1) {
@@ -117,15 +113,10 @@ export const throttleMiddleware = (delayMs = 300) => {
 
 
 export const routeRateLimits = {
-  // Heavy endpoints (timeseries, kmeans…) — raised from 10 to 60/min
-  // These are all cached so in practice a real user rarely hits the DB more
-  // than once; the limit only guards against abusive scraping.
   expensive: rateLimitMiddleware({ max: 60, windowMs: 60000 }),
 
-  // Normal data endpoints
   standard: rateLimitMiddleware({ max: 200, windowMs: 60000 }),
 
-  // Lightweight / static-ish endpoints
   light: rateLimitMiddleware({ max: 500, windowMs: 60000 }),
 };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   LineChart, Line, CartesianGrid, XAxis, YAxis,
   Tooltip, ResponsiveContainer, ReferenceLine, Label
@@ -28,7 +28,13 @@ const formatYAxis = (v) => {
 
 const ChartComponent = ({ period = null, selectedCountry = null, timelineData = null }) => {
   const shouldUseTimeline = timelineData != null;
-  const apiQuery = useCasesTimeSeries(period, selectedCountry);
+
+  const apiQuery = useCasesTimeSeries(
+    shouldUseTimeline ? null : period,
+    shouldUseTimeline ? null : selectedCountry,
+    null,
+    !shouldUseTimeline
+  );
 
   const rawData = useMemo(() => {
     if (shouldUseTimeline) return timelineData;
@@ -37,9 +43,7 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
 
   const formattedData = useMemo(() => {
     if (!rawData || rawData.length === 0) return [];
-
     const sampled = rawData.filter((_, i) => i % 7 === 0 || i === rawData.length - 1);
-
     return sampled.map(item => {
       const { date, fullDate } = formatDateStr(item.date);
       return { date, cases: item.cases, fullDate, dateKey: item.date };
@@ -78,7 +82,7 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
   if (formattedData.length === 0) return (
     <div className="chart-content">
       <div className="chart-container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: 200, color: '#999', gap: '10px' }}>
-        <div>📊 No data yet</div>
+        <div>No data yet</div>
         {shouldUseTimeline && <div style={{ fontSize: '12px', opacity: 0.7 }}>Move the slider to the right to see data</div>}
       </div>
     </div>

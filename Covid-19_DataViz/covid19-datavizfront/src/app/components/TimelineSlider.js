@@ -27,21 +27,14 @@ const TimelineSlider = ({ onPeriodChange }) => {
     return dates;
   }, []);
 
-  // sliderIndex only drives the visual slider position — updates instantly
   const [sliderIndex, setSliderIndex] = useState(allDates.length - 1);
   const latestIndexRef = useRef(allDates.length - 1);
 
-  // useTransition: marks onPeriodChange updates as non-urgent
-  // React will keep the slider responsive and defer the heavy Dashboard re-render
   const [, startTransition] = useTransition();
 
-  // Throttle the actual data callback to max once per 150 ms
-  // leading:true  → first move fires immediately (no visible delay)
-  // trailing:true → last position is always sent after dragging stops
   const throttledPeriodChange = useThrottledCallback(
     (periodData) => {
       if (onPeriodChange) {
-        // Wrap in startTransition so Dashboard re-renders are deferred
         startTransition(() => {
           onPeriodChange(periodData);
         });
@@ -54,7 +47,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
     const newIndex = parseInt(e.target.value, 10);
     latestIndexRef.current = newIndex;
 
-    // Update the slider thumb position immediately (no transition needed)
     setSliderIndex(newIndex);
 
     const date = allDates[newIndex];
@@ -68,7 +60,6 @@ const TimelineSlider = ({ onPeriodChange }) => {
     });
   }, [allDates, throttledPeriodChange]);
 
-  // On mouse/touch release always flush the exact final position
   const handleSliderEnd = useCallback(() => {
     const idx  = latestIndexRef.current;
     const date = allDates[idx];
