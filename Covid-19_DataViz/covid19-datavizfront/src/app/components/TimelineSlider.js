@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useRef, useTransition } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useTransition, useEffect } from 'react';
 import { useThrottledCallback } from '@tanstack/react-pacer';
 import './TimelineSlider.css';
 
-const TimelineSlider = ({ onPeriodChange }) => {
+const TimelineSlider = ({ onPeriodChange, externalIndex }) => {
   const allDates = useMemo(() => {
     const dates = [];
     const startDate     = new Date(2019, 10, 1);
@@ -29,15 +29,21 @@ const TimelineSlider = ({ onPeriodChange }) => {
 
   const [sliderIndex, setSliderIndex] = useState(allDates.length - 1);
   const latestIndexRef = useRef(allDates.length - 1);
-
   const [, startTransition] = useTransition();
+
+  // Sync slider position when calendar picks a date externally
+  useEffect(() => {
+    if (externalIndex != null && externalIndex !== sliderIndex) {
+      setSliderIndex(externalIndex);
+      latestIndexRef.current = externalIndex;
+    }
+  }, [externalIndex]);
+
 
   const throttledPeriodChange = useThrottledCallback(
     (periodData) => {
       if (onPeriodChange) {
-        startTransition(() => {
-          onPeriodChange(periodData);
-        });
+        startTransition(() => { onPeriodChange(periodData); });
       }
     },
     { wait: 150, leading: true, trailing: true }
@@ -46,9 +52,7 @@ const TimelineSlider = ({ onPeriodChange }) => {
   const handleSliderChange = useCallback((e) => {
     const newIndex = parseInt(e.target.value, 10);
     latestIndexRef.current = newIndex;
-
     setSliderIndex(newIndex);
-
     const date = allDates[newIndex];
     throttledPeriodChange({
       dateString:  date.dateString,
@@ -102,6 +106,13 @@ const TimelineSlider = ({ onPeriodChange }) => {
 
   const selectedDate = allDates[sliderIndex];
 
+  // Gradient inline — thumb et progression appartiennent au même élément
+  // donc parfaitement alignés. Pas de div progress séparée.
+  const pct = (sliderIndex / (allDates.length - 1)) * 100;
+  const sliderStyle = {
+    background: `linear-gradient(to right, #ff4444 0%, #cc0000 ${pct}%, rgba(255,255,255,0.15) ${pct}%, rgba(255,255,255,0.15) 100%)`,
+  };
+
   return (
     <div className="timeline-slider-container">
       <div className="timeline-header">
@@ -135,16 +146,13 @@ const TimelineSlider = ({ onPeriodChange }) => {
           onMouseUp={handleSliderEnd}
           onTouchEnd={handleSliderEnd}
           className="timeline-slider"
-        />
-        <div
-          className="timeline-slider-progress"
-          style={{ width: `${(sliderIndex / (allDates.length - 1)) * 100}%` }}
+          style={sliderStyle}
         />
       </div>
 
       <div className="timeline-info">
-        {!selectedDate?.hasData && 'Before COVID-19 - No cases recorded'}
-        {selectedDate?.hasData && sliderIndex <= 100 && `Early pandemic - Data starting ${selectedDate?.displayDate}`}
+        {!selectedDate?.hasData && 'Before COVID-19 — No cases recorded'}
+        {selectedDate?.hasData && sliderIndex <= 100 && `Early pandemic — Data starting ${selectedDate?.displayDate}`}
         {selectedDate?.hasData && sliderIndex > 100 && sliderIndex < allDates.length - 1 && `Cumulative data up to ${selectedDate?.displayDate}`}
         {sliderIndex === allDates.length - 1 && 'Most recent data available'}
       </div>

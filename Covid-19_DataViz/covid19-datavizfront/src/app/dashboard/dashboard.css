@@ -1,0 +1,241 @@
+/* dashboard.css */
+* { box-sizing: border-box; }
+
+.nd-page {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: #f0f2f8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ── Sidebar violette ── */
+.nd-sidebar {
+  width: 64px;
+  flex-shrink: 0;
+  background: #3d2fa0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 0;
+  gap: 4px;
+}
+
+.nd-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.nd-logo-icon {
+  width: 38px;
+  height: 38px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+}
+
+.nd-logo span {
+  font-size: 8px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 600;
+  text-align: center;
+}
+
+.nd-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  flex: 1;
+}
+
+.nd-nav-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nd-nav-item {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  text-decoration: none;
+  color: rgba(255,255,255,0.55);
+  transition: all 0.15s;
+}
+
+.nd-nav-item:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+.nd-nav-active {
+  background: rgba(255,255,255,0.22) !important;
+  color: #fff !important;
+}
+
+/* ── Panneau liste pays (gauche) ── */
+.nd-country-panel {
+  width: 200px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #e8e8f0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Main centre ── */
+.nd-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 12px 12px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.nd-topbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nd-search {
+  flex: 1;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+}
+
+.nd-date-badge {
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: #555;
+  font-weight: 500;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  white-space: nowrap;
+}
+
+/* Banner */
+.nd-banner {
+  background: linear-gradient(135deg, #6c5ce7 0%, #3d2fa0 100%);
+  border-radius: 14px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+/* Panel blanc générique */
+.nd-panel {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+.nd-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #333;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.nd-chart-panel { flex-shrink: 0; }
+
+/* Bottom row */
+.nd-bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Global Status — fond violet */
+.nd-radials-panel {
+  background: linear-gradient(135deg, #6c5ce7 0%, #3d2fa0 100%);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(108,92,231,0.3);
+  overflow: hidden;
+}
+
+/* KPI grid */
+.nd-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ── Panneau droit ── */
+.nd-right {
+  width: 340px;
+  flex-shrink: 0;
+  background: #f8f8fc;
+  border-left: 1px solid #e8e8f0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.nd-right-panel { flex-shrink: 0; }
+
+.nd-news-panel {
+  flex: 1;
+  min-height: 180px;
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+/* Scrollbars */
+.nd-main::-webkit-scrollbar,
+.nd-right::-webkit-scrollbar { width: 4px; }
+.nd-main::-webkit-scrollbar-track,
+.nd-right::-webkit-scrollbar-track { background: transparent; }
+.nd-main::-webkit-scrollbar-thumb,
+.nd-right::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+/* Responsive */
+@media (max-width: 1400px) {
+  .nd-right { width: 300px; }
+  .nd-country-panel { width: 180px; }
+}
+@media (max-width: 1150px) {
+  .nd-country-panel { display: none; }
+  .nd-right { width: 280px; }
+  .nd-bottom-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .nd-sidebar { display: none; }
+  .nd-right { display: none; }
+}
