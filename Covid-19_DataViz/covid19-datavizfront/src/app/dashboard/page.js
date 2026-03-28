@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useGlobalStats, useFourCountriesStats, useCountryForPie } from '../hooks/useDiseaseData';
 import ChartComponent from '../components/ChartComponent';
 import TimelineSlider from '../components/TimelineSlider';
@@ -190,29 +190,165 @@ const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
   );
 };
 
-// ─── Pie chart ────────────────────────────────────────────────────────────────
+// ─── Table Comparison ─────────────────────────────────────────────────────────
+const COMPARISON_COLORS = ['#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#6c5ce7','#a8e063','#fd79a8','#e17055'];
+
+const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
+  const [selectedCountries, setSelectedCountries] = useState(['US','France','China','Spain','Brazil','India']);
+  const [search, setSearch]                       = useState('');
+  const [searchResults, setSearchResults]         = useState([]);
+
+  const allCountries = useMemo(() => {
+    if (!preCalculatedIndex?.isReady) return [];
+    return preCalculatedIndex.countryNames.sort();
+  }, [preCalculatedIndex]);
+
+  const handleSearch = useCallback((q) => {
+    setSearch(q);
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearchResults(
+      allCountries.filter(c => !selectedCountries.includes(c) && c.toLowerCase().includes(q.toLowerCase())).slice(0, 6)
+    );
+  }, [allCountries, selectedCountries]);
+
+  const addCountry = useCallback((c) => {
+    if (selectedCountries.length >= 8) return;
+    setSelectedCountries(p => [...p, c]);
+    setSearch(''); setSearchResults([]);
+  }, [selectedCountries]);
+
+  const removeCountry = useCallback((c) => {
+    setSelectedCountries(p => p.filter(x => x !== c));
+  }, []);
+
+  const tableData = useMemo(() => {
+    if (!preCalculatedIndex?.isReady || selectedCountries.length === 0) return [];
+    const date = selectedPeriod?.dateString || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+    const sorted = preCalculatedIndex.sortedIndex[date];
+    if (!sorted) return [];
+    return selectedCountries.map((country, idx) => {
+      const cases     = sorted.casesPerCountry.find(c => c.country === country)?.total_cases || 0;
+      const deaths    = sorted.deathsPerCountry.find(c => c.country === country)?.total_deaths || 0;
+      const recovered = sorted.recoveredPerCountry.find(c => c.country === country)?.total_recovered || 0;
+      return { country, cases, deaths, recovered, color: COMPARISON_COLORS[idx % COMPARISON_COLORS.length],
+        mortality: cases > 0 ? ((deaths / cases) * 100).toFixed(2) : '—',
+        recovery:  cases > 0 ? ((recovered / cases) * 100).toFixed(2) : '—',
+      };
+    }).sort((a, b) => b.cases - a.cases);
+  }, [preCalculatedIndex, selectedCountries, selectedPeriod]);
+
+  if (!preCalculatedIndex?.isReady) return (
+    <div style={{ color: '#999', textAlign: 'center', padding: 40, fontSize: 13 }}>Loading data...</div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 4 }}>
+      {/* Search */}
+      <div style={{ position: 'relative' }}>
+        <input type="text" placeholder="Add a country to compare..." value={search} onChange={e => handleSearch(e.target.value)}
+          style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e0e0ff', fontSize: 13, outline: 'none' }} />
+        {searchResults.length > 0 && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e0e0ff', borderRadius: 8, zIndex: 100, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            {searchResults.map(c => (
+              <div key={c} onClick={() => addCountry(c)}
+                style={{ padding: '8px 14px', cursor: 'pointer', fontSize: 12, borderBottom: '1px solid #f0f0f0' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >{c}</div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pills */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {selectedCountries.map((c, i) => (
+          <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, border: `1px solid ${COMPARISON_COLORS[i % COMPARISON_COLORS.length]}`, fontSize: 11, fontWeight: 600, color: COMPARISON_COLORS[i % COMPARISON_COLORS.length] }}>
+            {c}
+            <span onClick={() => removeCountry(c)} style={{ cursor: 'pointer', opacity: 0.7, fontSize: 13, lineHeight: 1 }}>×</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #f0f0f0' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: '#f8f8ff' }}>
+              {['Country','Total Cases','Deaths','Recovered','Mortality %','Recovery %'].map(h => (
+                <th key={h} style={{ padding: '10px 14px', textAlign: h === 'Country' ? 'left' : 'right', color: '#666', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', borderBottom: '1px solid #f0f0f0', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tableData.map((row, i) => (
+              <tr key={row.country} style={{ borderBottom: '1px solid #f8f8f8' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f8f8ff'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <td style={{ padding: '10px 14px', fontWeight: 700, color: '#333', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: row.color, flexShrink: 0, display: 'inline-block' }} />
+                  {row.country}
+                </td>
+                <td style={{ padding: '10px 14px', textAlign: 'right', color: '#e17055', fontFamily: 'monospace', fontWeight: 600 }}>{fmtForce(row.cases)}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'right', color: '#636e72', fontFamily: 'monospace' }}>{fmtForce(row.deaths)}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'right', color: '#00b894', fontFamily: 'monospace' }}>{fmtForce(row.recovered)}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'right', color: '#fdcb6e', fontWeight: 600 }}>{row.mortality !== '—' ? `${row.mortality}%` : '—'}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'right', color: '#6c5ce7', fontWeight: 600 }}>{row.recovery !== '—' ? `${row.recovery}%` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
 const StatusPieChart = ({ data, title }) => {
   if (!data) return <div style={{ color: '#999', textAlign: 'center', padding: 24, fontSize: 12 }}>Loading...</div>;
-  const pop = data.population || 0;
-  const cases = data.cases || 0;
+
+  const pop       = data.population || 0;
+  const cases     = data.cases      || 0;
+  const deaths    = data.deaths     || 0;
+  const recovered = data.recovered  || 0;
+  const active    = data.active     || 0;
+  const healthy   = pop > 0 ? Math.max(0, pop - cases) : 0;
+
+  // Toujours afficher les 4 segments — si active=0, on le montre en gris
+  // avec une note car certains pays ont arrêté de rapporter les cas actifs
+  const activeNotReported = active === 0 && cases > 0;
+
   const pieData = [
-    { name: 'Dead',     value: data.deaths    || 0 },
-    { name: 'Healed',   value: data.recovered || 0 },
-    { name: 'Infected', value: data.active    || 0 },
-    { name: 'Healthy',  value: pop > 0 ? Math.max(0, pop - cases) : 0 },
+    { name: 'Dead',     value: deaths    || 0 },
+    { name: 'Healed',   value: recovered || 0 },
+    { name: activeNotReported ? 'Infected (not reported)' : 'Infected', value: activeNotReported ? Math.max(1, Math.round(cases * 0.001)) : active },
+    { name: 'Healthy',  value: healthy   || 0 },
   ].filter(d => d.value > 0);
+
+  const colors = activeNotReported
+    ? ['#e17055', '#00b894', '#cccccc', '#74b9ff']
+    : ['#e17055', '#00b894', '#fdcb6e', '#74b9ff'];
 
   if (pieData.length === 0) return <div style={{ color: '#999', textAlign: 'center', padding: 24, fontSize: 12 }}>No data</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 8px 10px' }}>
-      <div style={{ fontSize: 11, color: '#555', fontWeight: 600, marginBottom: 2 }}>{FLAG[title]} {title} — {fmtForce(cases)} total</div>
+      <div style={{ fontSize: 11, color: '#555', fontWeight: 600, marginBottom: 2 }}>
+        {FLAG[title]} {title} — {fmtForce(cases)} total
+      </div>
+      {activeNotReported && (
+        <div style={{ fontSize: 9, color: '#999', marginBottom: 4, textAlign: 'center' }}>
+          ⚠️ Active cases not reported by this country
+        </div>
+      )}
       <ResponsiveContainer width="100%" height={180}>
         <PieChart>
           <Pie data={pieData} cx="50%" cy="50%" innerRadius={44} outerRadius={68} dataKey="value" isAnimationActive={false}>
-            {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
+            {pieData.map((_, i) => <Cell key={i} fill={colors[i]} />)}
           </Pie>
-          <Tooltip contentStyle={{ background: '#fff', border: '1px solid #eee', fontSize: 11, borderRadius: 8 }} formatter={(v, n) => [fmtForce(v), n]} />
+          <Tooltip
+            contentStyle={{ background: '#fff', border: '1px solid #eee', fontSize: 11, borderRadius: 8 }}
+            formatter={(v, n) => [fmtForce(v), n]}
+          />
           <Legend iconSize={9} wrapperStyle={{ fontSize: 10 }} />
         </PieChart>
       </ResponsiveContainer>
@@ -227,6 +363,7 @@ export default function DashboardPage() {
   const [externalSliderIndex, setExternalSliderIndex] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [searchTerm, setSearchTerm]           = useState('');
+  const [activeTab, setActiveTab]             = useState('dashboard'); // 'dashboard' | 'comparison'
 
   // ── Data hooks ────────────────────────────────────────────────────────────
   const globalStats        = useGlobalStats();
@@ -365,8 +502,32 @@ export default function DashboardPage() {
             <span>🔍</span>
             <span style={{ color: '#aaa', fontSize: 13 }}>Search country or region...</span>
           </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[['dashboard','📊 Dashboard'],['comparison','📋 Comparison']].map(([tab, label]) => (
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${activeTab===tab ? '#6c5ce7' : '#e0e0ff'}`,
+                background: activeTab===tab ? '#6c5ce7' : '#fff',
+                color: activeTab===tab ? '#fff' : '#666',
+                transition: 'all 0.15s',
+              }}>{label}</button>
+            ))}
+          </div>
           <div className="nd-date-badge">🕐 {currentDateStr}</div>
         </div>
+
+        {/* ── TAB: Comparison Table ── */}
+        {activeTab === 'comparison' && (
+          <div className="nd-panel" style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+            <div style={{ fontWeight: 700, color: '#333', fontSize: 14, marginBottom: 14 }}>
+              📋 Country Comparison Table
+            </div>
+            <ComparisonTable preCalculatedIndex={preCalculatedIndex} selectedPeriod={selectedPeriod} />
+          </div>
+        )}
+
+        {/* ── TAB: Dashboard ── */}
+        {activeTab === 'dashboard' && (<>
 
         {/* Country View Banner — visible seulement si pays sélectionné */}
         {selectedCountry && (
@@ -425,6 +586,7 @@ export default function DashboardPage() {
             <KPIBox label="Recovery Rate" value={g?.cases ? `${((g.recovered / g.cases) * 100).toFixed(2)}%` : '—'} color="#00b894" bg="#f0fff8" />
           </div>
         </div>
+        </>)} {/* end dashboard tab */}
 
       </main>
 
