@@ -31,14 +31,13 @@ const TimelineSlider = ({ onPeriodChange, externalIndex }) => {
   const latestIndexRef = useRef(allDates.length - 1);
   const [, startTransition] = useTransition();
 
-  // Sync slider position when calendar picks a date externally
+  // ✅ FIX: sliderIndex ajouté dans les dépendances pour éviter la valeur stale
   useEffect(() => {
     if (externalIndex != null && externalIndex !== sliderIndex) {
       setSliderIndex(externalIndex);
       latestIndexRef.current = externalIndex;
     }
-  }, [externalIndex]);
-
+  }, [externalIndex, sliderIndex]);
 
   const throttledPeriodChange = useThrottledCallback(
     (periodData) => {
@@ -106,8 +105,6 @@ const TimelineSlider = ({ onPeriodChange, externalIndex }) => {
 
   const selectedDate = allDates[sliderIndex];
 
-  // Gradient inline — thumb et progression appartiennent au même élément
-  // donc parfaitement alignés. Pas de div progress séparée.
   const pct = (sliderIndex / (allDates.length - 1)) * 100;
   const sliderStyle = {
     background: `linear-gradient(to right, #ff4444 0%, #cc0000 ${pct}%, rgba(255,255,255,0.15) ${pct}%, rgba(255,255,255,0.15) 100%)`,

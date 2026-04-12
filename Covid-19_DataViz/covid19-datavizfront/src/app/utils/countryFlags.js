@@ -33,7 +33,7 @@ export const COUNTRY_TO_ISO2 = {
   'Seychelles':'sc','Sierra Leone':'sl','Singapore':'sg','Slovakia':'sk','Slovenia':'si',
   'Solomon Islands':'sb','Somalia':'so','South Africa':'za','South Sudan':'ss',
   'Spain':'es','Sri Lanka':'lk','Sudan':'sd','Suriname':'sr','Sweden':'se',
-  'Switzerland':'ch','Syria':'sy','Taiwan*':'tw','Tajikistan':'tj','Tanzania':'tz',
+  'Switzerland':'ch','Syria':'sy','Taiwan*':'tw','Taiwan':'tw','Tajikistan':'tj','Tanzania':'tz',
   'Thailand':'th','Timor-Leste':'tl','Togo':'tg','Tonga':'to',
   'Trinidad and Tobago':'tt','Tunisia':'tn','Turkey':'tr','Turkmenistan':'tm',
   'Tuvalu':'tv','Uganda':'ug','Ukraine':'ua','United Arab Emirates':'ae',

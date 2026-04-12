@@ -6,6 +6,8 @@ import CovidData from './models/CovidData.js';
 import covidRoutes from './routes/covidRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorMiddleware.js';
 import { warmupCache, invalidateCache } from './middleware/cacheMiddleware.js';
+// ✅ FIX: import du rateLimitMiddleware + redisClient
+import { routeRateLimits, redisClient } from './middleware/rateLimitMiddleware.js';
 
 dotenv.config();
 
@@ -30,6 +32,8 @@ mongoose.connect(process.env.MONGODB_URI)
   })
   .catch(err => console.error('MongoDB connection error:', err));
 
+// ✅ FIX: rate limiting branché sur toutes les routes /api
+app.use('/api', routeRateLimits.standard);
 app.use('/api', covidRoutes);
 
 app.get('/', (req, res) => {
@@ -43,7 +47,6 @@ app.get('/', (req, res) => {
 
 app.use(notFoundHandler);
 app.use(errorHandler);
-
 
 const scheduleDailyMidnight = () => {
   const now = new Date();
@@ -80,4 +83,25 @@ app.listen(PORT, async () => {
   }, 2000);
 
   scheduleDailyMidnight();
+});
+
+// ✅ FIX: fermeture propre de Redis au Ctrl+C / arrêt serveur
+process.on('SIGINT', async () => {
+  console.log('\nShutting down gracefully...');
+  try {
+    if (redisClient?.isOpen) {
+      await redisClient.quit();
+      console.log('Redis connection closed');
+    }
+  } catch (err) {
+    console.warn('Redis cleanup error:', err.message);
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  try {
+    if (redisClient?.isOpen) await redisClient.quit();
+  } catch (_) {}
+  process.exit(0);
 });

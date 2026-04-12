@@ -3,8 +3,9 @@ import redis from 'redis';
 const RATE_LIMIT_WINDOW = 60;
 const RATE_LIMIT_MAX_REQUESTS = 100;
 
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL || 
+// ✅ FIX: export du redisClient pour pouvoir le fermer proprement dans server.mjs
+export const redisClient = redis.createClient({
+  url: process.env.REDIS_URL ||
     (process.env.NODE_ENV === 'production' ? 'redis://redis:6379' : 'redis://localhost:6379')
 });
 
@@ -21,12 +22,10 @@ let isRedisConnected = false;
   }
 })();
 
-
 export const rateLimitMiddleware = (options = {}) => {
   const {
     windowMs = RATE_LIMIT_WINDOW * 1000,
     max = RATE_LIMIT_MAX_REQUESTS,
-    skipCacheHits = true,
   } = options;
 
   return async (req, res, next) => {
@@ -52,7 +51,6 @@ export const rateLimitMiddleware = (options = {}) => {
 
       if (requests > max) {
         console.warn(`Rate limit exceeded for ${identifier}: ${requests}/${max}`);
-        
         return res.status(429).json({
           error: 'Too many requests',
           message: `Rate limit exceeded. Maximum ${max} requests per ${Math.ceil(windowMs / 1000)} seconds.`,
@@ -72,7 +70,6 @@ export const rateLimitMiddleware = (options = {}) => {
   };
 };
 
-
 export const throttleMiddleware = (delayMs = 300) => {
   return async (req, res, next) => {
     if (!isRedisConnected || !redisClient.isOpen) {
@@ -89,10 +86,8 @@ export const throttleMiddleware = (delayMs = 300) => {
 
       if (lastRequest) {
         const timeSinceLastRequest = Date.now() - parseInt(lastRequest);
-        
         if (timeSinceLastRequest < delayMs) {
           console.log(`Throttled: ${identifier} → ${path} (too fast: ${timeSinceLastRequest}ms < ${delayMs}ms)`);
-          
           return res.status(429).json({
             error: 'Too many requests',
             message: `Please wait ${delayMs - timeSinceLastRequest}ms before making the same request again.`,
@@ -102,7 +97,6 @@ export const throttleMiddleware = (delayMs = 300) => {
       }
 
       await redisClient.setEx(key, Math.ceil(delayMs / 1000), Date.now().toString());
-
       next();
     } catch (error) {
       console.error('Throttle error:', error.message);
@@ -111,13 +105,10 @@ export const throttleMiddleware = (delayMs = 300) => {
   };
 };
 
-
 export const routeRateLimits = {
-  expensive: rateLimitMiddleware({ max: 60, windowMs: 60000 }),
-
-  standard: rateLimitMiddleware({ max: 200, windowMs: 60000 }),
-
-  light: rateLimitMiddleware({ max: 500, windowMs: 60000 }),
+  expensive: rateLimitMiddleware({ max: 60,  windowMs: 60000 }),
+  standard:  rateLimitMiddleware({ max: 200, windowMs: 60000 }),
+  light:     rateLimitMiddleware({ max: 500, windowMs: 60000 }),
 };
 
 export default rateLimitMiddleware;

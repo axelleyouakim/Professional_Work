@@ -82,9 +82,12 @@ const CountryList = ({
           const isSelected = selectedCountry === countryData.country;
           const flagUrl = getFlagUrl(countryData.country);
 
-          const displayValue = (isSelected && selectedCountryOverride != null)
+          const rawValue = (isSelected && selectedCountryOverride != null)
             ? (selectedCountryOverride[dataKey] ?? 0)
             : (countryData[dataKey] ?? 0);
+
+          // ✅ FIX: protection contre NaN/null/undefined avant toLocaleString()
+          const displayValue = (typeof rawValue === 'number' && !isNaN(rawValue)) ? rawValue : 0;
 
           return (
             <div
