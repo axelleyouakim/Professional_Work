@@ -561,10 +561,11 @@ export default function DashboardPage() {
             <TimelineSlider onPeriodChange={handlePeriodChange} externalIndex={externalSliderIndex} />
           </div>
           <ChartComponent
-            period={null}
-            selectedCountry={selectedCountry}
-            timelineData={chartTimelineData}
-          />
+  period={null}
+  selectedCountry={selectedCountry}
+  timelineData={chartTimelineData}
+  theme="light"  // ✅ ajouter ça
+/>
         </div>
 
         {/* Bottom : Global Status + KPIs */}

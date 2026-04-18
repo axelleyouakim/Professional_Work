@@ -26,8 +26,20 @@ const formatYAxis = (v) => {
   return v;
 };
 
-const ChartComponent = ({ period = null, selectedCountry = null, timelineData = null }) => {
+// ✅ theme="dark" par défaut → page principale inchangée
+// theme="light" → utilisé uniquement depuis dashboard/page.js
+const ChartComponent = ({ period = null, selectedCountry = null, timelineData = null, theme = 'dark' }) => {
   const shouldUseTimeline = timelineData != null;
+
+  // ✅ Couleurs selon le theme
+  const gridColor     = theme === 'light' ? '#f0f0f0' : '#333';
+  const axisColor     = theme === 'light' ? '#aaa'    : '#999';
+  const tooltipBg     = theme === 'light' ? '#fff'    : '#1a1a1a';
+  const tooltipBorder = theme === 'light' ? '#f0f0f0' : '#333';
+  const tooltipText   = theme === 'light' ? '#333'    : '#fff';
+  const peakBg        = theme === 'light' ? '#fff5f2' : 'rgba(255,100,100,0.1)';
+  const peakBorder    = theme === 'light' ? '#ffd5c8' : 'rgba(255,100,100,0.3)';
+  const peakColor     = theme === 'light' ? '#e17055' : '#ff6464';
 
   const apiQuery = useCasesTimeSeries(
     shouldUseTimeline ? null : period,
@@ -91,13 +103,13 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
   return (
     <div className="chart-content">
       {selectedCountry && (
-        <div style={{ padding: '10px 20px', color: '#999', fontSize: '14px', borderBottom: '1px solid #333' }}>
+        <div style={{ padding: '10px 20px', color: axisColor, fontSize: '14px', borderBottom: `1px solid ${gridColor}` }}>
           {selectedCountry} - Confirmed Cases Timeline
         </div>
       )}
 
       {peakInfo && (
-        <div style={{ padding: '8px 20px', background: 'rgba(255,100,100,0.1)', borderBottom: '1px solid rgba(255,100,100,0.3)', color: '#ff6464', fontSize: '12px', fontWeight: 600 }}>
+        <div style={{ padding: '8px 20px', background: peakBg, borderBottom: `1px solid ${peakBorder}`, color: peakColor, fontSize: '12px', fontWeight: 600 }}>
           🔺 PEAK: {peakInfo.cases.toLocaleString()} cases on {peakInfo.date}
         </div>
       )}
@@ -105,19 +117,25 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={formattedData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            {/* ✅ Couleurs dynamiques selon theme */}
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             <XAxis
               dataKey="date"
-              stroke="#999"
+              stroke={axisColor}
               interval="preserveStartEnd"
               angle={-45}
               textAnchor="end"
               height={60}
+              tick={{ fill: axisColor, fontSize: 11 }}
             />
-            <YAxis stroke="#999" tickFormatter={formatYAxis} />
+            <YAxis
+              stroke={axisColor}
+              tickFormatter={formatYAxis}
+              tick={{ fill: axisColor, fontSize: 11 }}
+            />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
-              labelStyle={{ color: '#fff' }}
+              contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8 }}
+              labelStyle={{ color: tooltipText }}
               formatter={(value) => [value.toLocaleString(), 'Cases']}
               labelFormatter={(label, payload) => payload?.[0]?.payload.fullDate || label}
             />
@@ -150,5 +168,6 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
 export default React.memo(ChartComponent, (prev, next) =>
   prev.timelineData === next.timelineData &&
   prev.selectedCountry === next.selectedCountry &&
-  prev.period === next.period
+  prev.period === next.period &&
+  prev.theme === next.theme
 );

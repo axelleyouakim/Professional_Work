@@ -239,3 +239,85 @@
   .nd-sidebar { display: none; }
   .nd-right { display: none; }
 }
+
+/* ──────────────────────────────────────────────────────
+   ✅ Overrides timeline + chart — uniquement dans /dashboard
+   N'affecte pas TimelineSlider.css ni Dashboard.css
+   ────────────────────────────────────────────────────── */
+
+.nd-chart-panel .timeline-slider-container {
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  backdrop-filter: none;
+  padding: 8px 4px;
+}
+
+.nd-chart-panel .timeline-date {
+  color: #6c5ce7;
+  font-weight: 700;
+}
+
+.nd-chart-panel .timeline-label {
+  color: #aaa;
+}
+
+.nd-chart-panel .timeline-btn {
+  background: #f5f3ff;
+  border: 1px solid #e0e0ff;
+  color: #6c5ce7;
+  border-radius: 8px;
+}
+
+.nd-chart-panel .timeline-btn:hover {
+  background: #6c5ce7;
+  border-color: #6c5ce7;
+  color: #fff;
+}
+
+.nd-chart-panel .timeline-info {
+  background: #f5f3ff;
+  border: 1px solid #e0e0ff;
+  color: #6c5ce7;
+}
+
+.nd-chart-panel .timeline-slider-label {
+  color: #bbb;
+}
+
+.nd-chart-panel .timeline-slider::-webkit-slider-thumb {
+  background: #6c5ce7;
+  box-shadow: 0 2px 8px rgba(108,92,231,0.4);
+  border: 2px solid #fff;
+}
+
+.nd-chart-panel .timeline-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 3px 12px rgba(108,92,231,0.6);
+}
+
+.nd-chart-panel .timeline-slider::-moz-range-thumb {
+  background: #6c5ce7;
+  box-shadow: 0 2px 8px rgba(108,92,231,0.4);
+}
+
+.nd-chart-panel .timeline-slider::-moz-range-progress {
+  background: #6c5ce7;
+}
+
+.nd-chart-panel .chart-tab {
+  background: #f5f3ff;
+  border: 1px solid #e0e0ff;
+  color: #6c5ce7;
+  border-radius: 8px;
+}
+
+.nd-chart-panel .chart-tab:hover,
+.nd-chart-panel .chart-tab.active {
+  background: #6c5ce7;
+  border-color: #6c5ce7;
+  color: #fff;
+}
+
+.nd-chart-panel .chart-content {
+  background: #fff;
+}
