@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useGlobalStats, useFourCountriesStats, useCountryForPie } from '../hooks/useDiseaseData';
 import ChartComponent from '../components/ChartComponent';
 import TimelineSlider from '../components/TimelineSlider';
@@ -10,13 +10,6 @@ import { usePreCalculatedData } from '../hooks/usePreCalculatedData';
 import './dashboard.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmt = (n) => {
-  if (n == null || isNaN(n)) return '—';
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-};
-
 const fmtForce = (n) => {
   if (n == null || isNaN(n)) return '—';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
@@ -25,7 +18,6 @@ const fmtForce = (n) => {
 };
 
 const FLAG = { France: '🇫🇷', USA: '🇺🇸', China: '🇨🇳', Spain: '🇪🇸' };
-const PIE_COLORS = ['#e17055', '#00b894', '#fdcb6e', '#74b9ff'];
 
 // ─── RadialStat ───────────────────────────────────────────────────────────────
 const RadialStat = ({ label, value, color, pct }) => {
@@ -59,7 +51,7 @@ const KPIBox = ({ label, value, sub, color, bg }) => (
   </div>
 );
 
-// ─── Country Row (table 4 pays) ───────────────────────────────────────────────
+// ─── Country Row ──────────────────────────────────────────────────────────────
 const CountryRow = ({ country, cases, deaths, recovered, active }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr 1fr 1fr', padding: '9px 16px', borderBottom: '1px solid #f0f0f0', alignItems: 'center', fontSize: 12, transition: 'background 0.1s' }}
     onMouseEnter={e => e.currentTarget.style.background = '#f8f8ff'}
@@ -135,7 +127,7 @@ const NewsFeed = ({ currentDateStr }) => {
   );
 };
 
-// ─── Calendar interactif ──────────────────────────────────────────────────────
+// ─── Calendar ─────────────────────────────────────────────────────────────────
 const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
   const base = new Date(currentDateStr);
   const baseValid = isNaN(base) ? new Date(2023, 2, 9) : base;
@@ -190,24 +182,45 @@ const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
   );
 };
 
-// ─── Table Comparison ─────────────────────────────────────────────────────────
+// ─── Comparison Table ─────────────────────────────────────────────────────────
 const COMPARISON_COLORS = ['#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#6c5ce7','#a8e063','#fd79a8','#e17055'];
 
 const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
   const [selectedCountries, setSelectedCountries] = useState(['US','France','China','Spain','Brazil','India']);
-  const [search, setSearch]                       = useState('');
-  const [searchResults, setSearchResults]         = useState([]);
+  const [search, setSearch]       = useState('');
+  const [searchResults, setSearchResults] = useState([]);
 
   const allCountries = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return [];
     return preCalculatedIndex.countryNames.sort();
   }, [preCalculatedIndex]);
 
+  // ✅ FIX: tri intelligent — exact match > starts-with > contains > alphabétique
+  // slice(0,8) au lieu de 6 pour ne pas couper les pays courts comme "US"
   const handleSearch = useCallback((q) => {
     setSearch(q);
     if (!q.trim()) { setSearchResults([]); return; }
+    const query = q.toLowerCase().trim();
     setSearchResults(
-      allCountries.filter(c => !selectedCountries.includes(c) && c.toLowerCase().includes(q.toLowerCase())).slice(0, 6)
+      allCountries
+        .filter(c =>
+          !selectedCountries.includes(c) &&
+          c.toLowerCase().includes(query)
+        )
+        .sort((a, b) => {
+          const aLow = a.toLowerCase();
+          const bLow = b.toLowerCase();
+          const aExact  = aLow === query;
+          const bExact  = bLow === query;
+          const aStarts = aLow.startsWith(query);
+          const bStarts = bLow.startsWith(query);
+          if (aExact  && !bExact)  return -1;
+          if (!aExact && bExact)   return 1;
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          return a.localeCompare(b);
+        })
+        .slice(0, 8)
     );
   }, [allCountries, selectedCountries]);
 
@@ -230,7 +243,9 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
       const cases     = sorted.casesPerCountry.find(c => c.country === country)?.total_cases || 0;
       const deaths    = sorted.deathsPerCountry.find(c => c.country === country)?.total_deaths || 0;
       const recovered = sorted.recoveredPerCountry.find(c => c.country === country)?.total_recovered || 0;
-      return { country, cases, deaths, recovered, color: COMPARISON_COLORS[idx % COMPARISON_COLORS.length],
+      return {
+        country, cases, deaths, recovered,
+        color: COMPARISON_COLORS[idx % COMPARISON_COLORS.length],
         mortality: cases > 0 ? ((deaths / cases) * 100).toFixed(2) : '—',
         recovery:  cases > 0 ? ((recovered / cases) * 100).toFixed(2) : '—',
       };
@@ -243,9 +258,9 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 4 }}>
-      {/* Search */}
       <div style={{ position: 'relative' }}>
-        <input type="text" placeholder="Add a country to compare..." value={search} onChange={e => handleSearch(e.target.value)}
+        <input type="text" placeholder="Add a country to compare..." value={search}
+          onChange={e => handleSearch(e.target.value)}
           style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e0e0ff', fontSize: 13, outline: 'none' }} />
         {searchResults.length > 0 && (
           <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e0e0ff', borderRadius: 8, zIndex: 100, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
@@ -260,7 +275,6 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
         )}
       </div>
 
-      {/* Pills */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {selectedCountries.map((c, i) => (
           <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, border: `1px solid ${COMPARISON_COLORS[i % COMPARISON_COLORS.length]}`, fontSize: 11, fontWeight: 600, color: COMPARISON_COLORS[i % COMPARISON_COLORS.length] }}>
@@ -270,7 +284,6 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
         ))}
       </div>
 
-      {/* Table */}
       <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #f0f0f0' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
@@ -281,7 +294,7 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
             </tr>
           </thead>
           <tbody>
-            {tableData.map((row, i) => (
+            {tableData.map((row) => (
               <tr key={row.country} style={{ borderBottom: '1px solid #f8f8f8' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#f8f8ff'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -303,6 +316,8 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
     </div>
   );
 };
+
+// ─── Status Pie Chart ─────────────────────────────────────────────────────────
 const StatusPieChart = ({ data, title }) => {
   if (!data) return <div style={{ color: '#999', textAlign: 'center', padding: 24, fontSize: 12 }}>Loading...</div>;
 
@@ -312,16 +327,13 @@ const StatusPieChart = ({ data, title }) => {
   const recovered = data.recovered  || 0;
   const active    = data.active     || 0;
   const healthy   = pop > 0 ? Math.max(0, pop - cases) : 0;
-
-  // Toujours afficher les 4 segments — si active=0, on le montre en gris
-  // avec une note car certains pays ont arrêté de rapporter les cas actifs
   const activeNotReported = active === 0 && cases > 0;
 
   const pieData = [
-    { name: 'Dead',     value: deaths    || 0 },
-    { name: 'Healed',   value: recovered || 0 },
+    { name: 'Dead',    value: deaths    || 0 },
+    { name: 'Healed',  value: recovered || 0 },
     { name: activeNotReported ? 'Infected (not reported)' : 'Infected', value: activeNotReported ? Math.max(1, Math.round(cases * 0.001)) : active },
-    { name: 'Healthy',  value: healthy   || 0 },
+    { name: 'Healthy', value: healthy   || 0 },
   ].filter(d => d.value > 0);
 
   const colors = activeNotReported
@@ -358,20 +370,18 @@ const StatusPieChart = ({ data, title }) => {
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [selectedPeriod, setSelectedPeriod]   = useState(null);
-  const [pieCountry, setPieCountry]           = useState('USA');
+  const [selectedPeriod, setSelectedPeriod]           = useState(null);
+  const [pieCountry, setPieCountry]                   = useState('USA');
   const [externalSliderIndex, setExternalSliderIndex] = useState(null);
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [searchTerm, setSearchTerm]           = useState('');
-  const [activeTab, setActiveTab]             = useState('dashboard'); // 'dashboard' | 'comparison'
+  const [selectedCountry, setSelectedCountry]         = useState(null);
+  const [searchTerm, setSearchTerm]                   = useState('');
+  const [activeTab, setActiveTab]                     = useState('dashboard');
 
-  // ── Data hooks ────────────────────────────────────────────────────────────
-  const globalStats        = useGlobalStats();
-  const fourCountries      = useFourCountriesStats();
+  const globalStats            = useGlobalStats();
+  const fourCountries          = useFourCountriesStats();
   const { preCalculatedIndex } = usePreCalculatedData();
-  const pieData            = useCountryForPie(pieCountry, fourCountries.data);
+  const pieData                = useCountryForPie(pieCountry, fourCountries.data);
 
-  // ── Données pour CountryList depuis preCalculatedIndex à la date du slider ─
   const countryDate = selectedPeriod?.dateString || null;
 
   const casesPerCountry = useMemo(() => {
@@ -380,7 +390,6 @@ export default function DashboardPage() {
     return preCalculatedIndex.sortedIndex[date]?.casesPerCountry || [];
   }, [preCalculatedIndex, countryDate]);
 
-  // ── Stats du pays sélectionné à la date du slider ────────────────────────
   const selectedCountryStats = useMemo(() => {
     if (!selectedCountry || !preCalculatedIndex?.isReady) return null;
     const date = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
@@ -392,25 +401,18 @@ export default function DashboardPage() {
     return { total_cases: cases, total_deaths: deaths, total_recovered: recovered };
   }, [selectedCountry, preCalculatedIndex, countryDate]);
 
-  // ── Chart timeline ────────────────────────────────────────────────────────
   const chartTimelineData = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return null;
     const { globalChartFull, dateToGlobalChartIdx, countryChartFull } = preCalculatedIndex;
-
     if (selectedPeriod?.hasData === false) {
       const safeDate = globalChartFull?.[0]?.date || '1/22/20';
       return [{ date: safeDate, cases: 0 }];
     }
-
     const endIdx = selectedPeriod?.dateString
       ? (dateToGlobalChartIdx[selectedPeriod.dateString] ?? globalChartFull.length - 1) + 1
       : globalChartFull.length;
-
-    // Country view → chart du pays sélectionné
-    if (selectedCountry && countryChartFull[selectedCountry]) {
+    if (selectedCountry && countryChartFull[selectedCountry])
       return countryChartFull[selectedCountry].slice(0, endIdx);
-    }
-
     return globalChartFull.slice(0, endIdx);
   }, [preCalculatedIndex, selectedPeriod, selectedCountry]);
 
@@ -422,15 +424,9 @@ export default function DashboardPage() {
   const recovPct  = Math.min(100, Math.round(((g?.recovered || 0) / totalForPct) * 100));
   const deathPct  = Math.min(100, Math.round(((g?.deaths    || 0) / totalForPct) * 100));
 
-  const handlePeriodChange = useCallback(p => setSelectedPeriod(p), []);
-
-  const handleCountryClick = useCallback((country) => {
-    setSelectedCountry(country);
-  }, []);
-
-  const handleBackToGlobal = useCallback(() => {
-    setSelectedCountry(null);
-  }, []);
+  const handlePeriodChange      = useCallback(p => setSelectedPeriod(p), []);
+  const handleCountryClick      = useCallback(country => setSelectedCountry(country), []);
+  const handleBackToGlobal      = useCallback(() => setSelectedCountry(null), []);
 
   const handleCalendarDateSelect = useCallback((dateObj) => {
     if (!preCalculatedIndex?.isReady) return;
@@ -448,8 +444,6 @@ export default function DashboardPage() {
 
   return (
     <div className="nd-page">
-
-      {/* ── Sidebar violette ── */}
       <aside className="nd-sidebar">
         <div className="nd-logo">
           <div className="nd-logo-icon">🦠</div>
@@ -466,19 +460,12 @@ export default function DashboardPage() {
         </div>
       </aside>
 
-      {/* ── Liste pays (gauche) ── */}
       <aside className="nd-country-panel">
         <div style={{ padding: '12px 10px 8px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#333', marginBottom: 8 }}>
-            Confirmed Cases by Country
-          </div>
-          <input
-            type="text"
-            placeholder="Search country..."
-            value={searchTerm}
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#333', marginBottom: 8 }}>Confirmed Cases by Country</div>
+          <input type="text" placeholder="Search country..." value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #e0e0ff', fontSize: 11, outline: 'none' }}
-          />
+            style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #e0e0ff', fontSize: 11, outline: 'none' }} />
         </div>
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <CountryList
@@ -493,10 +480,7 @@ export default function DashboardPage() {
         </div>
       </aside>
 
-      {/* ── Main centre ── */}
       <main className="nd-main">
-
-        {/* Topbar */}
         <div className="nd-topbar">
           <div className="nd-search">
             <span>🔍</span>
@@ -516,85 +500,67 @@ export default function DashboardPage() {
           <div className="nd-date-badge">🕐 {currentDateStr}</div>
         </div>
 
-        {/* ── TAB: Comparison Table ── */}
         {activeTab === 'comparison' && (
           <div className="nd-panel" style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-            <div style={{ fontWeight: 700, color: '#333', fontSize: 14, marginBottom: 14 }}>
-              📋 Country Comparison Table
-            </div>
+            <div style={{ fontWeight: 700, color: '#333', fontSize: 14, marginBottom: 14 }}>📋 Country Comparison Table</div>
             <ComparisonTable preCalculatedIndex={preCalculatedIndex} selectedPeriod={selectedPeriod} />
           </div>
         )}
 
-        {/* ── TAB: Dashboard ── */}
         {activeTab === 'dashboard' && (<>
-
-        {/* Country View Banner — visible seulement si pays sélectionné */}
-        {selectedCountry && (
-          <CountryViewBanner
-            country={selectedCountry}
-            stats={selectedCountryStats}
-            onBack={handleBackToGlobal}
-          />
-        )}
-
-        {/* Banner global — visible seulement si pas de pays sélectionné */}
-        {!selectedCountry && (
-          <div className="nd-banner">
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 6 }}>Covid-19 Update</div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>JHU CSSE dataset · disease.sh API · Nov 2019 → Mar 2023</div>
+          {selectedCountry && (
+            <CountryViewBanner country={selectedCountry} stats={selectedCountryStats} onBack={handleBackToGlobal} />
+          )}
+          {!selectedCountry && (
+            <div className="nd-banner">
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 6 }}>Covid-19 Update</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>JHU CSSE dataset · disease.sh API · Nov 2019 → Mar 2023</div>
+              </div>
+              <div style={{ fontSize: 52, opacity: 0.2 }}>🦠</div>
             </div>
-            <div style={{ fontSize: 52, opacity: 0.2 }}>🦠</div>
-          </div>
-        )}
+          )}
 
-        {/* Chart — global ou pays selon sélection */}
-        <div className="nd-panel nd-chart-panel">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 6px' }}>
-            <span style={{ fontWeight: 700, color: '#333', fontSize: 13 }}>
-              📈 {selectedCountry ? `${selectedCountry} — Cases Timeline` : 'Global Cases Over Time'}
-            </span>
-            <span style={{ fontSize: 10, color: '#6c5ce7', fontWeight: 600 }}>JHU CSSE</span>
-          </div>
-          <div style={{ padding: '0 12px 8px', borderBottom: '1px solid #f0f0f0' }}>
-            <TimelineSlider onPeriodChange={handlePeriodChange} externalIndex={externalSliderIndex} />
-          </div>
-          <ChartComponent
-  period={null}
-  selectedCountry={selectedCountry}
-  timelineData={chartTimelineData}
-  theme="light"  // ✅ ajouter ça
-/>
-        </div>
-
-        {/* Bottom : Global Status + KPIs */}
-        <div className="nd-bottom-row">
-          <div className="nd-radials-panel">
-            <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
-              <span style={{ fontWeight: 700, color: '#fff', fontSize: 13 }}>Global Status</span>
+          <div className="nd-panel nd-chart-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 6px' }}>
+              <span style={{ fontWeight: 700, color: '#333', fontSize: 13 }}>
+                📈 {selectedCountry ? `${selectedCountry} — Cases Timeline` : 'Global Cases Over Time'}
+              </span>
+              <span style={{ fontSize: 10, color: '#6c5ce7', fontWeight: 600 }}>JHU CSSE</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '18px 12px 14px' }}>
-              <RadialStat label="Affected"  value={g?.active}    color="#a29bfe" pct={activePct} />
-              <RadialStat label="Recovery"  value={g?.recovered} color="#00cec9" pct={recovPct}  />
-              <RadialStat label="Death"     value={g?.deaths}    color="#74b9ff" pct={deathPct}  />
+            <div style={{ padding: '0 12px 8px', borderBottom: '1px solid #f0f0f0' }}>
+              <TimelineSlider onPeriodChange={handlePeriodChange} externalIndex={externalSliderIndex} />
+            </div>
+            <ChartComponent
+              period={null}
+              selectedCountry={selectedCountry}
+              timelineData={chartTimelineData}
+              theme="light"
+            />
+          </div>
+
+          <div className="nd-bottom-row">
+            <div className="nd-radials-panel">
+              <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+                <span style={{ fontWeight: 700, color: '#fff', fontSize: 13 }}>Global Status</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '18px 12px 14px' }}>
+                <RadialStat label="Affected"  value={g?.active}    color="#a29bfe" pct={activePct} />
+                <RadialStat label="Recovery"  value={g?.recovered} color="#00cec9" pct={recovPct}  />
+                <RadialStat label="Death"     value={g?.deaths}    color="#74b9ff" pct={deathPct}  />
+              </div>
+            </div>
+            <div className="nd-kpi-grid">
+              <KPIBox label="Total Cases"   value={fmtForce(g?.cases)}  color="#e17055" bg="#fff5f2" sub={g?.todayCases ? `+${fmtForce(g.todayCases)} today` : undefined} />
+              <KPIBox label="Today"         value={g?.todayCases ? `+${fmtForce(g.todayCases)}` : '—'} color="#6c5ce7" bg="#f5f3ff" />
+              <KPIBox label="Deaths"        value={fmtForce(g?.deaths)} color="#636e72" bg="#f8f8f8" />
+              <KPIBox label="Recovery Rate" value={g?.cases ? `${((g.recovered / g.cases) * 100).toFixed(2)}%` : '—'} color="#00b894" bg="#f0fff8" />
             </div>
           </div>
-          <div className="nd-kpi-grid">
-            <KPIBox label="Total Cases"   value={fmtForce(g?.cases)}  color="#e17055" bg="#fff5f2" sub={g?.todayCases ? `+${fmtForce(g.todayCases)} today` : undefined} />
-            <KPIBox label="Today"         value={g?.todayCases ? `+${fmtForce(g.todayCases)}` : '—'} color="#6c5ce7" bg="#f5f3ff" />
-            <KPIBox label="Deaths"        value={fmtForce(g?.deaths)} color="#636e72" bg="#f8f8f8" />
-            <KPIBox label="Recovery Rate" value={g?.cases ? `${((g.recovered / g.cases) * 100).toFixed(2)}%` : '—'} color="#00b894" bg="#f0fff8" />
-          </div>
-        </div>
-        </>)} {/* end dashboard tab */}
-
+        </>)}
       </main>
 
-      {/* ── Panneau droit ── */}
       <aside className="nd-right">
-
-        {/* Pie chart */}
         <div className="nd-panel nd-right-panel">
           <div className="nd-panel-title">🥧 Dead · Healed · Infected · Healthy</div>
           <div style={{ display: 'flex', gap: 4, padding: '7px 10px', flexWrap: 'wrap' }}>
@@ -607,13 +573,11 @@ export default function DashboardPage() {
           <StatusPieChart data={pieData} title={pieCountry} />
         </div>
 
-        {/* Calendar */}
         <div className="nd-panel nd-right-panel">
           <div className="nd-panel-title">📅 Calendar</div>
           <CalendarWidget currentDateStr={currentDateStr} onDateSelect={handleCalendarDateSelect} />
         </div>
 
-        {/* Table 4 pays */}
         <div className="nd-panel nd-right-panel">
           <div className="nd-panel-title">🌍 France · USA · China · Spain</div>
           <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr 1fr 1fr', padding: '6px 16px', borderBottom: '1px solid #f0f0f0' }}>
@@ -625,12 +589,10 @@ export default function DashboardPage() {
           {countries.map(c => <CountryRow key={c.country} country={c.country} cases={c.cases} deaths={c.deaths} recovered={c.recovered} active={c.active} />)}
         </div>
 
-        {/* News feed */}
         <div className="nd-panel nd-news-panel">
           <div className="nd-panel-title">📰 News Feed · up to {currentDateStr}</div>
           <NewsFeed currentDateStr={currentDateStr} />
         </div>
-
       </aside>
     </div>
   );
