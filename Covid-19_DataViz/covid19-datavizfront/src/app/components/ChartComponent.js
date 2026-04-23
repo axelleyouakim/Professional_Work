@@ -26,12 +26,9 @@ const formatYAxis = (v) => {
   return v;
 };
 
-// ✅ theme="dark" par défaut → page principale inchangée
-// theme="light" → utilisé uniquement depuis dashboard/page.js
 const ChartComponent = ({ period = null, selectedCountry = null, timelineData = null, theme = 'dark' }) => {
   const shouldUseTimeline = timelineData != null;
 
-  // ✅ Couleurs selon le theme
   const gridColor     = theme === 'light' ? '#f0f0f0' : '#333';
   const axisColor     = theme === 'light' ? '#aaa'    : '#999';
   const tooltipBg     = theme === 'light' ? '#fff'    : '#1a1a1a';
@@ -117,7 +114,6 @@ const ChartComponent = ({ period = null, selectedCountry = null, timelineData = 
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={formattedData}>
-            {/* ✅ Couleurs dynamiques selon theme */}
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             <XAxis
               dataKey="date"

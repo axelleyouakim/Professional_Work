@@ -31,7 +31,6 @@ const TimelineSlider = ({ onPeriodChange, externalIndex }) => {
   const latestIndexRef = useRef(allDates.length - 1);
   const [, startTransition] = useTransition();
 
-  // ✅ FIX: sliderIndex ajouté dans les dépendances pour éviter la valeur stale
   useEffect(() => {
     if (externalIndex != null && externalIndex !== sliderIndex) {
       setSliderIndex(externalIndex);

@@ -3,7 +3,6 @@ import redis from 'redis';
 const RATE_LIMIT_WINDOW = 60;
 const RATE_LIMIT_MAX_REQUESTS = 100;
 
-// ✅ FIX: export du redisClient pour pouvoir le fermer proprement dans server.mjs
 export const redisClient = redis.createClient({
   url: process.env.REDIS_URL ||
     (process.env.NODE_ENV === 'production' ? 'redis://redis:6379' : 'redis://localhost:6379')

@@ -9,7 +9,6 @@ import CountryList from '../components/CountryList';
 import { usePreCalculatedData } from '../hooks/usePreCalculatedData';
 import './dashboard.css';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtForce = (n) => {
   if (n == null || isNaN(n)) return '—';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
@@ -19,7 +18,6 @@ const fmtForce = (n) => {
 
 const FLAG = { France: '🇫🇷', USA: '🇺🇸', China: '🇨🇳', Spain: '🇪🇸' };
 
-// ─── RadialStat ───────────────────────────────────────────────────────────────
 const RadialStat = ({ label, value, color, pct }) => {
   const r = 38, circ = 2 * Math.PI * r;
   const safePct = isFinite(pct) && pct > 0 ? Math.min(pct, 100) : 0;
@@ -42,7 +40,6 @@ const RadialStat = ({ label, value, color, pct }) => {
   );
 };
 
-// ─── KPI Box ──────────────────────────────────────────────────────────────────
 const KPIBox = ({ label, value, sub, color, bg }) => (
   <div style={{ background: bg || '#fff', borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 5, boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
     <span style={{ fontSize: 22, fontWeight: 800, color: color || '#333', fontFamily: 'monospace', lineHeight: 1 }}>{value}</span>
@@ -51,7 +48,6 @@ const KPIBox = ({ label, value, sub, color, bg }) => (
   </div>
 );
 
-// ─── Country Row ──────────────────────────────────────────────────────────────
 const CountryRow = ({ country, cases, deaths, recovered, active }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr 1fr 1fr', padding: '9px 16px', borderBottom: '1px solid #f0f0f0', alignItems: 'center', fontSize: 12, transition: 'background 0.1s' }}
     onMouseEnter={e => e.currentTarget.style.background = '#f8f8ff'}
@@ -67,7 +63,6 @@ const CountryRow = ({ country, cases, deaths, recovered, active }) => (
   </div>
 );
 
-// ─── Country View Banner ──────────────────────────────────────────────────────
 const CountryViewBanner = ({ country, stats, onBack }) => (
   <div style={{ background: 'linear-gradient(135deg, #6c5ce7, #3d2fa0)', borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexShrink: 0 }}>
     <div>
@@ -84,7 +79,6 @@ const CountryViewBanner = ({ country, stats, onBack }) => (
   </div>
 );
 
-// ─── News Feed ────────────────────────────────────────────────────────────────
 const NEWS_ITEMS = [
   { date: '2023-03-09', title: 'WHO declares COVID-19 no longer a global health emergency', source: 'WHO', url: 'https://www.aljazeera.com/news/2023/5/5/covid-no-longer-global-health-emergency-who-says' },
   { date: '2023-01-05', title: 'China reports surge after lifting zero-COVID policy', source: 'Reuters', url: 'https://www.reuters.com/world/china/chinas-covid-spike-not-due-lifting-restrictions-who-director-2022-12-14/' },
@@ -127,7 +121,6 @@ const NewsFeed = ({ currentDateStr }) => {
   );
 };
 
-// ─── Calendar ─────────────────────────────────────────────────────────────────
 const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
   const base = new Date(currentDateStr);
   const baseValid = isNaN(base) ? new Date(2023, 2, 9) : base;
@@ -182,7 +175,6 @@ const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
   );
 };
 
-// ─── Comparison Table ─────────────────────────────────────────────────────────
 const COMPARISON_COLORS = ['#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#6c5ce7','#a8e063','#fd79a8','#e17055'];
 
 const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
@@ -195,8 +187,6 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
     return preCalculatedIndex.countryNames.sort();
   }, [preCalculatedIndex]);
 
-  // ✅ FIX: tri intelligent — exact match > starts-with > contains > alphabétique
-  // slice(0,8) au lieu de 6 pour ne pas couper les pays courts comme "US"
   const handleSearch = useCallback((q) => {
     setSearch(q);
     if (!q.trim()) { setSearchResults([]); return; }
@@ -317,7 +307,6 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
   );
 };
 
-// ─── Status Pie Chart ─────────────────────────────────────────────────────────
 const StatusPieChart = ({ data, title }) => {
   if (!data) return <div style={{ color: '#999', textAlign: 'center', padding: 24, fontSize: 12 }}>Loading...</div>;
 
@@ -368,7 +357,6 @@ const StatusPieChart = ({ data, title }) => {
   );
 };
 
-// ─── Page principale ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod]           = useState(null);
   const [pieCountry, setPieCountry]                   = useState('USA');

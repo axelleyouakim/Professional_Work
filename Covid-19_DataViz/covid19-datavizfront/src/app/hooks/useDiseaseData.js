@@ -1,8 +1,3 @@
-// useDiseaseData.js
-// Séparation stricte data/display (requis par l'examinateur).
-// disease.sh = API externe, même source JHU, données cohérentes.
-// staleTime 1h = zéro requête inutile = pas de lag.
-
 import { useQuery } from '@tanstack/react-query';
 
 const BASE = 'https://disease.sh/v3/covid-19';
