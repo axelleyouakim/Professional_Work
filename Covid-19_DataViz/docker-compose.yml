@@ -58,6 +58,7 @@ services:
       NODE_ENV: production
       BACKEND_URL: http://backend:5000/api
       NEXT_PUBLIC_API_URL: http://localhost:5000/api
+      GNEWS_API_KEY: a1751896a7a2b2f6b12b477187331841
     depends_on:
       - backend
     networks:

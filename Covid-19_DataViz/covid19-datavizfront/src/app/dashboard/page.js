@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useGlobalStats, useFourCountriesStats, useCountryForPie } from '../hooks/useDiseaseData';
 import ChartComponent from '../components/ChartComponent';
@@ -17,6 +17,134 @@ const fmtForce = (n) => {
 };
 
 const FLAG = { France: '🇫🇷', USA: '🇺🇸', China: '🇨🇳', Spain: '🇪🇸' };
+
+const FALLBACK_MILESTONES = [
+  { date: '2019-12-31', title: 'WHO informed of pneumonia cluster of unknown cause in Wuhan, China', source: 'WHO', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/situation-reports' },
+  { date: '2020-01-11', title: 'China reports first COVID-19 death', source: 'WHO', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/situation-reports' },
+  { date: '2020-01-22', title: 'First confirmed COVID-19 cases outside China (Thailand, Japan, South Korea)', source: 'WHO', url: 'https://www.who.int/csr/don/17-january-2020-novel-coronavirus-japan-ex-china/en/' },
+  { date: '2020-01-30', title: 'WHO declares COVID-19 a Public Health Emergency of International Concern (PHEIC)', source: 'WHO', url: 'https://www.who.int/news/item/30-01-2020-statement-on-the-second-meeting-of-the-international-health-regulations-(2005)-emergency-committee-regarding-the-outbreak-of-novel-coronavirus-(2019-ncov)' },
+  { date: '2020-02-21', title: 'Italy reports first community transmission in Europe — northern Italy lockdowns begin', source: 'ECDC', url: 'https://www.ecdc.europa.eu/en/covid-19' },
+  { date: '2020-03-11', title: 'WHO officially characterises COVID-19 as a pandemic', source: 'WHO', url: 'https://www.who.int/director-general/speeches/detail/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---11-march-2020' },
+  { date: '2020-03-17', title: 'France enters strict national lockdown — cases surpass 7,000', source: 'Santé Publique France', url: 'https://www.santepubliquefrance.fr/dossiers/coronavirus-covid-19' },
+  { date: '2020-04-02', title: 'Global confirmed cases exceed 1 million — over 50,000 deaths recorded', source: 'JHU CSSE', url: 'https://coronavirus.jhu.edu/map.html' },
+  { date: '2020-07-09', title: 'WHO acknowledges evidence of COVID-19 airborne transmission in crowded indoor spaces', source: 'WHO', url: 'https://www.who.int/news-room/questions-and-answers/item/coronavirus-disease-covid-19-how-is-it-transmitted' },
+  { date: '2020-09-17', title: 'Europe reports second wave — cases rising faster than March peak in France, Spain, UK', source: 'ECDC', url: 'https://www.ecdc.europa.eu/en/covid-19' },
+  { date: '2020-11-09', title: 'Pfizer/BioNTech announce ~90% vaccine efficacy in Phase 3 trials', source: 'FDA / AJMC', url: 'https://www.ajmc.com/view/a-timeline-of-covid19-developments-in-2020' },
+  { date: '2020-12-11', title: 'FDA grants Emergency Use Authorization to Pfizer-BioNTech vaccine (16+)', source: 'FDA', url: 'https://www.fda.gov/emergency-preparedness-and-response/coronavirus-disease-2019-covid-19/pfizer-biontech-covid-19-vaccines' },
+  { date: '2020-12-14', title: 'First COVID-19 vaccinations begin in the United States — healthcare workers first', source: 'CDC', url: 'https://www.cdc.gov/museum/timeline/covid19.html' },
+  { date: '2021-02-27', title: 'FDA grants EUA to Johnson & Johnson single-dose COVID-19 vaccine (18+)', source: 'FDA', url: 'https://www.fda.gov/emergency-preparedness-and-response/coronavirus-disease-2019-covid-19/janssen-covid-19-vaccine' },
+  { date: '2021-03-11', title: 'One year since WHO declared COVID-19 a pandemic', source: 'WHO', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019' },
+  { date: '2021-06-15', title: 'Delta variant (B.1.617.2) becomes dominant strain in the US and UK', source: 'CDC', url: 'https://www.cdc.gov/museum/timeline/covid19.html' },
+  { date: '2021-10-06', title: 'WHO publishes first clinical case definition of Post COVID-19 condition (Long COVID)', source: 'WHO', url: 'https://www.who.int/publications/i/item/WHO-2019-nCoV-Post_COVID-19_condition-Clinical_case_definition-2021.1' },
+  { date: '2021-11-26', title: 'Omicron variant (B.1.1.529) designated Variant of Concern by WHO', source: 'WHO', url: 'https://www.who.int/news/item/26-11-2021-classification-of-omicron-(b.1.1.529)-sars-cov-2-variant-of-concern' },
+  { date: '2021-12-01', title: 'Omicron variant detected in multiple countries — new wave begins', source: 'ECDC', url: 'https://www.ecdc.europa.eu/en/covid-19/variants-concern' },
+  { date: '2022-02-03', title: 'France records 500K daily cases at Omicron peak', source: 'Santé Publique France', url: 'https://www.santepubliquefrance.fr/dossiers/coronavirus-covid-19' },
+  { date: '2022-07-01', title: 'BA.5 Omicron subvariant drives new global wave across Europe and Americas', source: 'Nature', url: 'https://www.nature.com/articles/d41586-022-01882-3' },
+  { date: '2022-10-14', title: 'Bivalent boosters targeting Omicron authorized in US, France and Spain', source: 'CDC', url: 'https://www.cdc.gov/covid/vaccines/index.html' },
+  { date: '2023-01-05', title: 'China reports surge after lifting zero-COVID policy', source: 'Reuters', url: 'https://www.reuters.com/world/china/chinas-covid-spike-not-due-lifting-restrictions-who-director-2022-12-14/' },
+  { date: '2023-03-09', title: 'WHO declares COVID-19 no longer a global health emergency', source: 'WHO', url: 'https://www.who.int/news/item/05-05-2023-statement-on-the-fifteenth-meeting-of-the-international-health-regulations-(2005)-emergency-committee-regarding-the-coronavirus-disease-(covid-19)-pandemic' },
+];
+
+const NewsFeed = ({ currentDateStr, dateObj }) => {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [source, setSource]     = useState('fallback');
+  const debounceRef             = useRef(null);
+  const lastFetchedDate         = useRef(null);
+  const hasFetched              = useRef(false);
+
+  const isoDate = useMemo(() => {
+    if (!dateObj) return null;
+    return dateObj.toISOString().split('T')[0];
+  }, [dateObj]);
+
+  function loadFallback(iso) {
+    const target = iso ? new Date(iso) : new Date('2023-03-09');
+    const sorted = [...FALLBACK_MILESTONES].sort((a, b) =>
+      Math.abs(new Date(a.date) - target) - Math.abs(new Date(b.date) - target)
+    );
+    setArticles(sorted.slice(0, 3).sort((a, b) => new Date(b.date) - new Date(a.date)));
+    setSource('fallback');
+  }
+
+  async function fetchNews(iso) {
+    if (iso === lastFetchedDate.current) return;
+    lastFetchedDate.current = iso;
+    setLoading(true);
+
+    const center = new Date(iso);
+    const from   = new Date(center); from.setDate(from.getDate() - 7);
+    const to     = new Date(center); to.setDate(to.getDate() + 7);
+    const fromStr = from.toISOString().split('T')[0];
+    const toStr   = to.toISOString().split('T')[0];
+
+    try {
+      const res  = await fetch(`/api/news?from=${fromStr}&to=${toStr}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.articles?.length) throw new Error('No results');
+      setArticles(data.articles.map(a => ({
+        date:   a.publishedAt?.split('T')[0] || iso,
+        title:  a.title,
+        source: a.source?.name || 'GNews',
+        url:    a.url,
+      })));
+      setSource('gnews');
+    } catch {
+      loadFallback(iso);
+    } finally {
+      setLoading(false);
+      hasFetched.current = true;
+    }
+  }
+
+  useEffect(() => {
+  if (!isoDate) return;
+  if (isoDate === lastFetchedDate.current) return;
+  if (debounceRef.current) clearTimeout(debounceRef.current);
+  debounceRef.current = setTimeout(() => fetchNews(isoDate), 150);
+  return () => clearTimeout(debounceRef.current);
+}, [isoDate]);
+
+  useEffect(() => {
+    if (!isoDate && !hasFetched.current) loadFallback(null);
+  }, []);
+
+  return (
+    <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
+      <div style={{ padding: '4px 16px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
+        <span style={{ fontSize: 9, color: '#aaa', fontStyle: 'italic' }}>
+          {source === 'gnews' ? 'GNews API · live results' : 'WHO · CDC · ECDC · milestones'}
+        </span>
+        {loading && (
+          <span style={{ fontSize: 9, color: '#6c5ce7', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 8, height: 8, border: '1.5px solid #d0c8ff', borderTopColor: '#6c5ce7', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+            fetching…
+          </span>
+        )}
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {!loading && articles.length === 0 && (
+        <div style={{ color: '#999', textAlign: 'center', padding: 20, fontSize: 12 }}>No news for this period</div>
+      )}
+      {articles.map((item, i) => (
+        <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
+          style={{ display: 'block', padding: '10px 16px', borderBottom: '1px solid #f0f0f0', textDecoration: 'none', transition: 'background 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <div style={{ fontSize: 10, color: '#6c5ce7', marginBottom: 2, display: 'flex', gap: 8 }}>
+            <span>{item.date}</span>
+            <span style={{ color: '#ddd' }}>·</span>
+            <span style={{ color: '#999' }}>{item.source}</span>
+            <span style={{ marginLeft: 'auto', color: '#bbb', fontSize: 9 }}>↗</span>
+          </div>
+          <div style={{ fontSize: 12, color: '#333', lineHeight: 1.45 }}>{item.title}</div>
+        </a>
+      ))}
+    </div>
+  );
+};
 
 const RadialStat = ({ label, value, color, pct }) => {
   const r = 38, circ = 2 * Math.PI * r;
@@ -78,48 +206,6 @@ const CountryViewBanner = ({ country, stats, onBack }) => (
     </button>
   </div>
 );
-
-const NEWS_ITEMS = [
-  { date: '2023-03-09', title: 'WHO declares COVID-19 no longer a global health emergency', source: 'WHO', url: 'https://www.aljazeera.com/news/2023/5/5/covid-no-longer-global-health-emergency-who-says' },
-  { date: '2023-01-05', title: 'China reports surge after lifting zero-COVID policy', source: 'Reuters', url: 'https://www.reuters.com/world/china/chinas-covid-spike-not-due-lifting-restrictions-who-director-2022-12-14/' },
-  { date: '2022-10-14', title: 'Bivalent boosters authorized in US, France and Spain', source: 'CDC', url: 'https://www.cdc.gov/covid/vaccines/index.html' },
-  { date: '2022-07-01', title: 'BA.5 Omicron subvariant drives new global wave', source: 'Nature', url: 'https://www.nature.com/articles/d41586-022-01882-3' },
-  { date: '2022-02-03', title: 'France records 500K daily cases at Omicron peak', source: 'SPF', url: 'https://www.santepubliquefrance.fr/dossiers/coronavirus-covid-19' },
-  { date: '2021-12-01', title: 'Omicron variant detected in multiple countries', source: 'ECDC', url: 'https://www.ecdc.europa.eu/en/covid-19/variants-concern' },
-  { date: '2021-06-21', title: 'Delta variant becomes dominant in UK and Spain', source: 'Reuters', url: 'https://www.reuters.com/world/uk/delta-variant-now-dominant-strain-uk-2021-06-07/' },
-  { date: '2021-03-11', title: 'One year since WHO declared COVID-19 a pandemic', source: 'WHO', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019' },
-  { date: '2020-12-14', title: 'First COVID-19 vaccinations begin in the United States', source: 'CDC', url: 'https://www.cdc.gov/museum/timeline/covid19.html' },
-  { date: '2020-04-03', title: 'France enters strict lockdown, cases surpass 50K', source: 'Le Monde', url: 'https://www.lemonde.fr/planete/article/2020/03/17/coronavirus-la-france-en-confinement_6033364_3244.html' },
-  { date: '2020-01-22', title: 'First COVID-19 cases confirmed outside of China', source: 'WHO', url: 'https://www.who.int/csr/don/17-january-2020-novel-coronavirus-japan-ex-china/en/' },
-];
-
-const NewsFeed = ({ currentDateStr }) => {
-  const filtered = useMemo(() => {
-    const cutoff = new Date(currentDateStr);
-    if (isNaN(cutoff)) return NEWS_ITEMS;
-    return NEWS_ITEMS.filter(item => new Date(item.date) <= cutoff);
-  }, [currentDateStr]);
-
-  return (
-    <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
-      {filtered.length === 0 && <div style={{ color: '#999', textAlign: 'center', padding: 20, fontSize: 12 }}>No news for this period</div>}
-      {filtered.map((item, i) => (
-        <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
-          style={{ display: 'block', padding: '10px 16px', borderBottom: '1px solid #f0f0f0', textDecoration: 'none', transition: 'background 0.15s' }}
-          onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        >
-          <div style={{ fontSize: 10, color: '#6c5ce7', marginBottom: 2, display: 'flex', gap: 8 }}>
-            <span>{item.date}</span><span style={{ color: '#ddd' }}>·</span>
-            <span style={{ color: '#999' }}>{item.source}</span>
-            <span style={{ marginLeft: 'auto', color: '#bbb', fontSize: 9 }}>↗</span>
-          </div>
-          <div style={{ fontSize: 12, color: '#333', lineHeight: 1.45 }}>{item.title}</div>
-        </a>
-      ))}
-    </div>
-  );
-};
 
 const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
   const base = new Date(currentDateStr);
@@ -373,10 +459,14 @@ export default function DashboardPage() {
   const countryDate = selectedPeriod?.dateString || null;
 
   const casesPerCountry = useMemo(() => {
-    if (!preCalculatedIndex?.isReady) return [];
-    const date = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
-    return preCalculatedIndex.sortedIndex[date]?.casesPerCountry || [];
-  }, [preCalculatedIndex, countryDate]);
+  if (!preCalculatedIndex?.isReady) return [];
+  const date = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+  const data = preCalculatedIndex.sortedIndex[date]?.casesPerCountry;
+  if (data && data.length > 0) return data;
+  const lastDate = preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+  const allCountries = preCalculatedIndex.sortedIndex[lastDate]?.casesPerCountry || [];
+  return allCountries.map(c => ({ ...c, total_cases: 0 }));
+}, [preCalculatedIndex, countryDate]);
 
   const selectedCountryStats = useMemo(() => {
     if (!selectedCountry || !preCalculatedIndex?.isReady) return null;
@@ -405,6 +495,9 @@ export default function DashboardPage() {
   }, [preCalculatedIndex, selectedPeriod, selectedCountry]);
 
   const currentDateStr = selectedPeriod?.displayDate || 'Mar 9, 2023';
+  // dateObj for the NewsFeed — derived from selectedPeriod or default to end date
+  const currentDateObj = selectedPeriod?.dateObj || new Date(2023, 2, 9);
+
   const g = globalStats.data;
   const countries = fourCountries.data || [];
   const totalForPct = g?.cases || 1;
@@ -463,7 +556,7 @@ export default function DashboardPage() {
             selectedCountry={selectedCountry}
             onCountryClick={handleCountryClick}
             colorClass="red-text"
-            isLoading={!preCalculatedIndex?.isReady}
+            isLoading={!preCalculatedIndex?.isReady && casesPerCountry.length === 0}
           />
         </div>
       </aside>
@@ -579,7 +672,8 @@ export default function DashboardPage() {
 
         <div className="nd-panel nd-news-panel">
           <div className="nd-panel-title">📰 News Feed · up to {currentDateStr}</div>
-          <NewsFeed currentDateStr={currentDateStr} />
+          {/* ↓ ONLY CHANGE: currentDateObj passed so feed syncs with the slider */}
+          <NewsFeed currentDateStr={currentDateStr} dateObj={currentDateObj} />
         </div>
       </aside>
     </div>
