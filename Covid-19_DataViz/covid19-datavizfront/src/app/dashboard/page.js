@@ -9,6 +9,7 @@ import CountryList from '../components/CountryList';
 import { usePreCalculatedData } from '../hooks/usePreCalculatedData';
 import './dashboard.css';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmtForce = (n) => {
   if (n == null || isNaN(n)) return '—';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
@@ -18,6 +19,7 @@ const fmtForce = (n) => {
 
 const FLAG = { France: '🇫🇷', USA: '🇺🇸', China: '🇨🇳', Spain: '🇪🇸' };
 
+// ─── Fallback milestones (used when GNews returns nothing) ────────────────────
 const FALLBACK_MILESTONES = [
   { date: '2019-12-31', title: 'WHO informed of pneumonia cluster of unknown cause in Wuhan, China', source: 'WHO', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/situation-reports' },
   { date: '2020-01-11', title: 'China reports first COVID-19 death', source: 'WHO', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/situation-reports' },
@@ -45,6 +47,7 @@ const FALLBACK_MILESTONES = [
   { date: '2023-03-09', title: 'WHO declares COVID-19 no longer a global health emergency', source: 'WHO', url: 'https://www.who.int/news/item/05-05-2023-statement-on-the-fifteenth-meeting-of-the-international-health-regulations-(2005)-emergency-committee-regarding-the-coronavirus-disease-(covid-19)-pandemic' },
 ];
 
+// ─── News Feed ────────────────────────────────────────────────────────────────
 const NewsFeed = ({ currentDateStr, dateObj }) => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading]   = useState(false);
@@ -72,9 +75,9 @@ const NewsFeed = ({ currentDateStr, dateObj }) => {
     lastFetchedDate.current = iso;
     setLoading(true);
 
-    const center = new Date(iso);
-    const from   = new Date(center); from.setDate(from.getDate() - 7);
-    const to     = new Date(center); to.setDate(to.getDate() + 7);
+    const center  = new Date(iso);
+    const from    = new Date(center); from.setDate(from.getDate() - 7);
+    const to      = new Date(center); to.setDate(to.getDate() + 7);
     const fromStr = from.toISOString().split('T')[0];
     const toStr   = to.toISOString().split('T')[0];
 
@@ -99,12 +102,12 @@ const NewsFeed = ({ currentDateStr, dateObj }) => {
   }
 
   useEffect(() => {
-  if (!isoDate) return;
-  if (isoDate === lastFetchedDate.current) return;
-  if (debounceRef.current) clearTimeout(debounceRef.current);
-  debounceRef.current = setTimeout(() => fetchNews(isoDate), 150);
-  return () => clearTimeout(debounceRef.current);
-}, [isoDate]);
+    if (!isoDate) return;
+    if (isoDate === lastFetchedDate.current) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchNews(isoDate), 150);
+    return () => clearTimeout(debounceRef.current);
+  }, [isoDate]);
 
   useEffect(() => {
     if (!isoDate && !hasFetched.current) loadFallback(null);
@@ -118,12 +121,12 @@ const NewsFeed = ({ currentDateStr, dateObj }) => {
         </span>
         {loading && (
           <span style={{ fontSize: 9, color: '#6c5ce7', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, border: '1.5px solid #d0c8ff', borderTopColor: '#6c5ce7', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+            <span style={{ width: 8, height: 8, border: '1.5px solid #d0c8ff', borderTopColor: '#6c5ce7', borderRadius: '50%', display: 'inline-block', animation: 'nd-spin 0.7s linear infinite' }} />
             fetching…
           </span>
         )}
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes nd-spin { to { transform: rotate(360deg); } }`}</style>
       {!loading && articles.length === 0 && (
         <div style={{ color: '#999', textAlign: 'center', padding: 20, fontSize: 12 }}>No news for this period</div>
       )}
@@ -146,6 +149,7 @@ const NewsFeed = ({ currentDateStr, dateObj }) => {
   );
 };
 
+// ─── RadialStat ───────────────────────────────────────────────────────────────
 const RadialStat = ({ label, value, color, pct }) => {
   const r = 38, circ = 2 * Math.PI * r;
   const safePct = isFinite(pct) && pct > 0 ? Math.min(pct, 100) : 0;
@@ -168,6 +172,7 @@ const RadialStat = ({ label, value, color, pct }) => {
   );
 };
 
+// ─── KPI Box ──────────────────────────────────────────────────────────────────
 const KPIBox = ({ label, value, sub, color, bg }) => (
   <div style={{ background: bg || '#fff', borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 5, boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
     <span style={{ fontSize: 22, fontWeight: 800, color: color || '#333', fontFamily: 'monospace', lineHeight: 1 }}>{value}</span>
@@ -176,6 +181,7 @@ const KPIBox = ({ label, value, sub, color, bg }) => (
   </div>
 );
 
+// ─── Country Row ──────────────────────────────────────────────────────────────
 const CountryRow = ({ country, cases, deaths, recovered, active }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr 1fr 1fr', padding: '9px 16px', borderBottom: '1px solid #f0f0f0', alignItems: 'center', fontSize: 12, transition: 'background 0.1s' }}
     onMouseEnter={e => e.currentTarget.style.background = '#f8f8ff'}
@@ -191,6 +197,7 @@ const CountryRow = ({ country, cases, deaths, recovered, active }) => (
   </div>
 );
 
+// ─── Country View Banner ──────────────────────────────────────────────────────
 const CountryViewBanner = ({ country, stats, onBack }) => (
   <div style={{ background: 'linear-gradient(135deg, #6c5ce7, #3d2fa0)', borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexShrink: 0 }}>
     <div>
@@ -207,20 +214,21 @@ const CountryViewBanner = ({ country, stats, onBack }) => (
   </div>
 );
 
+// ─── Calendar ─────────────────────────────────────────────────────────────────
 const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
   const base = new Date(currentDateStr);
   const baseValid = isNaN(base) ? new Date(2023, 2, 9) : base;
   const [offset, setOffset] = useState(0);
 
-  const viewDate = new Date(baseValid.getFullYear(), baseValid.getMonth() + offset, 1);
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
+  const viewDate    = new Date(baseValid.getFullYear(), baseValid.getMonth() + offset, 1);
+  const year        = viewDate.getFullYear();
+  const month       = viewDate.getMonth();
   const highlightDay = offset === 0 ? baseValid.getDate() : null;
-  const firstDay = new Date(year, month, 1).getDay();
+  const firstDay    = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const minDate = new Date(2019, 10, 1);
-  const maxDate = new Date(2023, 2, 9);
+  const monthName   = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const minDate     = new Date(2019, 10, 1);
+  const maxDate     = new Date(2023, 2, 9);
 
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -244,7 +252,7 @@ const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
           <div key={i} style={{ fontSize: 9, color: '#aaa', padding: '2px 0', fontWeight: 700 }}>{d}</div>
         ))}
         {cells.map((d, i) => {
-          const oor = isOutOfRange(d);
+          const oor  = isOutOfRange(d);
           const isSel = d === highlightDay;
           return (
             <div key={i}
@@ -261,11 +269,12 @@ const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
   );
 };
 
+// ─── Comparison Table ─────────────────────────────────────────────────────────
 const COMPARISON_COLORS = ['#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#6c5ce7','#a8e063','#fd79a8','#e17055'];
 
 const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
   const [selectedCountries, setSelectedCountries] = useState(['US','France','China','Spain','Brazil','India']);
-  const [search, setSearch]       = useState('');
+  const [search, setSearch]             = useState('');
   const [searchResults, setSearchResults] = useState([]);
 
   const allCountries = useMemo(() => {
@@ -279,17 +288,11 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
     const query = q.toLowerCase().trim();
     setSearchResults(
       allCountries
-        .filter(c =>
-          !selectedCountries.includes(c) &&
-          c.toLowerCase().includes(query)
-        )
+        .filter(c => !selectedCountries.includes(c) && c.toLowerCase().includes(query))
         .sort((a, b) => {
-          const aLow = a.toLowerCase();
-          const bLow = b.toLowerCase();
-          const aExact  = aLow === query;
-          const bExact  = bLow === query;
-          const aStarts = aLow.startsWith(query);
-          const bStarts = bLow.startsWith(query);
+          const aLow = a.toLowerCase(), bLow = b.toLowerCase();
+          const aExact = aLow === query, bExact = bLow === query;
+          const aStarts = aLow.startsWith(query), bStarts = bLow.startsWith(query);
           if (aExact  && !bExact)  return -1;
           if (!aExact && bExact)   return 1;
           if (aStarts && !bStarts) return -1;
@@ -300,19 +303,12 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
     );
   }, [allCountries, selectedCountries]);
 
-  const addCountry = useCallback((c) => {
-    if (selectedCountries.length >= 8) return;
-    setSelectedCountries(p => [...p, c]);
-    setSearch(''); setSearchResults([]);
-  }, [selectedCountries]);
-
-  const removeCountry = useCallback((c) => {
-    setSelectedCountries(p => p.filter(x => x !== c));
-  }, []);
+  const addCountry    = useCallback((c) => { if (selectedCountries.length >= 8) return; setSelectedCountries(p => [...p, c]); setSearch(''); setSearchResults([]); }, [selectedCountries]);
+  const removeCountry = useCallback((c) => setSelectedCountries(p => p.filter(x => x !== c)), []);
 
   const tableData = useMemo(() => {
     if (!preCalculatedIndex?.isReady || selectedCountries.length === 0) return [];
-    const date = selectedPeriod?.dateString || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+    const date   = selectedPeriod?.dateString || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
     const sorted = preCalculatedIndex.sortedIndex[date];
     if (!sorted) return [];
     return selectedCountries.map((country, idx) => {
@@ -350,16 +346,13 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
           </div>
         )}
       </div>
-
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {selectedCountries.map((c, i) => (
           <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, border: `1px solid ${COMPARISON_COLORS[i % COMPARISON_COLORS.length]}`, fontSize: 11, fontWeight: 600, color: COMPARISON_COLORS[i % COMPARISON_COLORS.length] }}>
-            {c}
-            <span onClick={() => removeCountry(c)} style={{ cursor: 'pointer', opacity: 0.7, fontSize: 13, lineHeight: 1 }}>×</span>
+            {c}<span onClick={() => removeCountry(c)} style={{ cursor: 'pointer', opacity: 0.7, fontSize: 13, lineHeight: 1 }}>×</span>
           </div>
         ))}
       </div>
-
       <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #f0f0f0' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
@@ -393,6 +386,7 @@ const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
   );
 };
 
+// ─── Status Pie Chart ─────────────────────────────────────────────────────────
 const StatusPieChart = ({ data, title }) => {
   if (!data) return <div style={{ color: '#999', textAlign: 'center', padding: 24, fontSize: 12 }}>Loading...</div>;
 
@@ -443,6 +437,7 @@ const StatusPieChart = ({ data, title }) => {
   );
 };
 
+// ─── Page principale ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod]           = useState(null);
   const [pieCountry, setPieCountry]                   = useState('USA');
@@ -451,26 +446,55 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm]                   = useState('');
   const [activeTab, setActiveTab]                     = useState('dashboard');
 
-  const globalStats            = useGlobalStats();
-  const fourCountries          = useFourCountriesStats();
+  // disease.sh — uniquement pour le pie chart (population + active live)
+  const globalStats   = useGlobalStats();
+  const fourCountries = useFourCountriesStats();
   const { preCalculatedIndex } = usePreCalculatedData();
-  const pieData                = useCountryForPie(pieCountry, fourCountries.data);
+  const pieData = useCountryForPie(pieCountry, fourCountries.data);
 
   const countryDate = selectedPeriod?.dateString || null;
 
+  // ── KPIs et Global Status : depuis preCalculatedIndex, synchro slider ────────
+  const timelineStats = useMemo(() => {
+    if (!preCalculatedIndex?.isReady) return null;
+    const date   = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+    const totals = preCalculatedIndex.totalsIndex[date];
+    if (!totals) return null;
+
+    const totalCases     = totals.totalCases     || 0;
+    const totalDeaths    = totals.totalDeaths    || 0;
+    const totalRecovered = totals.totalRecovered || 0;
+    // Active = cases - deaths - recovered (JHU ne donne pas active directement)
+    const totalActive = Math.max(0, totalCases - totalDeaths - totalRecovered);
+
+    // Deltas J-1 pour le KPI "Today"
+    const prevDate  = preCalculatedIndex.dates[preCalculatedIndex.dates.indexOf(date) - 1];
+    const prevTotals = prevDate ? preCalculatedIndex.totalsIndex[prevDate] : null;
+    const todayCases = prevTotals ? Math.max(0, totalCases - (prevTotals.totalCases || 0)) : 0;
+
+    return { totalCases, totalDeaths, totalRecovered, totalActive, todayCases };
+  }, [preCalculatedIndex, countryDate]);
+
+  // ── Pourcentages pour les radials ────────────────────────────────────────────
+  const totalForPct = timelineStats?.totalCases || 1;
+  const activePct   = Math.min(100, Math.round(((timelineStats?.totalActive    || 0) / totalForPct) * 100));
+  const recovPct    = Math.min(100, Math.round(((timelineStats?.totalRecovered || 0) / totalForPct) * 100));
+  const deathPct    = Math.min(100, Math.round(((timelineStats?.totalDeaths    || 0) / totalForPct) * 100));
+
+  // ── Cases per country ────────────────────────────────────────────────────────
   const casesPerCountry = useMemo(() => {
-  if (!preCalculatedIndex?.isReady) return [];
-  const date = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
-  const data = preCalculatedIndex.sortedIndex[date]?.casesPerCountry;
-  if (data && data.length > 0) return data;
-  const lastDate = preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
-  const allCountries = preCalculatedIndex.sortedIndex[lastDate]?.casesPerCountry || [];
-  return allCountries.map(c => ({ ...c, total_cases: 0 }));
-}, [preCalculatedIndex, countryDate]);
+    if (!preCalculatedIndex?.isReady) return [];
+    const date = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+    const data = preCalculatedIndex.sortedIndex[date]?.casesPerCountry;
+    if (data && data.length > 0) return data;
+    const lastDate = preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+    const allCountries = preCalculatedIndex.sortedIndex[lastDate]?.casesPerCountry || [];
+    return allCountries.map(c => ({ ...c, total_cases: 0 }));
+  }, [preCalculatedIndex, countryDate]);
 
   const selectedCountryStats = useMemo(() => {
     if (!selectedCountry || !preCalculatedIndex?.isReady) return null;
-    const date = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+    const date   = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
     const sorted = preCalculatedIndex.sortedIndex[date];
     if (!sorted) return null;
     const cases     = sorted.casesPerCountry.find(c => c.country === selectedCountry)?.total_cases || 0;
@@ -495,30 +519,23 @@ export default function DashboardPage() {
   }, [preCalculatedIndex, selectedPeriod, selectedCountry]);
 
   const currentDateStr = selectedPeriod?.displayDate || 'Mar 9, 2023';
-  // dateObj for the NewsFeed — derived from selectedPeriod or default to end date
-  const currentDateObj = selectedPeriod?.dateObj || new Date(2023, 2, 9);
+  const currentDateObj = selectedPeriod?.dateObj     || new Date(2023, 2, 9);
+  const countries      = fourCountries.data || [];
 
-  const g = globalStats.data;
-  const countries = fourCountries.data || [];
-  const totalForPct = g?.cases || 1;
-  const activePct = Math.min(100, Math.round(((g?.active    || 0) / totalForPct) * 100));
-  const recovPct  = Math.min(100, Math.round(((g?.recovered || 0) / totalForPct) * 100));
-  const deathPct  = Math.min(100, Math.round(((g?.deaths    || 0) / totalForPct) * 100));
-
-  const handlePeriodChange      = useCallback(p => setSelectedPeriod(p), []);
-  const handleCountryClick      = useCallback(country => setSelectedCountry(country), []);
-  const handleBackToGlobal      = useCallback(() => setSelectedCountry(null), []);
+  const handlePeriodChange       = useCallback(p => setSelectedPeriod(p), []);
+  const handleCountryClick       = useCallback(country => setSelectedCountry(country), []);
+  const handleBackToGlobal       = useCallback(() => setSelectedCountry(null), []);
 
   const handleCalendarDateSelect = useCallback((dateObj) => {
     if (!preCalculatedIndex?.isReady) return;
     const firstDataDate = new Date(2020, 0, 22);
-    const hasData = dateObj >= firstDataDate;
-    const m = dateObj.getMonth() + 1;
-    const d = dateObj.getDate();
-    const y = dateObj.getFullYear() % 100;
-    const dateString = `${m}/${d}/${y}`;
-    const displayDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const diffDays = Math.round((dateObj - new Date(2019, 10, 1)) / 86400000);
+    const hasData       = dateObj >= firstDataDate;
+    const m             = dateObj.getMonth() + 1;
+    const d             = dateObj.getDate();
+    const y             = dateObj.getFullYear() % 100;
+    const dateString    = `${m}/${d}/${y}`;
+    const displayDate   = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const diffDays      = Math.round((dateObj - new Date(2019, 10, 1)) / 86400000);
     setExternalSliderIndex(Math.max(0, diffDays));
     setSelectedPeriod({ dateString, dateObj, displayDate, hasData });
   }, [preCalculatedIndex]);
@@ -621,21 +638,44 @@ export default function DashboardPage() {
           </div>
 
           <div className="nd-bottom-row">
+            {/* ── Global Status — synchro slider via timelineStats ── */}
             <div className="nd-radials-panel">
-              <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+              <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 700, color: '#fff', fontSize: 13 }}>Global Status</span>
+                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>{currentDateStr}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '18px 12px 14px' }}>
-                <RadialStat label="Affected"  value={g?.active}    color="#a29bfe" pct={activePct} />
-                <RadialStat label="Recovery"  value={g?.recovered} color="#00cec9" pct={recovPct}  />
-                <RadialStat label="Death"     value={g?.deaths}    color="#74b9ff" pct={deathPct}  />
+                <RadialStat label="Affected"  value={timelineStats?.totalActive}    color="#a29bfe" pct={activePct} />
+                <RadialStat label="Recovery"  value={timelineStats?.totalRecovered} color="#00cec9" pct={recovPct}  />
+                <RadialStat label="Death"     value={timelineStats?.totalDeaths}    color="#74b9ff" pct={deathPct}  />
               </div>
             </div>
+
+            {/* ── KPIs — synchro slider via timelineStats ── */}
             <div className="nd-kpi-grid">
-              <KPIBox label="Total Cases"   value={fmtForce(g?.cases)}  color="#e17055" bg="#fff5f2" sub={g?.todayCases ? `+${fmtForce(g.todayCases)} today` : undefined} />
-              <KPIBox label="Today"         value={g?.todayCases ? `+${fmtForce(g.todayCases)}` : '—'} color="#6c5ce7" bg="#f5f3ff" />
-              <KPIBox label="Deaths"        value={fmtForce(g?.deaths)} color="#636e72" bg="#f8f8f8" />
-              <KPIBox label="Recovery Rate" value={g?.cases ? `${((g.recovered / g.cases) * 100).toFixed(2)}%` : '—'} color="#00b894" bg="#f0fff8" />
+              <KPIBox
+                label="Total Cases"
+                value={fmtForce(timelineStats?.totalCases)}
+                color="#e17055" bg="#fff5f2"
+                sub={timelineStats?.todayCases > 0 ? `+${fmtForce(timelineStats.todayCases)} today` : undefined}
+              />
+              <KPIBox
+                label="New Today"
+                value={timelineStats?.todayCases > 0 ? `+${fmtForce(timelineStats.todayCases)}` : '—'}
+                color="#6c5ce7" bg="#f5f3ff"
+              />
+              <KPIBox
+                label="Deaths"
+                value={fmtForce(timelineStats?.totalDeaths)}
+                color="#636e72" bg="#f8f8f8"
+              />
+              <KPIBox
+                label="Recovery Rate"
+                value={timelineStats?.totalCases
+                  ? `${((timelineStats.totalRecovered / timelineStats.totalCases) * 100).toFixed(2)}%`
+                  : '—'}
+                color="#00b894" bg="#f0fff8"
+              />
             </div>
           </div>
         </>)}
@@ -671,8 +711,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="nd-panel nd-news-panel">
-          <div className="nd-panel-title">📰 News Feed · up to {currentDateStr}</div>
-          {/* ↓ ONLY CHANGE: currentDateObj passed so feed syncs with the slider */}
+          <div className="nd-panel-title">📰 News Feed · {currentDateStr}</div>
           <NewsFeed currentDateStr={currentDateStr} dateObj={currentDateObj} />
         </div>
       </aside>
