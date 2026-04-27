@@ -6,6 +6,7 @@ import { useGlobalStats, useFourCountriesStats, useCountryForPie } from '../hook
 import ChartComponent from '../components/ChartComponent';
 import TimelineSlider from '../components/TimelineSlider';
 import CountryList from '../components/CountryList';
+import RegionalHeatmap from '../components/RegionalHeatmap';
 import { usePreCalculatedData } from '../hooks/usePreCalculatedData';
 import './dashboard.css';
 
@@ -19,7 +20,7 @@ const fmtForce = (n) => {
 
 const FLAG = { France: '🇫🇷', USA: '🇺🇸', China: '🇨🇳', Spain: '🇪🇸' };
 
-// ─── Fallback milestones (used when GNews returns nothing) ────────────────────
+// ─── Fallback milestones ──────────────────────────────────────────────────────
 const FALLBACK_MILESTONES = [
   { date: '2019-12-31', title: 'WHO informed of pneumonia cluster of unknown cause in Wuhan, China', source: 'WHO', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/situation-reports' },
   { date: '2020-01-11', title: 'China reports first COVID-19 death', source: 'WHO', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/situation-reports' },
@@ -74,13 +75,11 @@ const NewsFeed = ({ currentDateStr, dateObj }) => {
     if (iso === lastFetchedDate.current) return;
     lastFetchedDate.current = iso;
     setLoading(true);
-
     const center  = new Date(iso);
     const from    = new Date(center); from.setDate(from.getDate() - 7);
     const to      = new Date(center); to.setDate(to.getDate() + 7);
     const fromStr = from.toISOString().split('T')[0];
     const toStr   = to.toISOString().split('T')[0];
-
     try {
       const res  = await fetch(`/api/news?from=${fromStr}&to=${toStr}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -216,19 +215,19 @@ const CountryViewBanner = ({ country, stats, onBack }) => (
 
 // ─── Calendar ─────────────────────────────────────────────────────────────────
 const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
-  const base = new Date(currentDateStr);
+  const base      = new Date(currentDateStr);
   const baseValid = isNaN(base) ? new Date(2023, 2, 9) : base;
   const [offset, setOffset] = useState(0);
 
-  const viewDate    = new Date(baseValid.getFullYear(), baseValid.getMonth() + offset, 1);
-  const year        = viewDate.getFullYear();
-  const month       = viewDate.getMonth();
+  const viewDate     = new Date(baseValid.getFullYear(), baseValid.getMonth() + offset, 1);
+  const year         = viewDate.getFullYear();
+  const month        = viewDate.getMonth();
   const highlightDay = offset === 0 ? baseValid.getDate() : null;
-  const firstDay    = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName   = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const minDate     = new Date(2019, 10, 1);
-  const maxDate     = new Date(2023, 2, 9);
+  const firstDay     = new Date(year, month, 1).getDay();
+  const daysInMonth  = new Date(year, month + 1, 0).getDate();
+  const monthName    = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const minDate      = new Date(2019, 10, 1);
+  const maxDate      = new Date(2023, 2, 9);
 
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -252,7 +251,7 @@ const CalendarWidget = ({ currentDateStr, onDateSelect }) => {
           <div key={i} style={{ fontSize: 9, color: '#aaa', padding: '2px 0', fontWeight: 700 }}>{d}</div>
         ))}
         {cells.map((d, i) => {
-          const oor  = isOutOfRange(d);
+          const oor   = isOutOfRange(d);
           const isSel = d === highlightDay;
           return (
             <div key={i}
@@ -274,7 +273,7 @@ const COMPARISON_COLORS = ['#ff6b6b','#4ecdc4','#45b7d1','#f9ca24','#6c5ce7','#a
 
 const ComparisonTable = ({ preCalculatedIndex, selectedPeriod }) => {
   const [selectedCountries, setSelectedCountries] = useState(['US','France','China','Spain','Brazil','India']);
-  const [search, setSearch]             = useState('');
+  const [search, setSearch]               = useState('');
   const [searchResults, setSearchResults] = useState([]);
 
   const allCountries = useMemo(() => {
@@ -446,48 +445,40 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm]                   = useState('');
   const [activeTab, setActiveTab]                     = useState('dashboard');
 
-  // disease.sh — uniquement pour le pie chart (population + active live)
-  const globalStats   = useGlobalStats();
-  const fourCountries = useFourCountriesStats();
+  const globalStats            = useGlobalStats();
+  const fourCountries          = useFourCountriesStats();
   const { preCalculatedIndex } = usePreCalculatedData();
-  const pieData = useCountryForPie(pieCountry, fourCountries.data);
+  const pieData                = useCountryForPie(pieCountry, fourCountries.data);
 
   const countryDate = selectedPeriod?.dateString || null;
 
-  // ── KPIs et Global Status : depuis preCalculatedIndex, synchro slider ────────
+  // ── KPIs et Global Status : synchro slider ───────────────────────────────────
   const timelineStats = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return null;
     const date   = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
     const totals = preCalculatedIndex.totalsIndex[date];
     if (!totals) return null;
-
     const totalCases     = totals.totalCases     || 0;
     const totalDeaths    = totals.totalDeaths    || 0;
     const totalRecovered = totals.totalRecovered || 0;
-    // Active = cases - deaths - recovered (JHU ne donne pas active directement)
-    const totalActive = Math.max(0, totalCases - totalDeaths - totalRecovered);
-
-    // Deltas J-1 pour le KPI "Today"
-    const prevDate  = preCalculatedIndex.dates[preCalculatedIndex.dates.indexOf(date) - 1];
-    const prevTotals = prevDate ? preCalculatedIndex.totalsIndex[prevDate] : null;
-    const todayCases = prevTotals ? Math.max(0, totalCases - (prevTotals.totalCases || 0)) : 0;
-
+    const totalActive    = Math.max(0, totalCases - totalDeaths - totalRecovered);
+    const prevDate       = preCalculatedIndex.dates[preCalculatedIndex.dates.indexOf(date) - 1];
+    const prevTotals     = prevDate ? preCalculatedIndex.totalsIndex[prevDate] : null;
+    const todayCases     = prevTotals ? Math.max(0, totalCases - (prevTotals.totalCases || 0)) : 0;
     return { totalCases, totalDeaths, totalRecovered, totalActive, todayCases };
   }, [preCalculatedIndex, countryDate]);
 
-  // ── Pourcentages pour les radials ────────────────────────────────────────────
   const totalForPct = timelineStats?.totalCases || 1;
   const activePct   = Math.min(100, Math.round(((timelineStats?.totalActive    || 0) / totalForPct) * 100));
   const recovPct    = Math.min(100, Math.round(((timelineStats?.totalRecovered || 0) / totalForPct) * 100));
   const deathPct    = Math.min(100, Math.round(((timelineStats?.totalDeaths    || 0) / totalForPct) * 100));
 
-  // ── Cases per country ────────────────────────────────────────────────────────
   const casesPerCountry = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return [];
     const date = countryDate || preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
     const data = preCalculatedIndex.sortedIndex[date]?.casesPerCountry;
     if (data && data.length > 0) return data;
-    const lastDate = preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
+    const lastDate     = preCalculatedIndex.dates[preCalculatedIndex.dates.length - 1];
     const allCountries = preCalculatedIndex.sortedIndex[lastDate]?.casesPerCountry || [];
     return allCountries.map(c => ({ ...c, total_cases: 0 }));
   }, [preCalculatedIndex, countryDate]);
@@ -638,7 +629,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="nd-bottom-row">
-            {/* ── Global Status — synchro slider via timelineStats ── */}
             <div className="nd-radials-panel">
               <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 700, color: '#fff', fontSize: 13 }}>Global Status</span>
@@ -651,7 +641,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ── KPIs — synchro slider via timelineStats ── */}
             <div className="nd-kpi-grid">
               <KPIBox
                 label="Total Cases"
@@ -692,6 +681,12 @@ export default function DashboardPage() {
             ))}
           </div>
           <StatusPieChart data={pieData} title={pieCountry} />
+        </div>
+
+        {/* ── Regional Heatmap — nouveau ── */}
+        <div className="nd-panel nd-right-panel">
+          <div className="nd-panel-title">🗺️ Regional Heatmap</div>
+          <RegionalHeatmap />
         </div>
 
         <div className="nd-panel nd-right-panel">
