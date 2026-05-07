@@ -730,10 +730,10 @@ export default function DashboardPage() {
           </div>
           <StatusPieChart data={pieData} title={pieCountry} />
         </div>
-        <div className="nd-panel nd-right-panel">
+        {/* <div className="nd-panel nd-right-panel">
           <div className="nd-panel-title">🗺️ Regional Heatmap</div>
           <RegionalHeatmap />
-        </div>
+        </div> */}
         <div className="nd-panel nd-right-panel">
           <div className="nd-panel-title">📅 Calendar</div>
           <CalendarInline currentDateStr={currentDateStr} onDateSelect={handleCalendarDateSelect} />
