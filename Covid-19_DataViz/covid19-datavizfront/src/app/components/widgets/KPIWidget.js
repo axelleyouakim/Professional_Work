@@ -10,23 +10,27 @@ const fmtForce = (n) => {
   return n.toLocaleString();
 };
 
+// Couleurs vives pour les valeurs, fonds sombres pour les cards
 const METRIC_CONFIG = {
-  cases:         { label: 'Total Cases',    color: '#e17055', bg: '#fff5f2', getValue: s => s?.totalCases,     getSub: s => s?.todayCases > 0 ? `+${fmtForce(s.todayCases)} today` : undefined },
-  deaths:        { label: 'Deaths',         color: '#636e72', bg: '#f8f8f8', getValue: s => s?.totalDeaths,    getSub: () => undefined },
-  recovered:     { label: 'Total Recovered',color: '#00b894', bg: '#f0fff8', getValue: s => s?.totalRecovered, getSub: () => undefined },
-  active:        { label: 'Active Cases',   color: '#6c5ce7', bg: '#f5f3ff', getValue: s => s?.totalActive,    getSub: () => undefined },
-  recovery_rate: { label: 'Recovery Rate',  color: '#00b894', bg: '#f0fff8', isFormatted: true,
+  cases:         { label: 'Total Cases',     color: '#ff6b6b', bg: '#2d1419',
+    getValue: s => s?.totalCases,
+    getSub:   s => s?.todayCases > 0 ? `+${fmtForce(s.todayCases)} today` : undefined },
+  deaths:        { label: 'Deaths',          color: '#94a3b8', bg: '#1e2035',
+    getValue: s => s?.totalDeaths,    getSub: () => undefined },
+  recovered:     { label: 'Total Recovered', color: '#34d399', bg: '#0d2018',
+    getValue: s => s?.totalRecovered, getSub: () => undefined },
+  active:        { label: 'Active Cases',    color: '#818cf8', bg: '#1a1535',
+    getValue: s => s?.totalActive,    getSub: () => undefined },
+  recovery_rate: { label: 'Recovery Rate',   color: '#34d399', bg: '#0d2018',
+    isFormatted: true,
     getValue: s => s?.totalCases ? `${((s.totalRecovered / s.totalCases) * 100).toFixed(2)}%` : '—',
     getSub: () => undefined },
-  today: { label: 'New Today', color: '#6c5ce7', bg: '#f5f3ff', formatPrefix: '+',
+  today: { label: 'New Today', color: '#818cf8', bg: '#1a1535',
+    formatPrefix: '+',
     getValue: s => s?.todayCases > 0 ? s.todayCases : null,
     getSub: () => undefined },
 };
 
-/**
- * KPIWidget — paramétrable
- * Props: metric, country, dateString, label, compact
- */
 const KPIWidget = ({ metric = 'cases', country = null, dateString = null, label = null, compact = false }) => {
   const { preCalculatedIndex } = usePreCalculatedData();
 
@@ -40,7 +44,7 @@ const KPIWidget = ({ metric = 'cases', country = null, dateString = null, label 
       const deaths    = sorted.deathsPerCountry.find(c => c.country === country)?.total_deaths || 0;
       const recovered = sorted.recoveredPerCountry.find(c => c.country === country)?.total_recovered || 0;
       const active    = Math.max(0, cases - deaths - recovered);
-      const prevDate   = preCalculatedIndex.dates[preCalculatedIndex.dates.indexOf(date) - 1];
+      const prevDate  = preCalculatedIndex.dates[preCalculatedIndex.dates.indexOf(date) - 1];
       const prevSorted = prevDate ? preCalculatedIndex.sortedIndex[prevDate] : null;
       const prevCases  = prevSorted?.casesPerCountry.find(c => c.country === country)?.total_cases || 0;
       const todayCases = prevSorted ? Math.max(0, cases - prevCases) : 0;
@@ -61,23 +65,35 @@ const KPIWidget = ({ metric = 'cases', country = null, dateString = null, label 
 
   const config = METRIC_CONFIG[metric] || METRIC_CONFIG.cases;
   const displayLabel = label || (country ? `${country} — ${config.label}` : config.label);
-  const rawValue = config.getValue(stats);
-  const displayValue = config.isFormatted ? (rawValue ?? '—') : rawValue != null ? `${config.formatPrefix || ''}${fmtForce(rawValue)}` : '—';
+  const rawValue     = config.getValue(stats);
+  const displayValue = config.isFormatted
+    ? (rawValue ?? '—')
+    : rawValue != null ? `${config.formatPrefix || ''}${fmtForce(rawValue)}` : '—';
   const sub = config.getSub(stats);
 
   if (!preCalculatedIndex?.isReady) return (
-    <div style={{ background: '#f8f8f8', borderRadius: 14, padding: '16px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+    <div style={{ background: '#1e2035', borderRadius: 14, padding: '16px 18px' }}>
       <style>{`@keyframes nd-pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
-      <div style={{ width: 60, height: 20, background: '#e0e0e0', borderRadius: 4, animation: 'nd-pulse 1.2s ease infinite' }} />
+      <div style={{ width: 60, height: 20, background: '#2d3748', borderRadius: 4, animation: 'nd-pulse 1.2s ease infinite' }} />
     </div>
   );
 
   return (
-    <div style={{ background: config.bg, borderRadius: compact ? 10 : 14, padding: compact ? '10px 12px' : '16px 18px', display: 'flex', flexDirection: 'column', gap: 5, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', height: '100%', boxSizing: 'border-box', minWidth: 0 }}>
-      <span style={{ fontSize: compact ? 18 : 22, fontWeight: 800, color: config.color, fontFamily: 'monospace', lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayValue}</span>
-      <span style={{ fontSize: compact ? 10 : 12, color: '#555', fontWeight: 600, lineHeight: 1.3 }}>{displayLabel}</span>
-      {sub && <span style={{ fontSize: 10, color: '#00b894', fontWeight: 500 }}>{sub}</span>}
-      {country && <span style={{ fontSize: 9, color: '#aaa', marginTop: 2 }}>🌍 {country}</span>}
+    <div style={{
+      background: config.bg,
+      borderRadius: compact ? 10 : 14,
+      padding: compact ? '10px 12px' : '16px 18px',
+      display: 'flex', flexDirection: 'column', gap: 5,
+      height: '100%', boxSizing: 'border-box', minWidth: 0,
+    }}>
+      <span style={{
+        fontSize: compact ? 18 : 22, fontWeight: 800,
+        color: config.color, fontFamily: 'monospace',
+        lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>{displayValue}</span>
+      <span style={{ fontSize: compact ? 10 : 12, color: '#94a3b8', fontWeight: 600, lineHeight: 1.3 }}>{displayLabel}</span>
+      {sub && <span style={{ fontSize: 10, color: '#34d399', fontWeight: 500 }}>{sub}</span>}
+      {country && <span style={{ fontSize: 9, color: '#4b5563', marginTop: 2 }}>🌍 {country}</span>}
     </div>
   );
 };

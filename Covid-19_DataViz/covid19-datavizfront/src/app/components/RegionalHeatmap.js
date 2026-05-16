@@ -10,13 +10,33 @@ const fmtNum = (n) => {
   return n.toLocaleString();
 };
 
+// Palette sombre et désaturée — du bleu-gris profond vers le bordeaux
+// Pas de rouge/orange vif, tout reste dans les tons foncés du dark theme
 const heatColor = (intensity) => {
   const i = Math.max(0, Math.min(1, intensity));
-  if (i < 0.5) {
-    const t = i * 2;
-    return `rgb(255,${Math.round(255 - t * (255 - 140))},${Math.round(255 - t * 255)})`;
+  if (i === 0) return '#1e2640';  // fond widget = "aucune donnée"
+  if (i < 0.33) {
+    // Bleu-gris foncé → ambre foncé
+    const t = i / 0.33;
+    const r = Math.round(38  + t * 100);
+    const g = Math.round(52  + t * 38);
+    const b = Math.round(80  - t * 60);
+    return `rgb(${r},${g},${b})`;
   }
-  return `rgb(255,${Math.round(140 - (i - 0.5) * 2 * 140)},0)`;
+  if (i < 0.66) {
+    // Ambre foncé → rouille
+    const t = (i - 0.33) / 0.33;
+    const r = Math.round(138 + t * 42);
+    const g = Math.round(90  - t * 42);
+    const b = Math.round(20  - t * 10);
+    return `rgb(${r},${g},${b})`;
+  }
+  // Rouille → bordeaux
+  const t = (i - 0.66) / 0.34;
+  const r = Math.round(180 - t * 30);
+  const g = Math.round(48  - t * 28);
+  const b = Math.round(10  + t * 20);
+  return `rgb(${r},${g},${b})`;
 };
 
 const STATE_ABBR = {
@@ -68,8 +88,16 @@ const TileHeatmap = ({ items, isLoading, metric = 'cases' }) => {
   const [tooltip, setTooltip] = useState(null);
   const maxVal = useMemo(() => Math.max(...items.map(i => i[metric] || 0), 1), [items, metric]);
 
-  if (isLoading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:140, color:'#999', fontSize:12 }}>Loading regional data...</div>;
-  if (!items || items.length === 0) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:100, color:'#bbb', fontSize:12 }}>No regional data available</div>;
+  if (isLoading) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:140, color:'#4b5563', fontSize:12 }}>
+      Loading regional data...
+    </div>
+  );
+  if (!items || items.length === 0) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:100, color:'#374151', fontSize:12 }}>
+      No regional data available
+    </div>
+  );
 
   const maxRow = Math.max(...items.map(i => i.row), 0);
   const maxCol = Math.max(...items.map(i => i.col), 0);
@@ -81,32 +109,60 @@ const TileHeatmap = ({ items, isLoading, metric = 'cases' }) => {
         {items.map((item) => {
           const intensity = (item[metric] || 0) / maxVal;
           const bg = heatColor(intensity);
-          const textColor = intensity > 0.45 ? '#fff' : '#333';
+          // Texte toujours clair sur fond sombre
+          const textColor = intensity > 0.2 ? '#e2e8f0' : '#94a3b8';
           const isHovered = tooltip?.key === item.key;
           return (
             <div key={item.key}
               onMouseEnter={() => setTooltip(item)}
               onMouseLeave={() => setTooltip(null)}
-              style={{ position:'absolute', left:item.col*(CELL+GAP), top:item.row*(CELL+GAP), width:CELL, height:CELL, background:bg, borderRadius:6, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:isHovered?'0 0 0 2px #6c5ce7':'0 1px 3px rgba(0,0,0,0.12)', transform:isHovered?'scale(1.1)':'scale(1)', transition:'transform 0.1s, box-shadow 0.1s', zIndex:isHovered?10:1 }}
+              style={{
+                position:'absolute',
+                left: item.col*(CELL+GAP),
+                top:  item.row*(CELL+GAP),
+                width: CELL, height: CELL,
+                background: bg,
+                borderRadius: 6,
+                display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                cursor:'pointer',
+                border: isHovered ? '1px solid rgba(108,92,231,0.8)' : '1px solid rgba(255,255,255,0.06)',
+                transform: isHovered ? 'scale(1.12)' : 'scale(1)',
+                transition: 'transform 0.1s, border 0.1s',
+                zIndex: isHovered ? 10 : 1,
+              }}
             >
               <span style={{ fontSize:9, fontWeight:800, color:textColor, lineHeight:1 }}>{item.abbr}</span>
-              <span style={{ fontSize:7, color:textColor, opacity:0.9, lineHeight:1.3, textAlign:'center', padding:'0 2px' }}>{fmtNum(item[metric])}</span>
+              <span style={{ fontSize:7, color:textColor, opacity:0.8, lineHeight:1.3, textAlign:'center', padding:'0 2px' }}>
+                {fmtNum(item[metric])}
+              </span>
             </div>
           );
         })}
       </div>
+
+      {/* Tooltip */}
       {tooltip && (
-        <div style={{ position:'absolute', top:0, right:0, background:'#fff', border:'1px solid #e0e0ff', borderRadius:10, padding:'10px 14px', boxShadow:'0 4px 16px rgba(108,92,231,0.15)', zIndex:20, minWidth:160, pointerEvents:'none' }}>
-          <div style={{ fontWeight:700, color:'#333', fontSize:13, marginBottom:6 }}>{tooltip.label}</div>
-          <div style={{ fontSize:11, color:'#e17055' }}>Cases: <strong>{fmtNum(tooltip.cases)}</strong></div>
-          <div style={{ fontSize:11, color:'#636e72' }}>Deaths: <strong>{fmtNum(tooltip.deaths)}</strong></div>
-          {tooltip.active != null && <div style={{ fontSize:11, color:'#6c5ce7' }}>Active: <strong>{fmtNum(tooltip.active)}</strong></div>}
+        <div style={{
+          position:'absolute', top:0, right:0,
+          background:'#1e2640', border:'1px solid #4a5568',
+          borderRadius:10, padding:'10px 14px',
+          boxShadow:'0 4px 16px rgba(0,0,0,0.5)',
+          zIndex:20, minWidth:160, pointerEvents:'none',
+        }}>
+          <div style={{ fontWeight:700, color:'#e2e8f0', fontSize:13, marginBottom:6 }}>{tooltip.label}</div>
+          <div style={{ fontSize:11, color:'#ff6b6b' }}>Cases: <strong>{fmtNum(tooltip.cases)}</strong></div>
+          <div style={{ fontSize:11, color:'#94a3b8' }}>Deaths: <strong>{fmtNum(tooltip.deaths)}</strong></div>
+          {tooltip.active != null && (
+            <div style={{ fontSize:11, color:'#818cf8' }}>Active: <strong>{fmtNum(tooltip.active)}</strong></div>
+          )}
         </div>
       )}
+
+      {/* Légende */}
       <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:10, justifyContent:'center' }}>
-        <span style={{ fontSize:9, color:'#aaa' }}>Low</span>
-        <div style={{ width:80, height:8, borderRadius:4, background:'linear-gradient(to right,#fff0e0,#ff8c00,#ff0000)', border:'1px solid #eee' }} />
-        <span style={{ fontSize:9, color:'#aaa' }}>High</span>
+        <span style={{ fontSize:9, color:'#4b5563' }}>Low</span>
+        <div style={{ width:80, height:8, borderRadius:4, background:'linear-gradient(to right,#263052,#8a4800,#b02010)', border:'1px solid #2d3748' }} />
+        <span style={{ fontSize:9, color:'#4b5563' }}>High</span>
       </div>
     </div>
   );
@@ -125,11 +181,17 @@ const USAHeatmap = () => {
       return { key:abbr, abbr, label:s.state, cases:s.cases||0, deaths:s.deaths||0, active:s.active||0, row:pos[0], col:pos[1] };
     }).filter(Boolean);
   }, [data]);
+
   return (
     <div>
       <div style={{ display:'flex', gap:4, marginBottom:8, justifyContent:'flex-end' }}>
         {['cases','deaths','active'].map(m => (
-          <button key={m} onClick={() => setMetric(m)} style={{ padding:'3px 8px', borderRadius:5, fontSize:10, fontWeight:600, cursor:'pointer', border:`1px solid ${metric===m?'#6c5ce7':'#eee'}`, background:metric===m?'#6c5ce7':'#f8f8f8', color:metric===m?'#fff':'#666' }}>{m}</button>
+          <button key={m} onClick={() => setMetric(m)} style={{
+            padding:'3px 8px', borderRadius:5, fontSize:10, fontWeight:600, cursor:'pointer',
+            border:`1px solid ${metric===m?'#6c5ce7':'#2d3748'}`,
+            background: metric===m?'#6c5ce7':'#1e2035',
+            color: metric===m?'#fff':'#94a3b8',
+          }}>{m}</button>
         ))}
       </div>
       <TileHeatmap items={items} isLoading={isLoading} metric={metric} />
@@ -150,30 +212,40 @@ const FranceHeatmap = () => {
       return { key, abbr:regInfo.abbr, label:regInfo.label, cases:typeof r.cases==='number'?r.cases:0, deaths:typeof r.deaths==='number'?r.deaths:0, row:regInfo.row, col:regInfo.col };
     }).filter(Boolean);
   }, [data]);
+
   return (
     <div>
       <div style={{ display:'flex', gap:4, marginBottom:8, justifyContent:'flex-end' }}>
         {['cases','deaths'].map(m => (
-          <button key={m} onClick={() => setMetric(m)} style={{ padding:'3px 8px', borderRadius:5, fontSize:10, fontWeight:600, cursor:'pointer', border:`1px solid ${metric===m?'#6c5ce7':'#eee'}`, background:metric===m?'#6c5ce7':'#f8f8f8', color:metric===m?'#fff':'#666' }}>{m}</button>
+          <button key={m} onClick={() => setMetric(m)} style={{
+            padding:'3px 8px', borderRadius:5, fontSize:10, fontWeight:600, cursor:'pointer',
+            border:`1px solid ${metric===m?'#6c5ce7':'#2d3748'}`,
+            background: metric===m?'#6c5ce7':'#1e2035',
+            color: metric===m?'#fff':'#94a3b8',
+          }}>{m}</button>
         ))}
       </div>
-      <div style={{ fontSize:9, color:'#aaa', marginBottom:6, fontStyle:'italic', textAlign:'right' }}>Source: Santé Publique France · données cumulatives</div>
+      <div style={{ fontSize:9, color:'#374151', marginBottom:6, fontStyle:'italic', textAlign:'right' }}>
+        Source: Santé Publique France · données cumulatives
+      </div>
       <TileHeatmap items={items} isLoading={isLoading} metric={metric} />
     </div>
   );
 };
 
-/**
- * RegionalHeatmap
- * Props: defaultCountry — 'USA' | 'France' (default: 'USA')
- */
 const RegionalHeatmap = ({ defaultCountry = 'USA' }) => {
   const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
   return (
     <div style={{ padding:'8px 12px 12px' }}>
       <div style={{ display:'flex', gap:6, marginBottom:12 }}>
         {[['USA','🇺🇸'],['France','🇫🇷']].map(([c, flag]) => (
-          <button key={c} onClick={() => setSelectedCountry(c)} style={{ padding:'4px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', border:`1px solid ${selectedCountry===c?'#6c5ce7':'#e0e0ff'}`, background:selectedCountry===c?'#6c5ce7':'#fff', color:selectedCountry===c?'#fff':'#555', transition:'all 0.15s' }}>
+          <button key={c} onClick={() => setSelectedCountry(c)} style={{
+            padding:'4px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+            border:`1px solid ${selectedCountry===c?'#6c5ce7':'#2d3748'}`,
+            background: selectedCountry===c?'#6c5ce7':'#1e2035',
+            color: selectedCountry===c?'#fff':'#94a3b8',
+            transition:'all 0.15s',
+          }}>
             {flag} {c}
           </button>
         ))}
