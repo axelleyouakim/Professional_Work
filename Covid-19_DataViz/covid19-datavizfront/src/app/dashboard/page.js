@@ -81,12 +81,10 @@ const WidgetOverlay = ({ widgetId, onClose, dateString, dateObj, currentDateStr,
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200, backdropFilter: 'blur(2px)' }}
       />
-      {/* Panel */}
       <div style={{
         position: 'fixed', top: 0, left: 64, bottom: 0,
         width: 440, background: '#fff',
@@ -96,13 +94,11 @@ const WidgetOverlay = ({ widgetId, onClose, dateString, dateObj, currentDateStr,
         overflow: 'hidden',
         animation: 'nd-slide-in 0.2s ease',
       }}>
-        {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: '#fafafa' }}>
           <span style={{ fontWeight: 700, fontSize: 14, color: '#333' }}>{titles[widgetId]}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#aaa', lineHeight: 1, padding: 0 }}>×</button>
         </div>
 
-        {/* Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
           {widgetId === 'kpi' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -463,7 +459,7 @@ export default function DashboardPage() {
   const [selectedCountry, setSelectedCountry]         = useState(null);
   const [searchTerm, setSearchTerm]                   = useState('');
   const [activeTab, setActiveTab]                     = useState('dashboard');
-  const [activeWidget, setActiveWidget]               = useState(null); // ← overlay widget
+  const [activeWidget, setActiveWidget]               = useState(null);
 
   const globalStats            = useGlobalStats();
   const fourCountries          = useFourCountriesStats();
@@ -556,7 +552,6 @@ export default function DashboardPage() {
   return (
     <div className="nd-page">
 
-      {/* ── Overlay widget panel ─────────────────────────────────────────── */}
       <WidgetOverlay
         widgetId={activeWidget}
         onClose={handleWidgetClose}
@@ -573,7 +568,7 @@ export default function DashboardPage() {
           <span>Covid-19</span>
         </div>
 
-        {/* Navigation existante */}
+        {/* Navigation pages */}
         <nav className="nd-nav">
           <a href="/"          className="nd-nav-item" title="Global Map">🗺</a>
           <a href="/dashboard" className="nd-nav-item nd-nav-active" title="Dashboard">📊</a>
@@ -581,10 +576,9 @@ export default function DashboardPage() {
           <a href="/table"     className="nd-nav-item" title="Table">📋</a>
         </nav>
 
-        {/* Séparateur */}
         <div style={{ width: '80%', height: 1, background: 'rgba(255,255,255,0.15)', margin: '4px auto' }} />
 
-        {/* Widgets cliquables */}
+        {/* Widget buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', flex: 1 }}>
           {SIDEBAR_WIDGETS.map(w => (
             <button
@@ -605,7 +599,6 @@ export default function DashboardPage() {
               onMouseLeave={e => { if (activeWidget !== w.id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; } }}
             >
               {w.icon}
-              {/* Point actif */}
               {activeWidget === w.id && (
                 <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 4, height: 4, borderRadius: '50%', background: '#fff' }} />
               )}
@@ -613,12 +606,32 @@ export default function DashboardPage() {
           ))}
         </div>
 
+        {/* ── Bento Dashboard link — bien visible ─────────────────────────── */}
+        <div style={{ padding: '8px 6px' }}>
+          <a
+            href="/dashboard/bento"
+            title="Composable Bento Dashboard"
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              padding: '8px 6px', borderRadius: 10, textDecoration: 'none',
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.24)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+          >
+            <span style={{ fontSize: 18 }}>🧩</span>
+            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.75)', fontWeight: 700, letterSpacing: '0.05em' }}>BENTO</span>
+          </a>
+        </div>
+
         <div className="nd-nav-bottom">
           <a href="/" className="nd-nav-item" title="Back to main">🔙</a>
         </div>
       </aside>
 
-      {/* ── Le reste du dashboard — IDENTIQUE à avant ────────────────────── */}
+      {/* ── Country panel ────────────────────────────────────────────────── */}
       <aside className="nd-country-panel">
         <div style={{ padding: '12px 10px 8px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#333', marginBottom: 8 }}>Confirmed Cases by Country</div>
@@ -730,10 +743,6 @@ export default function DashboardPage() {
           </div>
           <StatusPieChart data={pieData} title={pieCountry} />
         </div>
-        {/* <div className="nd-panel nd-right-panel">
-          <div className="nd-panel-title">🗺️ Regional Heatmap</div>
-          <RegionalHeatmap />
-        </div> */}
         <div className="nd-panel nd-right-panel">
           <div className="nd-panel-title">📅 Calendar</div>
           <CalendarInline currentDateStr={currentDateStr} onDateSelect={handleCalendarDateSelect} />
