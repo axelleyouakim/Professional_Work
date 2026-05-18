@@ -2,10 +2,6 @@
 
 import React, { useState } from 'react';
 
-/**
- * CalendarWidget — paramétrable
- * Props: currentDateStr (string), onDateSelect (fn)
- */
 const CalendarWidget = ({ currentDateStr = 'Mar 9, 2023', onDateSelect }) => {
   const base      = new Date(currentDateStr);
   const baseValid = isNaN(base) ? new Date(2023, 2, 9) : base;
@@ -33,29 +29,51 @@ const CalendarWidget = ({ currentDateStr = 'Mar 9, 2023', onDateSelect }) => {
 
   return (
     <div style={{ padding: '10px 14px' }}>
+      {/* Navigation mois */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <button onClick={() => setOffset(o => o - 1)} style={{ background: 'none', border: '1px solid #e0e0ff', borderRadius: 6, cursor: 'pointer', fontSize: 16, color: '#6c5ce7', padding: '2px 8px', lineHeight: 1 }}>‹</button>
-        <span style={{ fontWeight: 700, color: '#333', fontSize: 12 }}>{monthName}</span>
-        <button onClick={() => setOffset(o => o + 1)} style={{ background: 'none', border: '1px solid #e0e0ff', borderRadius: 6, cursor: 'pointer', fontSize: 16, color: '#6c5ce7', padding: '2px 8px', lineHeight: 1 }}>›</button>
+        <button
+          onClick={() => setOffset(o => o - 1)}
+          style={{ background: '#1e2640', border: '1px solid #4a5568', borderRadius: 6, cursor: 'pointer', fontSize: 16, color: '#a78bfa', padding: '2px 8px', lineHeight: 1 }}
+        >‹</button>
+        <span style={{ fontWeight: 700, color: '#e2e8f0', fontSize: 12 }}>{monthName}</span>
+        <button
+          onClick={() => setOffset(o => o + 1)}
+          style={{ background: '#1e2640', border: '1px solid #4a5568', borderRadius: 6, cursor: 'pointer', fontSize: 16, color: '#a78bfa', padding: '2px 8px', lineHeight: 1 }}
+        >›</button>
       </div>
+
+      {/* Grille */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, textAlign: 'center' }}>
+        {/* En-têtes jours */}
         {['Mo','Tu','We','Th','Fr','Sa','Su'].map((d, i) => (
-          <div key={i} style={{ fontSize: 9, color: '#aaa', padding: '2px 0', fontWeight: 700 }}>{d}</div>
+          <div key={i} style={{ fontSize: 9, color: '#4b5563', padding: '2px 0', fontWeight: 700 }}>{d}</div>
         ))}
+
+        {/* Jours */}
         {cells.map((d, i) => {
           const oor   = isOutOfRange(d);
           const isSel = d === highlightDay;
           return (
             <div key={i}
               onClick={() => { if (d && !oor && onDateSelect) onDateSelect(new Date(year, month, d)); }}
-              style={{ fontSize: 11, padding: '4px 2px', borderRadius: 5, color: isSel ? '#fff' : oor ? '#ddd' : '#333', background: isSel ? '#6c5ce7' : 'transparent', fontWeight: isSel ? 700 : 400, cursor: d && !oor ? 'pointer' : 'default', transition: 'background 0.1s' }}
-              onMouseEnter={e => { if (d && !oor && !isSel) e.currentTarget.style.background = '#f0eeff'; }}
+              style={{
+                fontSize: 11, padding: '4px 2px', borderRadius: 5,
+                color:      isSel ? '#fff' : oor ? '#2d3748' : '#cbd5e0',
+                background: isSel ? '#6c5ce7' : 'transparent',
+                fontWeight: isSel ? 700 : 400,
+                cursor: d && !oor ? 'pointer' : 'default',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => { if (d && !oor && !isSel) e.currentTarget.style.background = 'rgba(108,92,231,0.2)'; }}
               onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}
             >{d || ''}</div>
           );
         })}
       </div>
-      <div style={{ fontSize: 9, color: '#aaa', textAlign: 'center', marginTop: 6 }}>Nov 2019 – Mar 2023</div>
+
+      <div style={{ fontSize: 9, color: '#374151', textAlign: 'center', marginTop: 6 }}>
+        Nov 2019 – Mar 2023
+      </div>
     </div>
   );
 };
