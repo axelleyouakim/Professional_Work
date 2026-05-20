@@ -10,13 +10,10 @@ const fmtNum = (n) => {
   return n.toLocaleString();
 };
 
-// Palette sombre et désaturée — du bleu-gris profond vers le bordeaux
-// Pas de rouge/orange vif, tout reste dans les tons foncés du dark theme
 const heatColor = (intensity) => {
   const i = Math.max(0, Math.min(1, intensity));
-  if (i === 0) return '#1e2640';  // fond widget = "aucune donnée"
+  if (i === 0) return '#1e2640';
   if (i < 0.33) {
-    // Bleu-gris foncé → ambre foncé
     const t = i / 0.33;
     const r = Math.round(38  + t * 100);
     const g = Math.round(52  + t * 38);
@@ -24,14 +21,12 @@ const heatColor = (intensity) => {
     return `rgb(${r},${g},${b})`;
   }
   if (i < 0.66) {
-    // Ambre foncé → rouille
     const t = (i - 0.33) / 0.33;
     const r = Math.round(138 + t * 42);
     const g = Math.round(90  - t * 42);
     const b = Math.round(20  - t * 10);
     return `rgb(${r},${g},${b})`;
   }
-  // Rouille → bordeaux
   const t = (i - 0.66) / 0.34;
   const r = Math.round(180 - t * 30);
   const g = Math.round(48  - t * 28);
@@ -109,7 +104,6 @@ const TileHeatmap = ({ items, isLoading, metric = 'cases' }) => {
         {items.map((item) => {
           const intensity = (item[metric] || 0) / maxVal;
           const bg = heatColor(intensity);
-          // Texte toujours clair sur fond sombre
           const textColor = intensity > 0.2 ? '#e2e8f0' : '#94a3b8';
           const isHovered = tooltip?.key === item.key;
           return (
@@ -140,7 +134,6 @@ const TileHeatmap = ({ items, isLoading, metric = 'cases' }) => {
         })}
       </div>
 
-      {/* Tooltip */}
       {tooltip && (
         <div style={{
           position:'absolute', top:0, right:0,
@@ -158,7 +151,6 @@ const TileHeatmap = ({ items, isLoading, metric = 'cases' }) => {
         </div>
       )}
 
-      {/* Légende */}
       <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:10, justifyContent:'center' }}>
         <span style={{ fontSize:9, color:'#4b5563' }}>Low</span>
         <div style={{ width:80, height:8, borderRadius:4, background:'linear-gradient(to right,#263052,#8a4800,#b02010)', border:'1px solid #2d3748' }} />

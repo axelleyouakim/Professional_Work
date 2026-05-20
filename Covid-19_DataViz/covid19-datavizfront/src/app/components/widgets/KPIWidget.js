@@ -10,7 +10,6 @@ const fmtForce = (n) => {
   return n.toLocaleString();
 };
 
-// Couleurs vives pour les valeurs, fonds sombres pour les cards
 const METRIC_CONFIG = {
   cases:         { label: 'Total Cases',     color: '#ff6b6b', bg: '#2d1419',
     getValue: s => s?.totalCases,

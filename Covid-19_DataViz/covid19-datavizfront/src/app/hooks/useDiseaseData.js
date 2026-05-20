@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 
 const BASE = 'https://disease.sh/v3/covid-19';
 
-// ── Global stats (pour le pie chart) ──────────────────────────────────────────
 export const useGlobalStats = () =>
   useQuery({
     queryKey: ['disease', 'global'],
@@ -17,7 +16,6 @@ export const useGlobalStats = () =>
     retry: 2,
   });
 
-// ── 4 pays (France, USA, Chine, Espagne) ──────────────────────────────────────
 export const useFourCountriesStats = () =>
   useQuery({
     queryKey: ['disease', 'four-countries'],
@@ -31,7 +29,6 @@ export const useFourCountriesStats = () =>
     retry: 2,
   });
 
-// ── Helper pie ────────────────────────────────────────────────────────────────
 export const useCountryForPie = (countryName, fourCountriesData) => {
   if (!fourCountriesData || !countryName) return null;
   return fourCountriesData.find(c =>
@@ -40,7 +37,6 @@ export const useCountryForPie = (countryName, fourCountriesData) => {
   ) || null;
 };
 
-// ── USA : données par état (50 états) ─────────────────────────────────────────
 export const useUSAStates = () =>
   useQuery({
     queryKey: ['disease', 'usa-states'],
@@ -85,6 +81,6 @@ export const useFranceRegions = () =>
         { province: 'mayotte',                   cases: 48_000,    deaths: 220    },
       ];
     },
-    staleTime: Infinity, // données statiques, pas besoin de re-fetch
+    staleTime: Infinity,
     retry: 0,
   });

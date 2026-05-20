@@ -18,17 +18,8 @@ import './bento.css';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 const COLS = 12;
 
-// ─── rowHeight = 70px
-// Hauteurs complémentaires — garantit ZÉRO GAP vertical :
-//
-//   KPI  (h:2) = 140px  ┐
-//   Pie  (h:3) = 210px  ┘ = h:5 = Chart / Heatmap / News
-//
-//   → 2 widgets empilés à gauche = 1 grand widget à droite → ligne parfaite
-//
 const ROW_HEIGHT = 70;
 
-// ─── Bin-packing : première case libre pour un widget w×h ─────────────────────
 const findNextPosition = (layout, newW, newH, cols = COLS) => {
   if (!layout.length) return { x: 0, y: 0, w: newW };
   const maxY = Math.max(...layout.map(i => i.y + i.h), 0);
@@ -45,34 +36,19 @@ const findNextPosition = (layout, newW, newH, cols = COLS) => {
         if (run === 0) startX = c;
         run++;
         if (run >= newW) {
-          // Compte les cols libres totales depuis startX
           let freeTotal = 0;
           for (let fc = startX; fc < cols; fc++) {
             if (!blocked.has(fc)) freeTotal++;
             else break;
           }
-          // Remplit toujours toute la place disponible
           return { x: startX, y: row, w: freeTotal };
         }
       } else { run = 0; }
     }
   }
-  // Aucune place → nouvelle ligne, pleine largeur
   return { x: 0, y: maxY, w: cols };
 };
 
-// ─── Catalogue ────────────────────────────────────────────────────────────────
-//
-//  Règle anti-gap — toutes les hauteurs sont des multiples de l'unité de base :
-//
-//    h:2 (KPI)  +  h:3 (Pie / Calendar)  =  h:5 (Chart / Heatmap / News)
-//
-//  Exemples de rangées parfaites :
-//    KPI(3,2) + Chart(9,5)          → puis Pie(3,3) sous KPI → zéro gap
-//    Heatmap(6,5) + News(6,5)       → ligne parfaite
-//    KPI×4 (3,2) = 12 cols          → ligne parfaite
-//    Timeline(12,3) / Comp(12,6)    → pleine largeur
-//
 const CATALOGUE = [
   {
     type: 'kpi', icon: '📊', label: 'KPI',
@@ -86,7 +62,7 @@ const CATALOGUE = [
   {
     type: 'chart', icon: '📈', label: 'Chart',
     desc: 'Cases timeline over time',
-    defaultW: 9, defaultH: 5,   // h:5 = KPI(2) + Pie(3)
+    defaultW: 9, defaultH: 5,
     params: [
       { key: 'country', label: 'Country', type: 'select', options: ['(Global)','France','US','China','Spain','Brazil','India','Italy','Germany','United Kingdom'], default: '(Global)' },
     ],
@@ -94,7 +70,7 @@ const CATALOGUE = [
   {
     type: 'pie', icon: '🥧', label: 'Pie Chart',
     desc: 'Dead · Healed · Infected · Healthy',
-    defaultW: 3, defaultH: 3,   // h:3 — empilé sous KPI(h:2) = h:5 = Chart
+    defaultW: 3, defaultH: 3,
     params: [
       { key: 'country', label: 'Country', type: 'select', options: ['USA','France','China','Spain'], default: 'USA' },
     ],
@@ -102,7 +78,7 @@ const CATALOGUE = [
   {
     type: 'heatmap', icon: '🗺️', label: 'Heatmap',
     desc: 'Regional heatmap — USA or France',
-    defaultW: 6, defaultH: 5,   // h:5 — paire avec News(h:5)
+    defaultW: 6, defaultH: 5,
     params: [
       { key: 'country', label: 'Country', type: 'select', options: ['USA','France'], default: 'USA' },
     ],
@@ -110,7 +86,7 @@ const CATALOGUE = [
   {
     type: 'news', icon: '📰', label: 'News Feed',
     desc: 'COVID news synced with timeline',
-    defaultW: 6, defaultH: 5,   // h:5 — paire avec Heatmap(h:5)
+    defaultW: 6, defaultH: 5,
     params: [
       { key: 'country', label: 'Country', type: 'select', options: ['(Global)','France','US'], default: '(Global)' },
     ],
@@ -118,7 +94,7 @@ const CATALOGUE = [
   {
     type: 'calendar', icon: '📅', label: 'Calendar',
     desc: 'Date picker — filters all widgets',
-    defaultW: 3, defaultH: 3,   // h:3 — même que Pie
+    defaultW: 3, defaultH: 3,
     params: [],
   },
   {
@@ -138,7 +114,6 @@ const CATALOGUE = [
   },
 ];
 
-// ─── Render contenu widget ────────────────────────────────────────────────────
 const renderWidgetContent = (
   type, params, dateString, dateObj, currentDateStr,
   onDateSelect, onPeriodChange, externalSliderIndex,
@@ -175,7 +150,6 @@ const renderWidgetContent = (
   }
 };
 
-// ─── Param Editor ─────────────────────────────────────────────────────────────
 const ParamEditor = ({ catalogItem, params, onChange, onClose }) => (
   <div
     onMouseDown={e => e.stopPropagation()}
@@ -218,7 +192,6 @@ const ParamEditor = ({ catalogItem, params, onChange, onClose }) => (
   </div>
 );
 
-// ─── Widget Card ──────────────────────────────────────────────────────────────
 const WidgetCard = ({
   widget, catalogItem,
   dateString, dateObj, currentDateStr,
@@ -256,7 +229,6 @@ const WidgetCard = ({
   );
 };
 
-// ─── Page principale ──────────────────────────────────────────────────────────
 export default function BentoPage() {
   const [selectedPeriod, setSelectedPeriod]           = useState(null);
   const [externalSliderIndex, setExternalSliderIndex] = useState(null);

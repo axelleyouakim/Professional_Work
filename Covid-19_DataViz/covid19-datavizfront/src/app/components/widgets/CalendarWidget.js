@@ -29,7 +29,6 @@ const CalendarWidget = ({ currentDateStr = 'Mar 9, 2023', onDateSelect }) => {
 
   return (
     <div style={{ padding: '10px 14px' }}>
-      {/* Navigation mois */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <button
           onClick={() => setOffset(o => o - 1)}
@@ -42,14 +41,11 @@ const CalendarWidget = ({ currentDateStr = 'Mar 9, 2023', onDateSelect }) => {
         >›</button>
       </div>
 
-      {/* Grille */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, textAlign: 'center' }}>
-        {/* En-têtes jours */}
         {['Mo','Tu','We','Th','Fr','Sa','Su'].map((d, i) => (
           <div key={i} style={{ fontSize: 9, color: '#4b5563', padding: '2px 0', fontWeight: 700 }}>{d}</div>
         ))}
 
-        {/* Jours */}
         {cells.map((d, i) => {
           const oor   = isOutOfRange(d);
           const isSel = d === highlightDay;

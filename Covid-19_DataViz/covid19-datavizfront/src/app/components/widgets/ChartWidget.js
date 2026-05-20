@@ -20,7 +20,7 @@ const ChartWidget = ({ country = null, dateString = null, theme = 'light' }) => 
 
   const isDark   = theme === 'dark';
   const titleCol = isDark ? '#94a3b8' : '#333';
-  const labelCol = isDark ? '#6c5ce7' : '#6c5ce7'; // pareil dans les deux cas
+  const labelCol = isDark ? '#6c5ce7' : '#6c5ce7';
 
   return (
     <div style={{ height: '100%', minHeight: 200, display: 'flex', flexDirection: 'column' }}>

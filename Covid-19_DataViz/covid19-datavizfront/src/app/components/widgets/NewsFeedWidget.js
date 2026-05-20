@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 
-// ─── Milestones filtrés par pays ──────────────────────────────────────────────
 const ALL_MILESTONES = [
-  // Global
   { date: '2019-12-31', title: 'WHO informed of pneumonia cluster of unknown cause in Wuhan, China', source: 'WHO', country: 'global', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/situation-reports' },
   { date: '2020-01-22', title: 'First confirmed COVID-19 cases outside China', source: 'WHO', country: 'global', url: 'https://www.who.int/csr/don/17-january-2020-novel-coronavirus-japan-ex-china/en/' },
   { date: '2020-03-11', title: 'WHO officially characterises COVID-19 as a pandemic', source: 'WHO', country: 'global', url: 'https://www.who.int/director-general/speeches/detail/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---11-march-2020' },
@@ -12,7 +10,6 @@ const ALL_MILESTONES = [
   { date: '2022-07-01', title: 'BA.5 Omicron subvariant drives new global wave', source: 'Nature', country: 'global', url: 'https://www.nature.com/articles/d41586-022-01882-3' },
   { date: '2023-03-09', title: 'WHO declares COVID-19 no longer a global health emergency', source: 'WHO', country: 'global', url: 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019' },
 
-  // France
   { date: '2020-01-24', title: 'France confirms first COVID-19 cases in Europe', source: 'Santé Publique France', country: 'france', url: 'https://www.santepubliquefrance.fr/dossiers/coronavirus-covid-19' },
   { date: '2020-03-17', title: 'France enters strict national lockdown (confinement)', source: 'Gouvernement.fr', country: 'france', url: 'https://www.gouvernement.fr/info-coronavirus' },
   { date: '2020-05-11', title: 'France begins phased deconfinement', source: 'Gouvernement.fr', country: 'france', url: 'https://www.gouvernement.fr/info-coronavirus' },
@@ -24,7 +21,6 @@ const ALL_MILESTONES = [
   { date: '2022-03-14', title: 'France lifts all COVID restrictions including mask mandates', source: 'Gouvernement.fr', country: 'france', url: 'https://www.gouvernement.fr/info-coronavirus' },
   { date: '2023-01-20', title: 'France ends free COVID testing for unvaccinated', source: 'Assurance Maladie', country: 'france', url: 'https://www.ameli.fr/assure/covid-19' },
 
-  // USA
   { date: '2020-01-21', title: 'First confirmed COVID-19 case in the United States (Washington State)', source: 'CDC', country: 'usa', url: 'https://www.cdc.gov/museum/timeline/covid19.html' },
   { date: '2020-03-13', title: 'US declares COVID-19 a national emergency', source: 'White House', country: 'usa', url: 'https://www.cdc.gov/museum/timeline/covid19.html' },
   { date: '2020-04-10', title: 'US surpasses 500,000 confirmed COVID-19 cases', source: 'CDC', country: 'usa', url: 'https://www.cdc.gov/museum/timeline/covid19.html' },
@@ -47,18 +43,10 @@ const getCountryKey = (country) => {
 
 const getMilestones = (country) => {
   const key = getCountryKey(country);
-  // Pour global : tous les milestones; pour pays : milestones du pays + quelques globaux
   if (key === 'global') return ALL_MILESTONES.filter(m => m.country === 'global');
   return ALL_MILESTONES.filter(m => m.country === key || m.country === 'global');
 };
 
-/**
- * NewsFeedWidget — paramétrable par pays
- * Props:
- *   dateObj       — Date object (controlled by timeline)
- *   currentDateStr — string display
- *   country       — 'France' | 'US' | null (global)
- */
 const NewsFeedWidget = ({ dateObj = null, currentDateStr = 'Mar 9, 2023', country = null }) => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading]   = useState(false);
@@ -72,7 +60,6 @@ const NewsFeedWidget = ({ dateObj = null, currentDateStr = 'Mar 9, 2023', countr
     return dateObj.toISOString().split('T')[0];
   }, [dateObj]);
 
-  // Clé unique date+pays pour éviter les refetch inutiles
   const fetchKey = `${isoDate}|${country || 'global'}`;
 
   const countryFlag = useMemo(() => {
@@ -112,7 +99,6 @@ const NewsFeedWidget = ({ dateObj = null, currentDateStr = 'Mar 9, 2023', countr
     const fromStr = from.toISOString().split('T')[0];
     const toStr   = to.toISOString().split('T')[0];
 
-    // Ajoute le pays dans la query si applicable
     const countryKey = getCountryKey(country);
     const countryQ   = countryKey === 'france' ? '&q=covid+france' : countryKey === 'usa' ? '&q=covid+usa' : '';
 
@@ -142,13 +128,12 @@ const NewsFeedWidget = ({ dateObj = null, currentDateStr = 'Mar 9, 2023', countr
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => fetchNews(isoDate), 150);
     return () => clearTimeout(debounceRef.current);
-  }, [isoDate, country]); // re-fetch si le pays change aussi
+  }, [isoDate, country]);
 
   useEffect(() => {
     if (!isoDate && !hasFetched.current) loadFallback(null);
   }, []);
 
-  // Si le pays change alors qu'on a déjà des articles, recharger
   useEffect(() => {
     lastFetchKey.current = null;
     hasFetched.current   = false;
@@ -164,7 +149,6 @@ const NewsFeedWidget = ({ dateObj = null, currentDateStr = 'Mar 9, 2023', countr
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <style>{`@keyframes nd-spin{to{transform:rotate(360deg)}}`}</style>
 
-      {/* Subheader — pays + source */}
       <div style={{ padding: '4px 12px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
         <span style={{ fontSize: 10, fontWeight: 700, color: '#6c5ce7' }}>
           {countryFlag} {countryLabel}
@@ -177,7 +161,6 @@ const NewsFeedWidget = ({ dateObj = null, currentDateStr = 'Mar 9, 2023', countr
         )}
       </div>
 
-      {/* Articles */}
       <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
         {!loading && articles.length === 0 && (
           <div style={{ color: '#999', textAlign: 'center', padding: 20, fontSize: 12 }}>No news for this period</div>

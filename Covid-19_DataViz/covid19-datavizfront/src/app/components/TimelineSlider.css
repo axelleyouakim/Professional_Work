@@ -79,7 +79,6 @@
   transform: translateY(0);
 }
 
-/* ── Slider wrapper — PAS de position relative, PAS de div progress ── */
 .timeline-slider-wrapper {
   margin-bottom: 6px;
 }
@@ -100,7 +99,6 @@
   text-overflow: ellipsis;
 }
 
-/* ── Slider input — background gradient mis à jour via style inline JS ── */
 .timeline-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -110,10 +108,8 @@
   outline: none;
   cursor: pointer;
   display: block;
-  /* background défini inline dans le JSX pour suivre la valeur */
 }
 
-/* Webkit — thumb centré sur la track */
 .timeline-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
@@ -130,7 +126,6 @@
   border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(255, 70, 70, 0.6);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  /* margin-top centre le thumb (14px) sur la track (4px) : -(14-4)/2 = -5px */
   margin-top: -5px;
 }
 
@@ -143,7 +138,6 @@
   transform: scale(1.05);
 }
 
-/* Firefox */
 .timeline-slider::-moz-range-track {
   height: 4px;
   border-radius: 2px;
@@ -183,7 +177,6 @@
   letter-spacing: 0.2px;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .timeline-slider-container { padding: 6px 10px; }
   .timeline-label { font-size: 8px; }

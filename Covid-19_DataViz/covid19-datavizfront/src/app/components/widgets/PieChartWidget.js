@@ -13,10 +13,7 @@ const fmtForce = (n) => {
 
 const FLAG = { France: '🇫🇷', USA: '🇺🇸', China: '🇨🇳', Spain: '🇪🇸' };
 
-/**
- * PieChartWidget — paramétrable
- * Props: country ('France' | 'USA' | 'China' | 'Spain')
- */
+
 const PieChartWidget = ({ country = 'USA' }) => {
   const fourCountries = useFourCountriesStats();
   const data = useCountryForPie(country, fourCountries.data);

@@ -69,7 +69,6 @@ const ComparisonWidget = ({ defaultCountries = ['US','France','China','Spain','B
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 4, height: '100%' }}>
 
-      {/* Search input */}
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <input
           type="text"
@@ -100,7 +99,6 @@ const ComparisonWidget = ({ defaultCountries = ['US','France','China','Spain','B
         )}
       </div>
 
-      {/* Country tags */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flexShrink: 0 }}>
         {selectedCountries.map((c, i) => (
           <div key={c} style={{
@@ -115,7 +113,6 @@ const ComparisonWidget = ({ defaultCountries = ['US','France','China','Spain','B
         ))}
       </div>
 
-      {/* Table */}
       <div style={{ overflowX: 'auto', flex: 1, minHeight: 0 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, background: 'transparent' }}>
           <thead>
