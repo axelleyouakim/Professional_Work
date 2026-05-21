@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUSAStates, useFranceRegions } from '../hooks/useDiseaseData';
 
 const fmtNum = (n) => {
@@ -227,6 +227,11 @@ const FranceHeatmap = () => {
 
 const RegionalHeatmap = ({ defaultCountry = 'USA' }) => {
   const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
+
+  useEffect(() => {
+    setSelectedCountry(defaultCountry);
+  }, [defaultCountry]);
+
   return (
     <div style={{ padding:'8px 12px 12px' }}>
       <div style={{ display:'flex', gap:6, marginBottom:12 }}>

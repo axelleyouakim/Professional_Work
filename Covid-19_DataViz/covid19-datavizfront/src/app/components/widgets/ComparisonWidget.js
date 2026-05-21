@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { usePreCalculatedData } from '../../hooks/usePreCalculatedData';
 
 const fmtForce = (n) => {
@@ -17,6 +17,13 @@ const ComparisonWidget = ({ defaultCountries = ['US','France','China','Spain','B
   const [selectedCountries, setSelectedCountries] = useState(defaultCountries);
   const [search, setSearch]               = useState('');
   const [searchResults, setSearchResults] = useState([]);
+
+  useEffect(() => {
+    const incoming = typeof defaultCountries === 'string'
+      ? defaultCountries.split(',').map(s => s.trim()).filter(Boolean)
+      : defaultCountries;
+    setSelectedCountries(incoming);
+  }, [JSON.stringify(defaultCountries)]);
 
   const allCountries = useMemo(() => {
     if (!preCalculatedIndex?.isReady) return [];
